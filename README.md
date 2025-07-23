@@ -1,5 +1,29 @@
 # 书签管理器（Chrome 插件）
 
+<p align="left">
+  <a href="https://github.com/yongtaozheng/bookmarks-manage/stargazers" target="_blank">
+    <img src="https://img.shields.io/github/stars/yongtaozheng/bookmarks-manage?style=social" alt="GitHub stars" />
+  </a>
+  <a href="https://github.com/yongtaozheng/bookmarks-manage/fork" target="_blank">
+    <img src="https://img.shields.io/github/forks/yongtaozheng/bookmarks-manage?style=social" alt="GitHub forks" />
+  </a>
+  <a href="https://github.com/yongtaozheng/bookmarks-manage/issues" target="_blank">
+    <img src="https://img.shields.io/github/issues/yongtaozheng/bookmarks-manage" alt="GitHub issues" />
+  </a>
+  <a href="https://github.com/yongtaozheng/bookmarks-manage/blob/main/LICENSE" target="_blank">
+    <img src="https://img.shields.io/github/license/yongtaozheng/bookmarks-manage" alt="License" />
+  </a>
+  <a href="https://gitee.com/zheng_yongtao/bookmarks-manage/stargazers" target="_blank">
+    <img src="https://gitee.com/zheng_yongtao/bookmarks-manage/badge/star.svg?theme=gvp" alt="Gitee stars" />
+  </a>
+  <a href="https://gitee.com/zheng_yongtao/bookmarks-manage/members" target="_blank">
+    <img src="https://gitee.com/zheng_yongtao/bookmarks-manage/badge/fork.svg?theme=gvp" alt="Gitee forks" />
+  </a>
+  <img src="https://img.shields.io/badge/Vue-3.x-brightgreen" alt="Vue 3" />
+  <img src="https://img.shields.io/badge/TypeScript-4.x-blue" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Vite-4.x-ff69b4" alt="Vite" />
+</p>
+
 一个基于 Vue 3 + TypeScript + Vite 的现代浏览器书签管理器插件，支持本地书签树管理、Gitee 云同步、智能搜索、批量操作等功能。
 
 ## 功能特性
