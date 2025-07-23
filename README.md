@@ -40,7 +40,7 @@
 ### 克隆项目
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/yongtaozheng/bookmarks-manage.git
 cd bookmarks-plus
 ```
 

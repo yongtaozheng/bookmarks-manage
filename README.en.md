@@ -1,20 +1,30 @@
-# Bookmarks Plus (Chrome Extension)
+# Bookmarks Manager (Chrome Extension)
+
+<p align="left">
+  <a href="https://github.com/yongtaozheng/bookmarks-manage/stargazers" target="_blank">
+    <img src="https://img.shields.io/github/stars/yongtaozheng/bookmarks-manage?style=social" alt="GitHub stars" />
+  </a>
+  <a href="https://github.com/yongtaozheng/bookmarks-manage/fork" target="_blank">
+    <img src="https://img.shields.io/github/forks/yongtaozheng/bookmarks-manage?style=social" alt="GitHub forks" />
+  </a>
+  <a href="https://github.com/yongtaozheng/bookmarks-manage/issues" target="_blank">
+    <img src="https://img.shields.io/github/issues/yongtaozheng/bookmarks-manage" alt="GitHub issues" />
+  </a>
+  <a href="https://github.com/yongtaozheng/bookmarks-manage/blob/main/LICENSE" target="_blank">
+    <img src="https://img.shields.io/github/license/yongtaozheng/bookmarks-manage" alt="License" />
+  </a>
+  <a href="https://gitee.com/zheng_yongtao/bookmarks-manage/stargazers" target="_blank">
+    <img src="https://gitee.com/zheng_yongtao/bookmarks-manage/badge/star.svg?theme=gvp" alt="Gitee stars" />
+  </a>
+  <a href="https://gitee.com/zheng_yongtao/bookmarks-manage/members" target="_blank">
+    <img src="https://gitee.com/zheng_yongtao/bookmarks-manage/badge/fork.svg?theme=gvp" alt="Gitee forks" />
+  </a>
+  <img src="https://img.shields.io/badge/Vue-3.x-brightgreen" alt="Vue 3" />
+  <img src="https://img.shields.io/badge/TypeScript-4.x-blue" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Vite-4.x-ff69b4" alt="Vite" />
+</p>
 
 A modern Chrome bookmarks manager extension built with Vue 3, TypeScript, and Vite. Features local bookmark tree management, Gitee cloud sync, smart search, batch operations, and more.
-
-[![License](https://img.shields.io/github/license/yongtaozheng/bookmarks-manage)](LICENSE)
-[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/your-extension-id?label=Chrome%20Web%20Store)](https://chrome.google.com/webstore/detail/your-extension-id)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/yongtaozheng/bookmarks-manage/ci.yml?branch=main)](https://github.com/yongtaozheng/bookmarks-manage/actions)
-
----
-
-## Screenshots
-
-![Popup Main](./screenshots/popup-main.png)
-![Gitee Config](./screenshots/popup-gitee.png)
-![Global Search](./screenshots/search-demo.png)
-
----
 
 ## Features
 
@@ -28,7 +38,7 @@ A modern Chrome bookmarks manager extension built with Vue 3, TypeScript, and Vi
 ## Getting Started
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/yongtaozheng/bookmarks-manage.git
 cd bookmarks-plus
 npm install
 npm run dev
