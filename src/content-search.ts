@@ -93,7 +93,8 @@ function showSearchBox() {
 
   inputEl.addEventListener('compositionstart', () => { isComposing = true; });
   inputEl.addEventListener('compositionend', () => { isComposing = false; });
-  inputEl.addEventListener('input', onInput);
+  // inputEl.addEventListener('input', onInput); // 替换为异步
+  inputEl.addEventListener('input', () => { (window as any).onInputAsync && (window as any).onInputAsync(); });
   inputEl.addEventListener('keydown', onInputKeydown);
   document.addEventListener('mousedown', onDocClick, true);
 
@@ -128,38 +129,83 @@ function removeSearchBox() {
   }
 }
 
-function onInput() {
+function getBookmarkUsageKey(bookmark: any): string {
+  // 以 url 作为 key，若无 url 则用 id
+  return bookmark.url || bookmark.id;
+}
+async function getUsageData(): Promise<Record<string, { count: number; last: number }>> {
+  return new Promise((resolve) => {
+    if (chrome && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.get(['bookmark_usage'], (result: any) => {
+        try {
+          resolve(result.bookmark_usage ? JSON.parse(result.bookmark_usage) : {});
+        } catch {
+          resolve({});
+        }
+      });
+    } else {
+      resolve({});
+    }
+  });
+}
+async function setUsageData(data: Record<string, { count: number; last: number }>): Promise<void> {
+  return new Promise((resolve) => {
+    if (chrome && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.set({ bookmark_usage: JSON.stringify(data) }, () => resolve());
+    } else {
+      resolve();
+    }
+  });
+}
+async function recordBookmarkUsage(bookmark: any): Promise<void> {
+  const key = getBookmarkUsageKey(bookmark);
+  const usage = await getUsageData();
+  if (!usage[key]) usage[key] = { count: 0, last: 0 };
+  usage[key].count += 1;
+  usage[key].last = Date.now();
+  await setUsageData(usage);
+}
+
+async function onInput() {
   const val = inputEl!.value.trim().toLowerCase();
   if (!val) {
     renderResults([]);
     return;
   }
   // 匹配所有文件夹
-  const folderMatches = allBookmarks.filter(b => b.type === 'folder' && b.title && b.title.toLowerCase().includes(val));
+  const folderMatches = allBookmarks.filter((b: any) => b.type === 'folder' && b.title && b.title.toLowerCase().includes(val));
   if (folderMatches.length > 0) {
     // 合并所有匹配文件夹下的所有书签（递归）
     const folderBookmarks: any[] = [];
-    function collectBookmarks(nodes: any[]) {
-      nodes.forEach(n => {
+    function collectBookmarks(nodes: any[]): void {
+      nodes.forEach((n: any) => {
         if (n.url) folderBookmarks.push(n);
         if (n.children) collectBookmarks(n.children);
       });
     }
-    folderMatches.forEach(folder => collectBookmarks(folder.children || []));
-    results = folderBookmarks; // 不截断，全部展示
+    folderMatches.forEach((folder: any) => collectBookmarks(folder.children || []));
+    results = folderBookmarks;
     selectedIdx = results.length ? 0 : -1;
     renderResults(results);
     return;
   }
-  // 模糊匹配并排序（书签）
+  // 模糊匹配并排序（书签）+ 最近最常用加权
+  const usage = await getUsageData();
   const scored = allBookmarks
-    .filter(b => b.type === 'bookmark')
-    .map(b => ({
-      ...b,
-      score: fuzzyScore(val, b.title || '', b.url || '')
-    }))
-    .filter(b => b.score > 0)
-    .sort((a, b) => b.score - a.score)
+    .filter((b: any) => b.type === 'bookmark')
+    .map((b: any) => {
+      const score = fuzzyScore(val, b.title || '', b.url || '');
+      const key = getBookmarkUsageKey(b);
+      const u = usage[key] || { count: 0, last: 0 };
+      return { ...b, score, usageCount: u.count, lastUsed: u.last };
+    })
+    .filter((b: any) => b.score > 0)
+    .sort((a: any, b: any) => {
+      // 先按最近使用时间，再按使用次数，再按 fuzzyScore
+      if (b.lastUsed !== a.lastUsed) return b.lastUsed - a.lastUsed;
+      if (b.usageCount !== a.usageCount) return b.usageCount - a.usageCount;
+      return b.score - a.score;
+    })
     .slice(0, 5);
   results = scored;
   selectedIdx = results.length ? 0 : -1;
@@ -234,14 +280,17 @@ function onInputKeydown(e: KeyboardEvent) {
   } else if (e.key === 'Enter') {
     e.preventDefault();
     if (selectedIdx >= 0 && selectedIdx < results.length) {
-      jumpTo(selectedIdx);
+      // jumpTo(selectedIdx);
+      (async () => { await jumpTo(selectedIdx); })();
     }
   }
 }
 
-function jumpTo(idx: number) {
-  const url = results[idx]?.url;
+async function jumpTo(idx: number) {
+  const bookmark: any = results[idx];
+  const url = bookmark?.url;
   if (url) {
+    await recordBookmarkUsage(bookmark);
     window.open(url, '_blank');
     removeSearchBox();
   }
@@ -251,4 +300,9 @@ function onDocClick(e: MouseEvent) {
   if (searchBox && !searchBox.contains(e.target as Node)) {
     removeSearchBox();
   }
+}
+
+// 挂载异步 onInput
+if (typeof window !== 'undefined') {
+  (window as any).onInputAsync = onInput;
 } 
