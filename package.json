@@ -1,7 +1,14 @@
 {
-  "name": "vite-project",
+  "name": "bookmarks-manage",
   "private": true,
   "version": "0.0.0",
+  "description": "现代浏览器书签管理器插件，基于 Vue 3 + TypeScript + Vite，支持本地书签树管理、Gitee 云同步、智能搜索、批量操作等功能。",
+  "author": "JYeontu <jyeontu@163.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yongtaozheng/bookmarks-manage",
+    "gitee": "https://gitee.com/zheng_yongtao/bookmarks-manage"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
