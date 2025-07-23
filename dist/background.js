@@ -1,0 +1,1 @@
+console.log("background loaded",chrome.bookmarks);chrome.runtime.onMessage.addListener((o,k,e)=>{if(o&&o.type==="getAllBookmarks")return console.log("getAllBookmarks called",chrome.bookmarks),chrome.bookmarks.getTree(r=>{e({tree:r})}),!0});

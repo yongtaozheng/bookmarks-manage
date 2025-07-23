@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "书签管理器",
+  "version": "1.0.0",
+  "description": "一个用于管理浏览器书签的插件",
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.jpg"
+  },
+  "icons": {
+    "16": "icon.jpg",
+    "48": "icon.jpg",
+    "128": "icon.jpg"
+  },
+  "permissions": [
+    "bookmarks",
+    "activeTab",
+    "tabs"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content-search.js"],
+      "run_at": "document_end"
+    }
+  ]
+} 

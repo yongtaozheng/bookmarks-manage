@@ -1,0 +1,254 @@
+declare const chrome: any;
+
+let cmdCount = 0;
+let lastCmdTime = 0;
+let searchBox: HTMLDivElement | null = null;
+let inputEl: HTMLInputElement | null = null;
+let resultList: HTMLUListElement | null = null;
+let results: any[] = [];
+let selectedIdx = -1;
+let allBookmarks: any[] = [];
+let isComposing = false;
+
+async function fetchAllBookmarks() {
+  return new Promise<any[]>(resolve => {
+    chrome.runtime.sendMessage({ type: 'getAllBookmarks' }, (res: any) => {
+      resolve(res?.tree || []);
+    });
+  });
+}
+
+// 监听 command 连续按下（兼容 Mac/Win，capture: true）
+window.addEventListener('keydown', (e) => {
+  if ((e.key === 'Meta' || e.key === 'OS') && !e.repeat) {
+    const now = Date.now();
+    if (now - lastCmdTime < 800) {
+      cmdCount++;
+    } else {
+      cmdCount = 1;
+    }
+    lastCmdTime = now;
+    if (cmdCount === 3) {
+      e.preventDefault();
+      showSearchBox();
+      cmdCount = 0;
+    }
+  } else if (e.key === 'Escape' && searchBox) {
+    removeSearchBox();
+  }
+}, true);
+
+function showSearchBox() {
+  if (searchBox) return;
+  searchBox = document.createElement('div');
+  searchBox.style.position = 'fixed';
+  searchBox.style.top = '0';
+  searchBox.style.left = '50%';
+  searchBox.style.transform = 'translateX(-50%)';
+  searchBox.style.zIndex = '999999';
+  searchBox.style.background = 'transparent';
+  searchBox.style.width = '100vw';
+  searchBox.style.display = 'flex';
+  searchBox.style.flexDirection = 'column';
+  searchBox.style.alignItems = 'center';
+  searchBox.style.pointerEvents = 'none';
+
+  inputEl = document.createElement('input');
+  inputEl.type = 'text';
+  inputEl.placeholder = '搜索书签...';
+  inputEl.style.fontSize = '1.2em';
+  inputEl.style.padding = '0.5em 1em';
+  inputEl.style.border = '1.5px solid #42b983';
+  inputEl.style.borderRadius = '6px';
+  inputEl.style.outline = 'none';
+  inputEl.style.marginTop = '1.5em';
+  inputEl.style.background = '#fff';
+  inputEl.style.width = '420px';
+  inputEl.style.maxWidth = '90vw';
+  inputEl.style.boxShadow = '0 2px 16px 0 rgba(60,60,60,0.18)';
+  inputEl.style.pointerEvents = 'auto';
+
+  resultList = document.createElement('ul');
+  resultList.style.position = 'absolute';
+  resultList.style.top = 'calc(1.5em + 2.6em)';
+  resultList.style.left = '50%';
+  resultList.style.transform = 'translateX(-50%)';
+  resultList.style.listStyle = 'none';
+  resultList.style.margin = '0';
+  resultList.style.padding = '0';
+  resultList.style.width = '420px';
+  resultList.style.maxWidth = '90vw';
+  resultList.style.maxHeight = '260px';
+  resultList.style.overflowY = 'auto';
+  resultList.style.overflowX = 'hidden'; // 禁止横向滚动
+  resultList.style.background = '#fff';
+  resultList.style.borderRadius = '6px';
+  resultList.style.boxShadow = '0 1px 8px 0 rgba(60,60,60,0.08)';
+  resultList.style.pointerEvents = 'auto';
+
+  searchBox.appendChild(inputEl);
+  searchBox.appendChild(resultList);
+  document.body.appendChild(searchBox);
+  inputEl.focus();
+
+  inputEl.addEventListener('compositionstart', () => { isComposing = true; });
+  inputEl.addEventListener('compositionend', () => { isComposing = false; });
+  inputEl.addEventListener('input', onInput);
+  inputEl.addEventListener('keydown', onInputKeydown);
+  document.addEventListener('mousedown', onDocClick, true);
+
+  // 预加载所有书签
+  if (!allBookmarks.length) {
+    fetchAllBookmarks().then((tree) => {
+      allBookmarks = [];
+      function flat(nodes: any[], parent?: any) {
+        nodes.forEach(n => {
+          if (n.url) {
+            allBookmarks.push({ ...n, type: 'bookmark', parent });
+          } else if (n.children) {
+            allBookmarks.push({ ...n, type: 'folder', parent });
+            flat(n.children, n);
+          }
+        });
+      }
+      flat(tree);
+    });
+  }
+}
+
+function removeSearchBox() {
+  if (searchBox) {
+    searchBox.remove();
+    searchBox = null;
+    inputEl = null;
+    resultList = null;
+    results = [];
+    selectedIdx = -1;
+    document.removeEventListener('mousedown', onDocClick, true);
+  }
+}
+
+function onInput() {
+  const val = inputEl!.value.trim().toLowerCase();
+  if (!val) {
+    renderResults([]);
+    return;
+  }
+  // 匹配所有文件夹
+  const folderMatches = allBookmarks.filter(b => b.type === 'folder' && b.title && b.title.toLowerCase().includes(val));
+  if (folderMatches.length > 0) {
+    // 合并所有匹配文件夹下的所有书签（递归）
+    const folderBookmarks: any[] = [];
+    function collectBookmarks(nodes: any[]) {
+      nodes.forEach(n => {
+        if (n.url) folderBookmarks.push(n);
+        if (n.children) collectBookmarks(n.children);
+      });
+    }
+    folderMatches.forEach(folder => collectBookmarks(folder.children || []));
+    results = folderBookmarks; // 不截断，全部展示
+    selectedIdx = results.length ? 0 : -1;
+    renderResults(results);
+    return;
+  }
+  // 模糊匹配并排序（书签）
+  const scored = allBookmarks
+    .filter(b => b.type === 'bookmark')
+    .map(b => ({
+      ...b,
+      score: fuzzyScore(val, b.title || '', b.url || '')
+    }))
+    .filter(b => b.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+  results = scored;
+  selectedIdx = results.length ? 0 : -1;
+  renderResults(results);
+}
+
+function fuzzyScore(q: string, title: string, url: string) {
+  title = title.toLowerCase();
+  url = url.toLowerCase();
+  if (title.includes(q)) return 100 + (100 - title.indexOf(q));
+  if (url.includes(q)) return 80 + (100 - url.indexOf(q));
+  // 首字母匹配
+  if (title.replace(/\s/g, '').startsWith(q.replace(/\s/g, ''))) return 60;
+  // 简单子序列匹配
+  let t = 0, i = 0;
+  for (let c of q) {
+    i = title.indexOf(c, i);
+    if (i === -1) return 0;
+    t++;
+    i++;
+  }
+  return t > 0 ? 30 + t : 0;
+}
+
+function renderResults(list: any[], folderTitle?: string) {
+  if (!resultList) return;
+  resultList.innerHTML = '';
+  // 显示所有匹配项
+  list.forEach((item, idx) => {
+    const li = document.createElement('li');
+    li.textContent = item.title + (item.url ? ` (${item.url})` : '');
+    li.style.padding = '0.4em 0.8em';
+    li.style.cursor = 'pointer';
+    li.style.background = idx === selectedIdx ? '#e3eefa' : '#fff';
+    li.style.color = idx === selectedIdx ? '#1976d2' : '#333';
+    li.style.fontSize = '0.98em';
+    li.style.overflow = 'hidden';
+    li.style.textOverflow = 'ellipsis';
+    li.style.display = '-webkit-box';
+    li.style.webkitBoxOrient = 'vertical';
+    li.style.webkitLineClamp = '5'; // 最多五行
+    li.style.maxHeight = '7em'; // 控制五行高度
+    li.style.wordBreak = 'break-all';
+    li.onmouseenter = () => {
+      selectedIdx = idx;
+      renderResults(list, folderTitle);
+    };
+    li.onmousedown = (e) => {
+      e.preventDefault();
+      jumpTo(idx);
+    };
+    resultList!.appendChild(li);
+  });
+  // 自动滚动选中项到视窗
+  if (selectedIdx >= 0 && resultList.children[selectedIdx + (folderTitle ? 1 : 0)]) {
+    const el = resultList.children[selectedIdx + (folderTitle ? 1 : 0)] as HTMLElement;
+    el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+}
+
+function onInputKeydown(e: KeyboardEvent) {
+  if (isComposing) return;
+  if (!results.length) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    selectedIdx = (selectedIdx + 1) % results.length;
+    renderResults(results);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    selectedIdx = (selectedIdx - 1 + results.length) % results.length;
+    renderResults(results);
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (selectedIdx >= 0 && selectedIdx < results.length) {
+      jumpTo(selectedIdx);
+    }
+  }
+}
+
+function jumpTo(idx: number) {
+  const url = results[idx]?.url;
+  if (url) {
+    window.open(url, '_blank');
+    removeSearchBox();
+  }
+}
+
+function onDocClick(e: MouseEvent) {
+  if (searchBox && !searchBox.contains(e.target as Node)) {
+    removeSearchBox();
+  }
+} 

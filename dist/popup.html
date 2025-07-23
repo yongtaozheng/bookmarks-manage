@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>书签管理器</title>
+    <style>
+      html, body { width: 600px !important; min-width: 600px !important; max-width: 600px !important; }
+      body { margin: 0; padding: 0; font-family: system-ui, sans-serif; background: #f6fafc; }
+      .open-tab-btn {
+        display: block;
+        width: 580px;
+        min-width: 580px;
+        max-width: 580px;
+        margin: 1em auto 0.5em auto;
+        padding: 0.5em 0;
+        background: #42b983;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        font-size: 1em;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .open-tab-btn:hover { background: #369870; }
+      .gitee-form {
+        width: 580px;
+        min-width: 580px;
+        max-width: 580px;
+        margin: 0.5em auto;
+        background: #f6fafc;
+        border-radius: 8px;
+        padding: 1em 1em 0.5em 1em;
+        box-sizing: border-box;
+        border: 1px solid #e0e0e0;
+      }
+      .gitee-form label {
+        display: block;
+        margin-bottom: 0.2em;
+        font-size: 0.98em;
+        color: #1976d2;
+      }
+      .gitee-form input {
+        width: 100%;
+        margin-bottom: 0.7em;
+        padding: 0.3em 0.6em;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 1em;
+      }
+      .gitee-form .msg {
+        color: #42b983;
+        font-size: 0.95em;
+        margin-bottom: 0.5em;
+      }
+      .sync-btns {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.7em;
+        margin: 1.2em auto 0.5em auto;
+        width: 580px;
+        justify-content: space-between;
+      }
+      .sync-btns button {
+        flex: 1 1 45%;
+        min-width: 120px;
+        max-width: 260px;
+        padding: 0.5em 0;
+        background: #1976d2;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        font-size: 1em;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .sync-btns button:hover { background: #1256a2; }
+      .popup-header {
+        width: 100%;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        position: relative;
+      }
+      .help-btn {
+        background: #1976d2;
+        color: #fff;
+        border: none;
+        border-radius: 50%;
+        width: 28px;
+        height: 28px;
+        font-size: 18px;
+        cursor: pointer;
+        margin: 10px 10px 0 0;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        transition: background 0.2s;
+      }
+      .help-btn:hover {
+        background: #1256a2;
+      }
+      .help-modal {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: fixed;
+        z-index: 9999;
+        left: 0;
+        top: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0,0,0,0.18);
+      }
+      .help-modal-content {
+        background: #fff;
+        border-radius: 10px;
+        padding: 1.5em 2em;
+        box-shadow: 0 2px 16px 0 rgba(60,60,60,0.12);
+        min-width: 260px;
+        max-width: 90vw;
+        position: relative;
+      }
+      .help-close {
+        position: absolute;
+        right: 12px;
+        top: 8px;
+        font-size: 22px;
+        color: #888;
+        cursor: pointer;
+      }
+      .help-close:hover {
+        color: #f44336;
+      }
+      .help-modal-content h3 {
+        margin-top: 0;
+        font-size: 1.2em;
+        color: #1976d2;
+      }
+      .help-modal-content ul {
+        padding-left: 1.2em;
+        margin: 0.5em 0 0 0;
+      }
+      .help-modal-content li {
+        margin-bottom: 0.5em;
+        font-size: 1em;
+      }
+    </style>
+    <script type="module" crossorigin src="/popup.js"></script>
+  </head>
+  <body>
+    <div class="popup-header">
+      <button class="help-btn" id="helpBtn" title="帮助">?</button>
+    </div>
+    <button class="open-tab-btn" id="openTabBtn">打开书签管理器</button>
+    <form class="gitee-form" id="giteeForm" autocomplete="off">
+      <div class="msg" id="giteeMsg"></div>
+      <label>Gitee Token
+        <input type="password" id="giteeToken" required placeholder="个人访问Token" />
+      </label>
+      <label>仓库所有者（owner）
+        <input type="text" id="giteeOwner" required placeholder="如: zheng_yongtao" />
+      </label>
+      <label>仓库名（repo）
+        <input type="text" id="giteeRepo" required placeholder="如: chrome-bookmarks-manage" />
+      </label>
+      <label>分支（branch）
+        <input type="text" id="giteeBranch" value="master" required placeholder="如: master" />
+      </label>
+      <label>文件路径（filePath）
+        <input type="text" id="giteeFilePath" value="bookmarks.json" required placeholder="如: bookmarks.json" />
+      </label>
+    </form>
+    <div class="sync-btns">
+      <button id="btnSaveOverwrite" type="button">覆盖保存</button>
+      <button id="btnSaveMerge" type="button">合并保存</button>
+      <button id="btnGetOverwrite" type="button">覆盖获取</button>
+      <button id="btnGetMerge" type="button">合并获取</button>
+    </div>
+    <div id="app"></div>
+    <div id="helpModal" class="help-modal" style="display:none;">
+      <div class="help-modal-content">
+        <span class="help-close" id="helpClose">&times;</span>
+        <h3>功能说明</h3>
+        <ul>
+          <li><b>覆盖保存：</b>将本地书签覆盖保存到gitee</li>
+          <li><b>合并保存：</b>将本地书签与gitee上的书签数据合并后保存到gitee</li>
+          <li><b>覆盖获取：</b>使用gitee上的书签数据来替换本地的书签数据</li>
+          <li><b>合并获取：</b>获取gitee上的书签数据并与本地书签数据合并后替换本地的书签数据</li>
+        </ul>
+        <h3>联系作者</h3>
+        <ul>
+          <li><b>微信公众号：</b>前端也能这么有趣</li>
+        </ul>
+      </div>
+    </div>
+  </body>
+</html> 
