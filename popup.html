@@ -165,8 +165,11 @@
       <label>分支（branch）
         <input type="text" id="giteeBranch" value="master" required placeholder="如: master" />
       </label>
-      <label>文件路径（filePath）
-        <input type="text" id="giteeFilePath" value="bookmarks.json" required placeholder="如: bookmarks.json" />
+      <label>书签目录（bookmarkDir）
+        <input type="text" id="bookmarkDir" required placeholder="如: bookmarks" value="bookmarks" style="width:100%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid #ccc;border-radius:4px;font-size:1em;" />
+      </label>
+      <label>书签文件
+        <select id="giteeFilePath" required style="width:100%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid #ccc;border-radius:4px;font-size:1em;"></select>
       </label>
     </form>
     <div class="sync-btns">

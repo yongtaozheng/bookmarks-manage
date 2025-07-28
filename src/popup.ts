@@ -256,6 +256,22 @@ document.addEventListener('DOMContentLoaded', () => {
       if (el && data[f]) el.value = data[f];
     });
   });
+  // 自动回填保存的 filePath 配置
+  getConfigFromDB(['giteeFilePath']).then((data) => {
+    const savedFile = data['giteeFilePath'];
+    if (savedFile) {
+      // 等待文件列表加载后再选中
+      const trySelect = () => {
+        const opt = Array.from(filePathSelect.options).find(o => o.value === savedFile);
+        if (opt) {
+          filePathSelect.value = savedFile;
+        } else {
+          setTimeout(trySelect, 100);
+        }
+      };
+      trySelect();
+    }
+  });
   // 输入框失焦和输入时自动保存
   fields.forEach(f => {
     const el = document.getElementById(f) as HTMLInputElement;
@@ -275,6 +291,128 @@ document.addEventListener('DOMContentLoaded', () => {
     el.addEventListener('blur', save);
     el.addEventListener('input', save);
   });
+
+  const tokenEl = document.getElementById('giteeToken') as HTMLInputElement;
+  const ownerEl = document.getElementById('giteeOwner') as HTMLInputElement;
+  const repoEl = document.getElementById('giteeRepo') as HTMLInputElement;
+  const branchSel = document.getElementById('giteeBranch') as HTMLSelectElement;
+  const filePathSelect = document.getElementById('giteeFilePath') as HTMLSelectElement;
+  const bookmarkDirInput = document.getElementById('bookmarkDir') as HTMLInputElement;
+  function fillSelectOptions(select: HTMLSelectElement, options: string[], placeholder = '请选择') {
+    select.innerHTML = '';
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = placeholder;
+    select.appendChild(opt);
+    options.forEach(v => {
+      const o = document.createElement('option');
+      o.value = v;
+      o.textContent = v.split('/').pop() || v;
+      select.appendChild(o);
+    });
+  }
+  async function fetchGiteeFiles(token: string, owner: string, repo: string, branch: string, dir: string): Promise<string[]> {
+    // dir 为空时获取根目录，否则获取指定目录下文件
+    let url = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents`;
+    if (dir) url += `/${encodeURIComponent(dir)}`;
+    url += `?ref=${branch}&access_token=${token}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('获取文件失败');
+    const data = await res.json();
+    return Array.isArray(data) ? data.filter((f: any) => f.type === 'file').map((f: any) => f.path) : [];
+  }
+  async function fetchGiteeBranches(token: string, owner: string, repo: string): Promise<string[]> {
+    const url = `https://gitee.com/api/v5/repos/${owner}/${repo}/branches?access_token=${token}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('获取分支失败');
+    const data = await res.json();
+    return data.map((b: any) => b.name);
+  }
+  async function updateFilePathOptions() {
+    const token = tokenEl.value.trim();
+    const owner = ownerEl.value.trim();
+    const repo = repoEl.value.trim();
+    const branch = branchSel.value;
+    const dir = bookmarkDirInput.value.trim();
+    if (!token || !owner || !repo || !branch || !dir) return;
+    fillSelectOptions(filePathSelect, [], '加载中...');
+    try {
+      const files = await fetchGiteeFiles(token, owner, repo, branch, dir);
+      // 过滤掉 .keep 文件
+      const filtered = files.filter((f: string) => !f.endsWith('.keep'));
+      fillSelectOptions(filePathSelect, filtered, '请选择文件');
+    } catch (e) {
+      fillSelectOptions(filePathSelect, [], '获取文件失败');
+    }
+  }
+  async function updateBranches() {
+    const token = tokenEl.value.trim();
+    const owner = ownerEl.value.trim();
+    const repo = repoEl.value.trim();
+    if (!token || !owner || !repo) return;
+    if (token === lastToken && owner === lastOwner && repo === lastRepo) return;
+    lastToken = token; lastOwner = owner; lastRepo = repo;
+    fillSelectOptions(branchSel, [], '加载中...');
+    try {
+      const branches = await fetchGiteeBranches(token, owner, repo);
+      fillSelectOptions(branchSel, branches, '请选择分支');
+      // 默认选中 master 分支
+      if (branches.includes('master')) {
+        branchSel.value = 'master';
+      } else if (branches.length > 0) {
+        branchSel.value = branches[0];
+      }
+      // 触发文件列表刷新
+      updateFilePathOptions();
+    } catch (e) {
+      fillSelectOptions(branchSel, [], '获取分支失败');
+      fillSelectOptions(filePathSelect, [], '请先选择分支');
+    }
+    fillSelectOptions(filePathSelect, [], '请先选择分支');
+  }
+  // 记录上次的值
+  let lastToken = '', lastOwner = '', lastRepo = '', lastBookmarkDir = '';
+  function hasConfigChanged() {
+    return tokenEl.value.trim() !== lastToken ||
+      ownerEl.value.trim() !== lastOwner ||
+      repoEl.value.trim() !== lastRepo ||
+      bookmarkDirInput.value.trim() !== lastBookmarkDir;
+  }
+  function updateLastConfig() {
+    lastToken = tokenEl.value.trim();
+    lastOwner = ownerEl.value.trim();
+    lastRepo = repoEl.value.trim();
+    lastBookmarkDir = bookmarkDirInput.value.trim();
+  }
+  // 失焦时仅在数据变化时才更新
+  tokenEl.addEventListener('blur', () => {
+    if (hasConfigChanged()) {
+      updateBranches();
+      updateLastConfig();
+    }
+  });
+  ownerEl.addEventListener('blur', () => {
+    if (hasConfigChanged()) {
+      updateBranches();
+      updateLastConfig();
+    }
+  });
+  repoEl.addEventListener('blur', () => {
+    if (hasConfigChanged()) {
+      updateBranches();
+      updateLastConfig();
+    }
+  });
+  bookmarkDirInput.addEventListener('blur', () => {
+    if (hasConfigChanged()) {
+      updateFilePathOptions();
+      updateLastConfig();
+    }
+  });
+  // 默认加载一次
+  setTimeout(() => {
+    updateFilePathOptions();
+  }, 300);
 
   document.getElementById('btnSaveOverwrite')!.onclick = async function() {
     try {
