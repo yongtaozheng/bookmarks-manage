@@ -467,6 +467,128 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  // 新增书签文件
+  document.getElementById('addBookmarkFile')!.onclick = async function() {
+    const fileName = prompt('请输入书签文件名（如：bookmarks.json）：');
+    if (!fileName) return;
+    
+    const token = tokenEl.value.trim();
+    const owner = ownerEl.value.trim();
+    const repo = repoEl.value.trim();
+    const branch = branchSel.value;
+    const dir = bookmarkDirInput.value.trim();
+    
+    if (!token || !owner || !repo || !branch || !dir) {
+      showMsg('请先填写完整的配置信息', true);
+      return;
+    }
+    
+    try {
+      const filePath = dir ? `${dir}/${fileName}` : fileName;
+      const content = JSON.stringify([], null, 2); // 空的书签数组
+      const encodedContent = btoa(unescape(encodeURIComponent(content)));
+      
+      const url = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeURIComponent(filePath)}?ref=${branch}&access_token=${token}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          access_token: token,
+          content: encodedContent,
+          message: `新增书签文件：${fileName}`,
+          branch: branch
+        })
+      });
+      
+      if (response.ok) {
+        showMsg(`新增书签文件成功：${fileName}`);
+        updateFilePathOptions(); // 刷新文件列表
+      } else {
+        showMsg('新增书签文件失败', true);
+      }
+    } catch (e: any) {
+      showMsg('新增书签文件失败：' + e.message, true);
+    }
+  };
+  
+  // 删除书签文件
+  document.getElementById('deleteBookmarkFile')!.onclick = async function() {
+    const selectedFile = filePathSelect.value;
+    if (!selectedFile) {
+      showMsg('请先选择要删除的书签文件', true);
+      return;
+    }
+    
+    if (!confirm(`确定要删除书签文件：${selectedFile.split('/').pop()} 吗？`)) {
+      return;
+    }
+    
+    const token = tokenEl.value.trim();
+    const owner = ownerEl.value.trim();
+    const repo = repoEl.value.trim();
+    const branch = branchSel.value;
+    
+    if (!token || !owner || !repo || !branch) {
+      showMsg('请先填写完整的配置信息', true);
+      return;
+    }
+    
+    try {
+      // 先获取文件信息（需要 sha）
+      const getUrl = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeURIComponent(selectedFile)}?ref=${branch}&access_token=${token}`;
+      const getResponse = await fetch(getUrl);
+      if (!getResponse.ok) {
+        showMsg('获取文件信息失败', true);
+        return;
+      }
+      const fileInfo = await getResponse.json();
+      
+      // 删除文件
+      const deleteUrl = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeURIComponent(selectedFile)}?ref=${branch}&access_token=${token}`;
+      const deleteResponse = await fetch(deleteUrl, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          access_token: token,
+          message: `删除书签文件：${selectedFile.split('/').pop()}`,
+          sha: fileInfo.sha,
+          branch: branch
+        })
+      });
+      
+      if (deleteResponse.ok) {
+        showMsg(`删除书签文件成功：${selectedFile.split('/').pop()}`);
+        updateFilePathOptions(); // 刷新文件列表
+      } else {
+        showMsg('删除书签文件失败', true);
+      }
+    } catch (e: any) {
+      showMsg('删除书签文件失败：' + e.message, true);
+    }
+  };
+
+  // 打开Gitee仓库
+  document.getElementById('openGiteeRepo')!.onclick = function() {
+    const owner = ownerEl.value.trim();
+    const repo = repoEl.value.trim();
+    const branch = branchSel.value;
+    const file = filePathSelect.value;
+    
+    if (!owner || !repo) {
+      showMsg('请先填写仓库所有者(owner)和仓库名(repo)', true);
+      return;
+    }
+    
+    if (!file) {
+      showMsg('请先选择书签文件', true);
+      return;
+    }
+    
+    let url = `https://gitee.com/${owner}/${repo}/blob/${branch}/${file}`;
+    
+    window.open(url, '_blank');
+  };
+
   // 保持原有 openTabBtn 逻辑
   const openTabBtn = document.getElementById('openTabBtn');
   if (openTabBtn) {

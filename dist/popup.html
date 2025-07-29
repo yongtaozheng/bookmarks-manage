@@ -172,6 +172,11 @@
       <label>书签文件
         <select id="giteeFilePath" required style="width:100%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid #ccc;border-radius:4px;font-size:1em;"></select>
       </label>
+      <div style="display:flex;gap:0.5em;margin-bottom:0.7em;">
+        <button type="button" id="addBookmarkFile" style="flex:1;padding:0.3em 0.6em;background:#42b983;color:#fff;border:none;border-radius:4px;font-size:0.9em;cursor:pointer;">新增书签文件</button>
+        <button type="button" id="deleteBookmarkFile" style="flex:1;padding:0.3em 0.6em;background:#f44336;color:#fff;border:none;border-radius:4px;font-size:0.9em;cursor:pointer;">删除书签文件</button>
+      </div>
+      <button type="button" id="openGiteeRepo" style="width:100%;padding:0.3em 0.6em;background:#1976d2;color:#fff;border:none;border-radius:4px;font-size:0.9em;cursor:pointer;margin-bottom:0.7em;">打开Gitee仓库</button>
     </form>
     <div class="sync-btns">
       <button id="btnSaveOverwrite" type="button">覆盖保存</button>
