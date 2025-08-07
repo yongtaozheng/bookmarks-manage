@@ -20,7 +20,8 @@ async function fetchAllBookmarks() {
 
 // 监听 command 连续按下（兼容 Mac/Win，capture: true）
 window.addEventListener('keydown', (e) => {
-  if ((e.key === 'Meta' || e.key === 'OS') && !e.repeat) {
+  if ((e.key === 'Meta' || e.key === 'OS' || e.key === 'Control') && !e.repeat) {
+
     const now = Date.now();
     if (now - lastCmdTime < 800) {
       cmdCount++;
@@ -63,20 +64,22 @@ function showSearchBox() {
   inputEl.style.outline = 'none';
   inputEl.style.marginTop = '1.5em';
   inputEl.style.background = '#fff';
-  inputEl.style.width = '420px';
+  inputEl.style.width = '50%';
   inputEl.style.maxWidth = '90vw';
+  inputEl.style.height = '3em';
+  inputEl.style.lineHeight = '3em';
   inputEl.style.boxShadow = '0 2px 16px 0 rgba(60,60,60,0.18)';
   inputEl.style.pointerEvents = 'auto';
 
   resultList = document.createElement('ul');
   resultList.style.position = 'absolute';
-  resultList.style.top = 'calc(1.5em + 2.6em)';
+  resultList.style.top = 'calc(1.5em + 3em)';
   resultList.style.left = '50%';
   resultList.style.transform = 'translateX(-50%)';
   resultList.style.listStyle = 'none';
   resultList.style.margin = '0';
   resultList.style.padding = '0';
-  resultList.style.width = '420px';
+  resultList.style.width = '50%';
   resultList.style.maxWidth = '90vw';
   resultList.style.maxHeight = '260px';
   resultList.style.overflowY = 'auto';
