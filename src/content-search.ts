@@ -326,7 +326,30 @@ async function jumpTo(idx: number) {
   const url = bookmark?.url;
   if (url) {
     await recordBookmarkUsage(bookmark);
-    window.open(url, '_blank');
+    // 如果是javascript脚本，直接执行
+    if (url.startsWith('javascript:')) {
+      try {
+        const script = url.substring(11); // 去掉 'javascript:' 前缀
+        eval(script);
+      } catch (e) {
+        console.warn('Failed to execute bookmark script:', e);
+      }
+    } else if (url.startsWith('data:')) {
+      // data:URL 尝试在新标签页打开，如果失败则提示用户
+      try {
+        const newWindow = window.open(url, '_blank');
+        if (!newWindow) {
+          // 如果弹窗被阻止，提示用户手动打开
+          alert('请手动打开书签：' + url);
+        }
+      } catch (e) {
+        console.warn('Failed to open data URL:', e);
+        alert('无法打开此类型的书签，请手动访问：' + url);
+      }
+    } else {
+      // 普通URL，打开新标签页
+      window.open(url, '_blank');
+    }
     removeSearchBox();
   }
 }
