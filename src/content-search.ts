@@ -22,30 +22,52 @@ async function fetchAllBookmarks() {
     return [];
   }
   return new Promise<any[]>(resolve => {
-    chrome.runtime.sendMessage({ type: 'getAllBookmarks' }, (res: any) => {
-      resolve(res?.tree || []);
-    });
+    try {
+      chrome.runtime.sendMessage({ type: 'getAllBookmarks' }, (res: any) => {
+        if (chrome.runtime.lastError) {
+          console.warn('Chrome runtime error:', chrome.runtime.lastError);
+          resolve([]);
+          return;
+        }
+        resolve(res?.tree || []);
+      });
+    } catch (error) {
+      console.warn('Error fetching bookmarks:', error);
+      resolve([]);
+    }
   });
 }
 
 // 监听 command 连续按下（兼容 Mac/Win，capture: true）
 window.addEventListener('keydown', (e) => {
-  if ((e.key === 'Meta' || e.key === 'OS' || e.key === 'Control') && !e.repeat) {
+  try {
+    if ((e.key === 'Meta' || e.key === 'OS') && !e.repeat) {
 
-    const now = Date.now();
-    if (now - lastCmdTime < 800) {
-      cmdCount++;
-    } else {
-      cmdCount = 1;
+      const now = Date.now();
+      if (now - lastCmdTime < 800) {
+        cmdCount++;
+      } else {
+        cmdCount = 1;
+      }
+      lastCmdTime = now;
+      if (cmdCount === 3) {
+        e.preventDefault();
+        showSearchBox();
+        cmdCount = 0;
+      }
+    } else if (e.key === 'Escape' && searchBox) {
+      removeSearchBox();
     }
-    lastCmdTime = now;
-    if (cmdCount === 3) {
+    // Alt+W 关闭当前tab
+    else if ((e.altKey && (e.key === 'w' || e.key === 'W')) && typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.remove) {
       e.preventDefault();
-      showSearchBox();
-      cmdCount = 0;
+      // 获取当前tabId并关闭
+      try {
+        chrome.runtime.sendMessage({ type: 'closeCurrentTab' });
+      } catch {}
     }
-  } else if (e.key === 'Escape' && searchBox) {
-    removeSearchBox();
+  } catch (error) {
+    console.warn('Error in keydown handler:', error);
   }
 }, true);
 

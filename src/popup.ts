@@ -1,5 +1,13 @@
 declare const chrome: any;
 
+// 检查chrome API是否可用
+function isChromeExtensionContext(): boolean {
+  return typeof chrome !== 'undefined' && 
+         chrome.runtime && 
+         chrome.runtime.sendMessage &&
+         chrome.bookmarks;
+}
+
 // == indexDB 工具 ==
 const DB_NAME = 'bookmarks-plus';
 const STORE_NAME = 'gitee-config';
@@ -245,6 +253,12 @@ function showMsg(text: string, isError = false) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  // 如果不是Chrome扩展环境，直接返回
+  if (!isChromeExtensionContext()) {
+    console.warn('Not in Chrome extension context');
+    return;
+  }
+  
   // Gitee 配置表单逻辑
   // const form = document.getElementById('giteeForm');
   const msg = document.getElementById('giteeMsg');
