@@ -472,6 +472,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const fileName = prompt('请输入书签文件名（如：bookmarks.json）：');
     if (!fileName) return;
     
+    // 如果文件名没有后缀，自动补全为.json
+    const finalFileName = fileName.includes('.') ? fileName : `${fileName}.json`;
+    
     const token = tokenEl.value.trim();
     const owner = ownerEl.value.trim();
     const repo = repoEl.value.trim();
@@ -484,7 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     try {
-      const filePath = dir ? `${dir}/${fileName}` : fileName;
+      const filePath = dir ? `${dir}/${finalFileName}` : finalFileName;
       const content = JSON.stringify([], null, 2); // 空的书签数组
       const encodedContent = btoa(unescape(encodeURIComponent(content)));
       
@@ -495,13 +498,13 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({
           access_token: token,
           content: encodedContent,
-          message: `新增书签文件：${fileName}`,
+          message: `新增书签文件：${finalFileName}`,
           branch: branch
         })
       });
       
       if (response.ok) {
-        showMsg(`新增书签文件成功：${fileName}`);
+        showMsg(`新增书签文件成功：${finalFileName}`);
         updateFilePathOptions(); // 刷新文件列表
       } else {
         showMsg('新增书签文件失败', true);

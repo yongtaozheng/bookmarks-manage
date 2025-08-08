@@ -118,6 +118,8 @@
         box-shadow: 0 2px 16px 0 rgba(60,60,60,0.12);
         min-width: 260px;
         max-width: 90vw;
+        max-height: 80vh;
+        overflow-y: auto;
         position: relative;
       }
       .help-close {
@@ -148,14 +150,18 @@
     <script type="module" crossorigin src="/popup.js"></script>
   </head>
   <body>
+    <button class="help-btn" id="helpBtn" title="帮助" style="position:absolute;top:10px;right:10px;z-index:1000;">?</button>
+    <h1 style="margin:0;padding:1em 0 0.5em 0;text-align:center;font-size:1.2em;color:#1976d2;">JYeontu书签管理器</h1>
     <div class="popup-header">
-      <button class="help-btn" id="helpBtn" title="帮助">?</button>
     </div>
     <button class="open-tab-btn" id="openTabBtn">打开书签管理器</button>
     <form class="gitee-form" id="giteeForm" autocomplete="off">
       <div class="msg" id="giteeMsg" style="min-height:1.5em;display:block;"></div>
       <label>Gitee Token
-        <input type="password" id="giteeToken" required placeholder="个人访问Token" />
+        <div style="display:flex;align-items:center;gap:0.5em;">
+          <input type="password" id="giteeToken" required placeholder="个人访问Token" style="flex:1;" />
+          <a href="https://gitee.com/api/v5/swagger" target="_blank" style="color:#1976d2;font-size:0.9em;text-decoration:none;white-space:nowrap;">获取Token →</a>
+        </div>
       </label>
       <label>仓库所有者（owner）
         <input type="text" id="giteeOwner" required placeholder="如: zheng_yongtao" />
@@ -190,16 +196,40 @@
         <span class="help-close" id="helpClose">&times;</span>
         <h3>功能说明</h3>
         <ul>
-          <li><b>覆盖保存：</b>将本地书签覆盖保存到gitee</li>
-          <li><b>合并保存：</b>将本地书签与gitee上的书签数据合并后保存到gitee</li>
-          <li><b>覆盖获取：</b>使用gitee上的书签数据来替换本地的书签数据</li>
-          <li><b>合并获取：</b>获取gitee上的书签数据并与本地书签数据合并后替换本地的书签数据</li>
+          <li><b>覆盖保存：</b>将本地书签覆盖保存到Gitee</li>
+          <li><b>合并保存：</b>将本地书签与Gitee上的书签数据合并后保存到Gitee</li>
+          <li><b>覆盖获取：</b>使用Gitee上的书签数据来替换本地的书签数据</li>
+          <li><b>合并获取：</b>获取Gitee上的书签数据并与本地书签数据合并后替换本地的书签数据</li>
+        </ul>
+        <h3>快捷键</h3>
+        <ul>
+          <li><b>Alt+W：</b>关闭当前标签页</li>
+          <li><b>连续三次 Cmd/Win：</b>呼出全局书签搜索</li>
+          <li><b>ESC：</b>关闭搜索框</li>
+        </ul>
+        <h3>配置说明</h3>
+        <ul>
+          <li><b>Gitee Token：</b>个人访问令牌，用于API调用</li>
+          <li><b>仓库所有者：</b>Gitee用户名或组织名</li>
+          <li><b>仓库名：</b>用于存储书签的仓库名称</li>
+          <li><b>分支：</b>默认master，自动获取仓库分支列表</li>
+          <li><b>书签目录：</b>存放书签文件的目录路径</li>
+          <li><b>书签文件：</b>具体的书签文件，支持新增和删除</li>
+        </ul>
+        <h3>使用技巧</h3>
+        <ul>
+          <li><b>自动配置：</b>输入Token、Owner、Repo后自动获取分支和文件列表</li>
+          <li><b>智能排序：</b>搜索时优先显示最近使用和最常用的书签</li>
+          <li><b>文件管理：</b>支持在指定目录下新增和删除书签文件</li>
+          <li><b>快速访问：</b>一键跳转到Gitee仓库查看书签文件</li>
         </ul>
         <h3>联系作者</h3>
         <ul>
           <li><b>微信公众号：</b>前端也能这么有趣</li>
+          <li><b>GitHub：</b><a href="https://github.com/yongtaozheng/bookmarks-manage" target="_blank" style="color:#1976d2;">项目地址</a></li>
+          <li><b>Gitee：</b><a href="https://gitee.com/zheng_yongtao/bookmarks-manage" target="_blank" style="color:#1976d2;">项目地址</a></li>
         </ul>
       </div>
-    </div>
+    </div>
   </body>
 </html> 

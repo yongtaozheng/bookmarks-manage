@@ -1,5 +1,12 @@
 declare const chrome: any;
 
+// 检查chrome API是否可用
+function isChromeExtensionContext(): boolean {
+  return typeof chrome !== 'undefined' && 
+         chrome.runtime && 
+         chrome.runtime.sendMessage;
+}
+
 let cmdCount = 0;
 let lastCmdTime = 0;
 let searchBox: HTMLDivElement | null = null;
@@ -11,6 +18,9 @@ let allBookmarks: any[] = [];
 let isComposing = false;
 
 async function fetchAllBookmarks() {
+  if (!isChromeExtensionContext()) {
+    return [];
+  }
   return new Promise<any[]>(resolve => {
     chrome.runtime.sendMessage({ type: 'getAllBookmarks' }, (res: any) => {
       resolve(res?.tree || []);
