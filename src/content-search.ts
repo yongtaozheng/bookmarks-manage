@@ -41,7 +41,8 @@ async function fetchAllBookmarks() {
 // 监听 command 连续按下（兼容 Mac/Win，capture: true）
 window.addEventListener('keydown', (e) => {
   try {
-    if ((e.key === 'Meta' || e.key === 'OS') && !e.repeat) {
+    if ((e.key === 'Meta' || e.key === 'OS' || e.key === 'Control') && !e.repeat) {
+
 
       const now = Date.now();
       if (now - lastCmdTime < 800) {
