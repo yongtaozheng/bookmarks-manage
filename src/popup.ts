@@ -312,6 +312,47 @@ document.addEventListener('DOMContentLoaded', () => {
   const branchSel = document.getElementById('giteeBranch') as HTMLSelectElement;
   const filePathSelect = document.getElementById('giteeFilePath') as HTMLSelectElement;
   const bookmarkDirInput = document.getElementById('bookmarkDir') as HTMLInputElement;
+  
+  // 监听来自content script的消息（在DOM加载完成后设置）
+  chrome.runtime.onMessage.addListener((message: any) => {
+    console.log('Popup收到消息:', message);
+    if (message.type === 'updateToken' && message.token) {
+      console.log('准备更新token:', message.token);
+      // 更新token输入框
+      const tokenEl = document.getElementById('giteeToken') as HTMLInputElement;
+      if (tokenEl) {
+        console.log('找到token输入框，更新值');
+        tokenEl.value = message.token;
+        // 触发自动保存
+        tokenEl.dispatchEvent(new Event('blur'));
+        showMsg('Token已自动更新');
+      } else {
+        console.log('未找到token输入框');
+      }
+    }
+    // 返回响应表示消息已处理
+    return true;
+  });
+  
+  // 检查是否有待处理的token更新消息
+  setTimeout(() => {
+    console.log('Popup初始化完成，检查是否有待处理的token消息');
+    // 从storage中读取最新的token
+    chrome.storage.local.get(['latestToken'], (result: any) => {
+      if (result.latestToken) {
+        console.log('从storage中读取到最新token:', result.latestToken);
+        const tokenEl = document.getElementById('giteeToken') as HTMLInputElement;
+        if (tokenEl) {
+          tokenEl.value = result.latestToken;
+          tokenEl.dispatchEvent(new Event('blur'));
+          showMsg('Token已自动更新');
+          // 清除storage中的token，避免重复使用
+          chrome.storage.local.remove(['latestToken']);
+        }
+      }
+    });
+  }, 100);
+  
   function fillSelectOptions(select: HTMLSelectElement, options: string[], placeholder = '请选择') {
     select.innerHTML = '';
     const opt = document.createElement('option');
@@ -429,28 +470,39 @@ document.addEventListener('DOMContentLoaded', () => {
   }, 300);
 
   document.getElementById('btnSaveOverwrite')!.onclick = async function() {
+    if (!confirm('确定要覆盖保存到Gitee吗？这将覆盖远程仓库中的书签数据。')) {
+      return;
+    }
     try {
       const config = await getGiteeConfig();
       const tree = await getLocalBookmarks();
       const content = tree[0]?.children || [];
       await modifyFile(config, content, true);
+      showMsg('覆盖保存成功！');
     } catch (e: any) {
       showMsg('覆盖保存失败: ' + e.message, true);
     }
   };
 
   document.getElementById('btnSaveMerge')!.onclick = async function() {
+    if (!confirm('确定要合并保存到Gitee吗？这将把本地书签与远程书签合并后保存。')) {
+      return;
+    }
     try {
       const config = await getGiteeConfig();
       const tree = await getLocalBookmarks();
       const content = tree[0]?.children || [];
       await modifyFile(config, content, false);
+      showMsg('合并保存成功！');
     } catch (e: any) {
       showMsg('合并保存失败: ' + e.message, true);
     }
   };
 
   document.getElementById('btnGetOverwrite')!.onclick = async function() {
+    if (!confirm('确定要覆盖获取吗？这将用远程书签完全替换本地书签数据，本地书签将被删除。')) {
+      return;
+    }
     try {
       const config = await getGiteeConfig();
       const arr = await getFile(config);
@@ -463,6 +515,9 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   document.getElementById('btnGetMerge')!.onclick = async function() {
+    if (!confirm('确定要合并获取吗？这将把远程书签与本地书签合并后替换本地数据。')) {
+      return;
+    }
     try {
       const config = await getGiteeConfig();
       const arr = await getFile(config);

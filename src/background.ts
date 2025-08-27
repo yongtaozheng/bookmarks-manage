@@ -24,5 +24,16 @@ if (isChromeExtensionContext()) {
         chrome.tabs.remove(sender.tab.id);
       }
     }
+    
+    // 转发token更新消息给popup
+    if (message.type === 'updateToken' && message.token) {
+      console.log('Background转发token更新消息');
+      // 存储token到storage，popup可以从storage中读取
+      chrome.storage.local.set({ 'latestToken': message.token }, () => {
+        console.log('Token已存储到storage');
+      });
+    }
+    
+    sendResponse({ success: true });
   });
 } 

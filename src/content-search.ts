@@ -71,6 +71,64 @@ window.addEventListener('keydown', (e) => {
   }
 }, true);
 
+// 监听Gitee API页面，检测token生成
+if (window.location.href.includes('gitee.com/api/v5/swagger')) {
+  let lastDetectedToken = '';
+  console.log('Gitee API页面，检测token生成');
+  
+  // 提取token的通用函数
+  function extractToken() {
+    const tokenElement = document.querySelector('input[name="access_token"].ivu-input');
+    if(!tokenElement) return;
+    const token = tokenElement.textContent || (tokenElement as HTMLInputElement).value;
+    if (token && token.length > 20 && token !== lastDetectedToken) {
+      lastDetectedToken = token;
+      console.log('检测到新token，发送更新消息');
+      try {
+                 if (chrome && chrome.runtime && chrome.runtime.sendMessage) {
+           console.log('发送消息到background:', { type: 'updateToken', token: token });
+          chrome.runtime.sendMessage({ 
+            type: 'updateToken', 
+            token: token 
+          }, (response: any) => {
+            if (chrome.runtime.lastError) {
+              console.log('发送消息失败:', chrome.runtime.lastError);
+            } else {
+              console.log('消息发送成功，响应:', response);
+            }
+          });
+        } else {
+          console.log('chrome.runtime.sendMessage不可用');
+        }
+      } catch (error) {
+        console.log('发送消息时出错:', error);
+      }
+    }
+  }
+  
+  // 初始化时先提取一次token
+  extractToken();
+  
+  // 监听页面变化，检测token生成
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === 'childList') {
+       // 页面变化时提取token
+       extractToken();
+      }
+    });
+  });
+  
+  // 开始监听页面变化
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+  
+  // 延迟再次检查，确保页面完全加载
+  setTimeout(extractToken, 1000);
+}
+
 function showSearchBox() {
   if (searchBox) return;
   searchBox = document.createElement('div');
