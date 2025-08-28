@@ -2,6 +2,14 @@
 import { ref, onMounted, computed } from 'vue'
 import BookmarkTree from './components/BookmarkTree.vue'
 
+// 声明Chrome API类型
+declare global {
+  interface Window {
+    chrome?: any;
+    removeBookmarkById?: (id: string) => void;
+  }
+}
+
 interface BookmarkNode {
   id: string
   title: string
@@ -58,7 +66,7 @@ onMounted(() => {
 <template>
   <div v-if="isNewtab" class="nt-container">
     <div class="nt-card">
-      <h1>书签管理器</h1>
+      <h1 style="font-size: var(--font-size-3xl);">书签管理器</h1>
       <div class="nt-tree-container">
         <BookmarkTree :nodes="bookmarks" :defaultExpandAll="true" />
       </div>
@@ -75,6 +83,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  font-family: 'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif;
 }
 .nt-card {
   background: var(--main-card, #fff);
@@ -89,6 +98,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
+  font-family: 'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif;
 }
 .nt-tree-container {
   width: 100%;
@@ -114,6 +124,7 @@ onMounted(() => {
   font-size: 1em;
   line-height: 1.7;
   word-break: break-all;
+  font-family: 'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif;
 }
 .folder {
   font-weight: 600;

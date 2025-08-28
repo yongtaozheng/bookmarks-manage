@@ -154,7 +154,8 @@ function showSearchBox() {
   inputEl = document.createElement('input');
   inputEl.type = 'text';
   inputEl.placeholder = '搜索书签...';
-  inputEl.style.fontSize = '1.2em';
+  inputEl.style.fontSize = '1.4em';
+  inputEl.style.fontFamily = "'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif";
   inputEl.style.padding = '0.5em 1em';
   inputEl.style.border = '1.5px solid #42b983';
   inputEl.style.borderRadius = '6px';
@@ -170,7 +171,7 @@ function showSearchBox() {
   
   resultList = document.createElement('ul');
   resultList.style.position = 'absolute';
-  resultList.style.top = 'calc(1.5em + 3em)';
+  resultList.style.top = '6em';
   resultList.style.left = '50%';
   resultList.style.transform = 'translateX(-50%)';
   resultList.style.listStyle = 'none';
@@ -348,7 +349,8 @@ function renderResults(list: any[], folderTitle?: string) {
     li.style.cursor = 'pointer';
     li.style.background = idx === selectedIdx ? '#e3eefa' : '#fff';
     li.style.color = idx === selectedIdx ? '#1976d2' : '#333';
-    li.style.fontSize = '0.98em';
+    li.style.fontSize = '1.1em';
+    li.style.fontFamily = "'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif";
     li.style.overflow = 'hidden';
     li.style.textOverflow = 'ellipsis';
     li.style.display = '-webkit-box';

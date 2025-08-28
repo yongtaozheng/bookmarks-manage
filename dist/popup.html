@@ -6,8 +6,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>书签管理器</title>
     <style>
+      /* 引入我的字体字体 */
+      @font-face {
+        font-family: 'YunFengJingLong';
+        src: url('/%E6%88%91%E7%9A%84%E5%AD%97%E4%BD%93.ttf') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      /* 字体尺寸变量 */
+      :root {
+        /* 字体尺寸变量 */
+        --font-size-xs: 0.85em;      /* 超小字体 */
+        --font-size-sm: 0.95em;      /* 小字体 */
+        --font-size-base: 1em;       /* 基础字体 */
+        --font-size-md: 1.05em;      /* 中等字体 */
+        --font-size-lg: 1.1em;       /* 大字体 */
+        --font-size-xl: 1.2em;       /* 超大字体 */
+        --font-size-2xl: 1.4em;      /* 2倍大字体 */
+        --font-size-3xl: 1.8em;      /* 3倍大字体 */
+        
+        /* 字体族变量 */
+        --font-family-primary: 'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif;
+        --font-family-fallback: system-ui, Avenir, Helvetica, Arial, sans-serif;
+      }
+
+      /* 我的字体字体类 */
+      .font-yunfeng {
+        font-family: var(--font-family-primary);
+      }
+
       html, body { width: 600px !important; min-width: 600px !important; max-width: 600px !important; }
-      body { margin: 0; padding: 0; font-family: system-ui, sans-serif; background: #f6fafc; }
+      body { margin: 0; padding: 0; font-family: var(--font-family-primary); background: #f6fafc; }
       .open-tab-btn {
         display: block;
         width: 580px;
@@ -19,7 +50,8 @@
         color: #fff;
         border: none;
         border-radius: 6px;
-        font-size: 1em;
+        font-size: var(--font-size-lg);
+        font-family: var(--font-family-primary);
         cursor: pointer;
         transition: background 0.2s;
       }
@@ -38,7 +70,8 @@
       .gitee-form label {
         display: block;
         margin-bottom: 0.2em;
-        font-size: 0.98em;
+        font-size: var(--font-size-md);
+        font-family: var(--font-family-primary);
         color: #1976d2;
       }
       .gitee-form input {
@@ -47,11 +80,13 @@
         padding: 0.3em 0.6em;
         border: 1px solid #ccc;
         border-radius: 4px;
-        font-size: 1em;
+        font-size: var(--font-size-md);
+        font-family: var(--font-family-primary);
       }
       .gitee-form .msg {
         color: #42b983;
-        font-size: 0.95em;
+        font-size: var(--font-size-base);
+        font-family: var(--font-family-primary);
         margin-bottom: 0.5em;
       }
       .sync-btns {
@@ -71,7 +106,8 @@
         color: #fff;
         border: none;
         border-radius: 6px;
-        font-size: 1em;
+        font-size: var(--font-size-md);
+        font-family: var(--font-family-primary);
         cursor: pointer;
         transition: background 0.2s;
       }
@@ -91,6 +127,7 @@
         width: 28px;
         height: 28px;
         font-size: 18px;
+        font-family: 'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif;
         cursor: pointer;
         margin: 10px 10px 0 0;
         box-shadow: 0 1px 4px rgba(0,0,0,0.08);
@@ -136,6 +173,7 @@
       .help-modal-content h3 {
         margin-top: 0;
         font-size: 1.2em;
+        font-family: 'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif;
         color: #1976d2;
       }
       .help-modal-content ul {
@@ -145,13 +183,14 @@
       .help-modal-content li {
         margin-bottom: 0.5em;
         font-size: 1em;
+        font-family: 'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif;
       }
     </style>
     <script type="module" crossorigin src="/popup.js"></script>
   </head>
   <body>
     <button class="help-btn" id="helpBtn" title="帮助" style="position:absolute;top:10px;right:10px;z-index:1000;">?</button>
-    <h1 style="margin:0;padding:1em 0 0.5em 0;text-align:center;font-size:1.2em;color:#1976d2;">JYeontu书签管理器</h1>
+    <h1 style="margin:0;padding:1em 0 0.5em 0;text-align:center;font-size:var(--font-size-2xl);color:#1976d2;" class="font-yunfeng">JYeontu书签管理器</h1>
     <div class="popup-header">
     </div>
     <button class="open-tab-btn" id="openTabBtn">打开书签管理器</button>
@@ -176,13 +215,13 @@
         <input type="text" id="bookmarkDir" required placeholder="如: bookmarks" value="bookmarks" style="width:100%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid #ccc;border-radius:4px;font-size:1em;" />
       </label>
       <label>书签文件
-        <select id="giteeFilePath" required style="width:100%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid #ccc;border-radius:4px;font-size:1em;"></select>
+        <select id="giteeFilePath" required style="width:100%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid #ccc;border-radius:4px;font-size:var(--font-size-md);font-family:var(--font-family-primary);"></select>
       </label>
-      <div style="display:flex;gap:0.5em;margin-bottom:0.7em;">
-        <button type="button" id="addBookmarkFile" style="flex:1;padding:0.3em 0.6em;background:#42b983;color:#fff;border:none;border-radius:4px;font-size:0.9em;cursor:pointer;">新增书签文件</button>
-        <button type="button" id="deleteBookmarkFile" style="flex:1;padding:0.3em 0.6em;background:#f44336;color:#fff;border:none;border-radius:4px;font-size:0.9em;cursor:pointer;">删除书签文件</button>
-      </div>
-      <button type="button" id="openGiteeRepo" style="width:100%;padding:0.3em 0.6em;background:#1976d2;color:#fff;border:none;border-radius:4px;font-size:0.9em;cursor:pointer;margin-bottom:0.7em;">打开Gitee仓库</button>
+              <div style="display:flex;gap:0.5em;margin-bottom:0.7em;">
+          <button type="button" id="addBookmarkFile" style="flex:1;padding:0.3em 0.6em;background:#42b983;color:#fff;border:none;border-radius:4px;font-size:var(--font-size-base);font-family:var(--font-family-primary);cursor:pointer;">新增书签文件</button>
+          <button type="button" id="deleteBookmarkFile" style="flex:1;padding:0.3em 0.6em;background:#f44336;color:#fff;border:none;border-radius:4px;font-size:var(--font-size-base);font-family:var(--font-family-primary);cursor:pointer;">删除书签文件</button>
+        </div>
+              <button type="button" id="openGiteeRepo" style="width:100%;padding:0.3em 0.6em;background:#1976d2;color:#fff;border:none;border-radius:4px;font-size:var(--font-size-base);font-family:var(--font-family-primary);cursor:pointer;margin-bottom:0.7em;">打开Gitee仓库</button>
     </form>
     <div class="sync-btns">
       <button id="btnSaveOverwrite" type="button">覆盖保存</button>

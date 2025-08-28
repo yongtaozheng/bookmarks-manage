@@ -23,6 +23,10 @@ export default defineConfig({
         {
           src: 'public/icon.jpg',
           dest: '.'
+        },
+        {
+          src: 'public/我的字体.ttf',
+          dest: '.'
         }
       ]
     })

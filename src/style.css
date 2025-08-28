@@ -1,5 +1,36 @@
+/* 引入我的字体字体 */
+@font-face {
+  font-family: 'YunFengJingLong';
+  src: url('/我的字体.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 字体尺寸变量 */
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  /* 字体尺寸变量 */
+  --font-size-xs: 0.85em;      /* 超小字体 */
+  --font-size-sm: 0.95em;      /* 小字体 */
+  --font-size-base: 1em;       /* 基础字体 */
+  --font-size-md: 1.05em;      /* 中等字体 */
+  --font-size-lg: 1.1em;       /* 大字体 */
+  --font-size-xl: 1.2em;       /* 超大字体 */
+  --font-size-2xl: 1.4em;      /* 2倍大字体 */
+  --font-size-3xl: 1.8em;      /* 3倍大字体 */
+  
+  /* 字体族变量 */
+  --font-family-primary: 'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif;
+  --font-family-fallback: system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
+
+/* 我的字体字体类 */
+.font-yunfeng {
+  font-family: var(--font-family-primary);
+}
+
+:root {
+  font-family: var(--font-family-primary), var(--font-family-fallback);
   line-height: 1.5;
   font-weight: 400;
 
@@ -17,6 +48,7 @@ a {
   font-weight: 500;
   color: #646cff;
   text-decoration: inherit;
+  font-family: var(--font-family-primary);
 }
 a:hover {
   color: #535bf2;
@@ -28,20 +60,22 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  font-family: var(--font-family-primary);
 }
 
 h1 {
-  font-size: 3.2em;
+  font-size: var(--font-size-3xl);
   line-height: 1.1;
+  font-family: var(--font-family-primary);
 }
 
 button {
   border-radius: 8px;
   border: 1px solid transparent;
   padding: 0.6em 1.2em;
-  font-size: 1em;
+  font-size: var(--font-size-base);
   font-weight: 500;
-  font-family: inherit;
+  font-family: var(--font-family-primary);
   background-color: #1a1a1a;
   cursor: pointer;
   transition: border-color 0.25s;
@@ -56,6 +90,7 @@ button:focus-visible {
 
 .card {
   padding: 2em;
+  font-family: var(--font-family-primary);
 }
 
 #app {
@@ -63,6 +98,7 @@ button:focus-visible {
   margin: 0 auto;
   padding: 2rem;
   text-align: center;
+  font-family: var(--font-family-primary);
 }
 
 @media (prefers-color-scheme: light) {

@@ -53,25 +53,29 @@ onMounted(() => {
   list-style: none;
   padding-left: 0;
   margin: 0;
+  font-family: var(--font-family-primary);
 }
 .nt-tree > li {
   margin-bottom: 0.3em;
   padding-left: 0.5em;
   position: relative;
-  font-size: 1em;
+  font-size: var(--font-size-lg);
   line-height: 1.7;
   word-break: break-all;
+  font-family: var(--font-family-primary);
 }
 .folder {
   font-weight: 600;
   color: #1976d2;
   margin-top: 0.5em;
   cursor: pointer;
+  font-family: var(--font-family-primary);
 }
 .folder-toggle {
   cursor: pointer;
   user-select: none;
   margin-right: 0.2em;
+  font-family: var(--font-family-primary);
 }
 .nt-tree li ul {
   margin-left: 1.2em;
@@ -83,6 +87,7 @@ a {
   text-decoration: none;
   margin-right: 0.5em;
   transition: color 0.2s;
+  font-family: var(--font-family-primary);
 }
 a:hover {
   color: #42b983;
@@ -94,7 +99,8 @@ button.delete-btn {
   border: none;
   border-radius: 3px;
   padding: 0.1em 0.6em;
-  font-size: 0.95em;
+  font-size: var(--font-size-base);
+  font-family: var(--font-family-primary);
   margin-left: 0.3em;
   cursor: pointer;
   transition: background 0.2s;
