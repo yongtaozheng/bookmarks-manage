@@ -9,13 +9,14 @@ function isChromeExtensionContext(): boolean {
 
 let cmdCount = 0;
 let lastCmdTime = 0;
-let searchBox: HTMLDivElement | null = null;
+let searchBox: HTMLElement | null = null;
 let inputEl: HTMLInputElement | null = null;
-let resultList: HTMLUListElement | null = null;
+let resultList: HTMLElement | null = null;
 let results: any[] = [];
 let selectedIdx = -1;
 let allBookmarks: any[] = [];
 let isComposing = false;
+let keyboardPriority = false; // 键盘优先标记
 
 async function fetchAllBookmarks() {
   if (!isChromeExtensionContext()) {
@@ -41,9 +42,10 @@ async function fetchAllBookmarks() {
 // 监听 command 连续按下（兼容 Mac/Win，capture: true）
 window.addEventListener('keydown', (e) => {
   try {
-    if ((e.key === 'Meta' || e.key === 'OS' || e.key === 'Control') && !e.repeat) {
-
-
+    // 检查是否为单独的修饰键（不与其他键组合）
+    const isModifierKey = e.key === 'Meta' || e.key === 'OS' || e.key === 'Control' || e.key === 'Alt';
+    
+    if (isModifierKey) {
       const now = Date.now();
       if (now - lastCmdTime < 800) {
         cmdCount++;
@@ -66,6 +68,9 @@ window.addEventListener('keydown', (e) => {
       try {
         chrome.runtime.sendMessage({ type: 'closeCurrentTab' });
       } catch {}
+    }else{
+      cmdCount = 0;
+      lastCmdTime = 0;
     }
   } catch (error) {
     console.warn('Error in keydown handler:', error);
@@ -132,6 +137,7 @@ if (window.location.href.includes('gitee.com/api/v5/swagger')) {
 
 function showSearchBox() {
   if (searchBox) return;
+  
   searchBox = document.createElement('div');
   searchBox.style.position = 'fixed';
   searchBox.style.top = '0';
@@ -144,7 +150,7 @@ function showSearchBox() {
   searchBox.style.flexDirection = 'column';
   searchBox.style.alignItems = 'center';
   searchBox.style.pointerEvents = 'none';
-
+  
   inputEl = document.createElement('input');
   inputEl.type = 'text';
   inputEl.placeholder = '搜索书签...';
@@ -161,7 +167,7 @@ function showSearchBox() {
   inputEl.style.lineHeight = '3em';
   inputEl.style.boxShadow = '0 2px 16px 0 rgba(60,60,60,0.18)';
   inputEl.style.pointerEvents = 'auto';
-
+  
   resultList = document.createElement('ul');
   resultList.style.position = 'absolute';
   resultList.style.top = 'calc(1.5em + 3em)';
@@ -179,19 +185,25 @@ function showSearchBox() {
   resultList.style.borderRadius = '6px';
   resultList.style.boxShadow = '0 1px 8px 0 rgba(60,60,60,0.08)';
   resultList.style.pointerEvents = 'auto';
-
+  
   searchBox.appendChild(inputEl);
   searchBox.appendChild(resultList);
   document.body.appendChild(searchBox);
+  
+  // 监听鼠标移动，重置键盘优先标记
+  searchBox.addEventListener('mousemove', () => {
+    keyboardPriority = false;
+  });
+  
   inputEl.focus();
-
   inputEl.addEventListener('compositionstart', () => { isComposing = true; });
   inputEl.addEventListener('compositionend', () => { isComposing = false; });
   // inputEl.addEventListener('input', onInput); // 替换为异步
   inputEl.addEventListener('input', () => { (window as any).onInputAsync && (window as any).onInputAsync(); });
   inputEl.addEventListener('keydown', onInputKeydown);
+  
   document.addEventListener('mousedown', onDocClick, true);
-
+  
   // 预加载所有书签
   if (!allBookmarks.length) {
     fetchAllBookmarks().then((tree) => {
@@ -219,6 +231,7 @@ function removeSearchBox() {
     resultList = null;
     results = [];
     selectedIdx = -1;
+    keyboardPriority = false;
     document.removeEventListener('mousedown', onDocClick, true);
   }
 }
@@ -344,6 +357,8 @@ function renderResults(list: any[], folderTitle?: string) {
     li.style.maxHeight = '7em'; // 控制五行高度
     li.style.wordBreak = 'break-all';
     li.onmouseenter = () => {
+      // 如果键盘优先标记为true，忽略鼠标悬停事件
+      if (keyboardPriority) return;
       selectedIdx = idx;
       renderResults(list, folderTitle);
     };
@@ -365,10 +380,12 @@ function onInputKeydown(e: KeyboardEvent) {
   if (!results.length) return;
   if (e.key === 'ArrowDown') {
     e.preventDefault();
+    keyboardPriority = true; // 设置键盘优先标记
     selectedIdx = (selectedIdx + 1) % results.length;
     renderResults(results);
   } else if (e.key === 'ArrowUp') {
     e.preventDefault();
+    keyboardPriority = true; // 设置键盘优先标记
     selectedIdx = (selectedIdx - 1 + results.length) % results.length;
     renderResults(results);
   } else if (e.key === 'Enter') {
