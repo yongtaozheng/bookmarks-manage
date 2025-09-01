@@ -191,7 +191,8 @@ function showSearchBox() {
   searchBox.appendChild(resultList);
   document.body.appendChild(searchBox);
   
-  // 监听鼠标移动，重置键盘优先标记
+  // 初始化时设置键盘优先标记，只有鼠标移动时才重置
+  keyboardPriority = true;
   searchBox.addEventListener('mousemove', () => {
     keyboardPriority = false;
   });
