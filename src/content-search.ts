@@ -40,23 +40,39 @@ async function fetchAllBookmarks() {
 }
 
 // 监听 command 连续按下（兼容 Mac/Win，capture: true）
-window.addEventListener('keydown', (e) => {
+console.log('键盘事件监听器已加载');
+window.addEventListener('keyup', (e) => {
   try {
     // 检查是否为单独的修饰键（不与其他键组合）
     const isModifierKey = e.key === 'Meta' || e.key === 'OS' || e.key === 'Control' || e.key === 'Alt';
     
     if (isModifierKey) {
-      const now = Date.now();
-      if (now - lastCmdTime < 800) {
-        cmdCount++;
-      } else {
-        cmdCount = 1;
-      }
-      lastCmdTime = now;
-      if (cmdCount === 3) {
-        e.preventDefault();
-        showSearchBox();
-        cmdCount = 0;
+      // 检查是否有其他修饰键被按下，如果有则不计数
+      const hasOtherModifiers = e.ctrlKey || e.metaKey || e.altKey || e.shiftKey;
+      
+      // 在 keyup 事件中，当前释放的修饰键状态会是 false，所以直接检查 key
+      const isCurrentModifier = 
+        (e.key === 'Control') ||
+        (e.key === 'Meta') ||
+        (e.key === 'OS') ||
+        (e.key === 'Alt');
+      
+      // 只有在当前修饰键被释放且没有其他修饰键被按下时才计数
+      if (isCurrentModifier && !hasOtherModifiers) {
+        const now = Date.now();
+        if (now - lastCmdTime < 800) {
+          cmdCount++;
+        } else {
+          cmdCount = 1;
+        }
+        lastCmdTime = now;
+        console.log(`修饰键释放: ${e.key}, 计数: ${cmdCount}`);
+        if (cmdCount === 3) {
+          e.preventDefault();
+          console.log('触发搜索框显示');
+          showSearchBox();
+          cmdCount = 0;
+        }
       }
     } else if (e.key === 'Escape' && searchBox) {
       removeSearchBox();
@@ -73,7 +89,7 @@ window.addEventListener('keydown', (e) => {
       lastCmdTime = 0;
     }
   } catch (error) {
-    console.warn('Error in keydown handler:', error);
+    console.warn('Error in keyup handler:', error);
   }
 }, true);
 

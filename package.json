@@ -19,12 +19,16 @@
     "vue": "^3.5.17"
   },
   "devDependencies": {
-    "@types/node": "^24.0.14",
-    "@vitejs/plugin-vue": "^6.0.0",
+    "@types/node": "^20.0.0",
+    "@vitejs/plugin-vue": "^5.0.0",
     "@vue/tsconfig": "^0.7.0",
     "typescript": "~5.8.3",
-    "vite": "^7.0.4",
+    "vite": "^5.4.0",
     "vite-plugin-static-copy": "^3.1.1",
     "vue-tsc": "^2.2.12"
+  },
+  "volta": {
+    "node": "18.20.8",
+    "npm": "11.6.2"
   }
 }
