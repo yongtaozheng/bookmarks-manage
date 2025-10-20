@@ -5,12 +5,12 @@
   "description": "一个用于管理浏览器书签的插件",
   "action": {
     "default_popup": "popup.html",
-    "default_icon": "icon.jpg"
+    "default_icon": "柴犬.png"
   },
   "icons": {
-    "16": "icon.jpg",
-    "48": "icon.jpg",
-    "128": "icon.jpg"
+    "16": "柴犬.png",
+    "48": "柴犬.png",
+    "128": "柴犬.png"
   },
   "permissions": [
     "bookmarks",
