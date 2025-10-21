@@ -37,6 +37,8 @@ export default defineConfig({
         popup: resolve(process.cwd(), 'popup.html'),
         'content-search': resolve(process.cwd(), 'src/content-search.ts'),
         background: resolve(process.cwd(), 'src/background.ts'),
+        'bookmark-manager': resolve(process.cwd(), 'bookmark-manager.html'),
+        'bookmark-manager-js': resolve(process.cwd(), 'src/bookmark-manager.js'),
       },
       output: {
         entryFileNames: '[name].js',

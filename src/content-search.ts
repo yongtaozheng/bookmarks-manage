@@ -26,21 +26,18 @@ async function fetchAllBookmarks() {
     try {
       chrome.runtime.sendMessage({ type: 'getAllBookmarks' }, (res: any) => {
         if (chrome.runtime.lastError) {
-          console.warn('Chrome runtime error:', chrome.runtime.lastError);
           resolve([]);
           return;
         }
         resolve(res?.tree || []);
       });
     } catch (error) {
-      console.warn('Error fetching bookmarks:', error);
       resolve([]);
     }
   });
 }
 
 // 监听 command 连续按下（兼容 Mac/Win，capture: true）
-console.log('键盘事件监听器已加载');
 window.addEventListener('keyup', (e) => {
   try {
     // 检查是否为单独的修饰键（不与其他键组合）
@@ -66,10 +63,8 @@ window.addEventListener('keyup', (e) => {
           cmdCount = 1;
         }
         lastCmdTime = now;
-        console.log(`修饰键释放: ${e.key}, 计数: ${cmdCount}`);
         if (cmdCount === 3) {
           e.preventDefault();
-          console.log('触发搜索框显示');
           showSearchBox();
           cmdCount = 0;
         }
@@ -89,14 +84,13 @@ window.addEventListener('keyup', (e) => {
       lastCmdTime = 0;
     }
   } catch (error) {
-    console.warn('Error in keyup handler:', error);
+    // 静默处理错误
   }
 }, true);
 
 // 监听Gitee API页面，检测token生成
 if (window.location.href.includes('gitee.com/api/v5/swagger')) {
   let lastDetectedToken = '';
-  console.log('Gitee API页面，检测token生成');
   
   // 提取token的通用函数
   function extractToken() {
@@ -105,25 +99,15 @@ if (window.location.href.includes('gitee.com/api/v5/swagger')) {
     const token = tokenElement.textContent || (tokenElement as HTMLInputElement).value;
     if (token && token.length > 20 && token !== lastDetectedToken) {
       lastDetectedToken = token;
-      console.log('检测到新token，发送更新消息');
       try {
-                 if (chrome && chrome.runtime && chrome.runtime.sendMessage) {
-           console.log('发送消息到background:', { type: 'updateToken', token: token });
+        if (chrome && chrome.runtime && chrome.runtime.sendMessage) {
           chrome.runtime.sendMessage({ 
             type: 'updateToken', 
             token: token 
-          }, (response: any) => {
-            if (chrome.runtime.lastError) {
-              console.log('发送消息失败:', chrome.runtime.lastError);
-            } else {
-              console.log('消息发送成功，响应:', response);
-            }
           });
-        } else {
-          console.log('chrome.runtime.sendMessage不可用');
         }
       } catch (error) {
-        console.log('发送消息时出错:', error);
+        // 静默处理错误
       }
     }
   }
@@ -427,7 +411,7 @@ async function jumpTo(idx: number) {
         const script = url.substring(11); // 去掉 'javascript:' 前缀
         eval(script);
       } catch (e) {
-        console.warn('Failed to execute bookmark script:', e);
+        // 静默处理错误
       }
     } else if (url.startsWith('data:')) {
       // data:URL 尝试在新标签页打开，如果失败则提示用户
@@ -438,7 +422,6 @@ async function jumpTo(idx: number) {
           alert('请手动打开书签：' + url);
         }
       } catch (e) {
-        console.warn('Failed to open data URL:', e);
         alert('无法打开此类型的书签，请手动访问：' + url);
       }
     } else {

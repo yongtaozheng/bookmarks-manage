@@ -255,7 +255,6 @@ function showMsg(text: string, isError = false) {
 document.addEventListener('DOMContentLoaded', () => {
   // 如果不是Chrome扩展环境，直接返回
   if (!isChromeExtensionContext()) {
-    console.warn('Not in Chrome extension context');
     return;
   }
   
@@ -315,19 +314,14 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 监听来自content script的消息（在DOM加载完成后设置）
   chrome.runtime.onMessage.addListener((message: any) => {
-    console.log('Popup收到消息:', message);
     if (message.type === 'updateToken' && message.token) {
-      console.log('准备更新token:', message.token);
       // 更新token输入框
       const tokenEl = document.getElementById('giteeToken') as HTMLInputElement;
       if (tokenEl) {
-        console.log('找到token输入框，更新值');
         tokenEl.value = message.token;
         // 触发自动保存
         tokenEl.dispatchEvent(new Event('blur'));
         showMsg('Token已自动更新');
-      } else {
-        console.log('未找到token输入框');
       }
     }
     // 返回响应表示消息已处理
@@ -336,11 +330,9 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 检查是否有待处理的token更新消息
   setTimeout(() => {
-    console.log('Popup初始化完成，检查是否有待处理的token消息');
     // 从storage中读取最新的token
     chrome.storage.local.get(['latestToken'], (result: any) => {
       if (result.latestToken) {
-        console.log('从storage中读取到最新token:', result.latestToken);
         const tokenEl = document.getElementById('giteeToken') as HTMLInputElement;
         if (tokenEl) {
           tokenEl.value = result.latestToken;
@@ -505,9 +497,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     try {
       const config = await getGiteeConfig();
-      const arr = await getFile(config);
+      const data = await getFile(config);
+      
+      // 检查数据结构
+      let bookmarksToCreate;
+      if (Array.isArray(data)) {
+        // 如果是数组，取第一个元素的children
+        bookmarksToCreate = data[0]?.children || [];
+      } else if (data.children) {
+        // 如果是对象且有children属性
+        bookmarksToCreate = data.children;
+      } else {
+        throw new Error('远程书签数据格式不正确');
+      }
+      
+      
       await removeAllBookmarks();
-      await createBookmarks(arr[0].children, '1'); // 只写入书签栏
+      await createBookmarks(bookmarksToCreate, '1'); // 只写入书签栏
       showMsg('覆盖获取并替换本地书签成功！');
     } catch (e: any) {
       showMsg('覆盖获取失败: ' + e.message, true);
@@ -520,14 +526,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     try {
       const config = await getGiteeConfig();
-      const arr = await getFile(config);
-      console.log('arr', arr);
+      const data = await getFile(config);
+      
       const tree = await getLocalBookmarks();
-      console.log('tree', tree);
       const local = tree[0]?.children || [];
-      console.log('local', local);
-      const merged = mergeBookmarks(local[0].children, arr[0].children);
-      console.log('merged', merged);
+      
+      // 检查数据结构并获取远程书签
+      let remoteBookmarks;
+      if (Array.isArray(data)) {
+        remoteBookmarks = data[0]?.children || [];
+      } else if (data.children) {
+        remoteBookmarks = data.children;
+      } else {
+        throw new Error('远程书签数据格式不正确');
+      }
+      
+      
+      // 获取书签栏的书签进行合并
+      const localBookmarks = local.find((item: any) => item.title === '书签栏' || item.title === 'Bookmarks bar');
+      const localBookmarksChildren = localBookmarks?.children || [];
+      
+      const merged = mergeBookmarks(localBookmarksChildren, remoteBookmarks);
+      
       await removeAllBookmarks();
       await createBookmarks(merged, '1'); // 只写入书签栏
       showMsg('合并获取并替换本地书签成功！');
@@ -661,10 +681,10 @@ document.addEventListener('DOMContentLoaded', () => {
     window.open(url, '_blank');
   };
 
-  // 保持原有 openTabBtn 逻辑
-  const openTabBtn = document.getElementById('openTabBtn');
-  if (openTabBtn) {
-    openTabBtn.onclick = function() {
+  // 打开系统书签管理器
+  const openSystemBookmarksBtn = document.getElementById('openSystemBookmarksBtn');
+  if (openSystemBookmarksBtn) {
+    openSystemBookmarksBtn.onclick = function() {
       if (chrome && chrome.tabs && chrome.tabs.create) {
         chrome.tabs.create({ url: 'chrome://bookmarks/' }, function() {
           if (chrome.runtime.lastError) {
@@ -673,6 +693,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       } else {
         alert('请手动打开 chrome://bookmarks/');
+      }
+    };
+  }
+
+  // 打开我的书签管理器
+  const openMyBookmarksBtn = document.getElementById('openMyBookmarksBtn');
+  if (openMyBookmarksBtn) {
+    openMyBookmarksBtn.onclick = function() {
+      if (chrome && chrome.tabs && chrome.tabs.create) {
+        chrome.tabs.create({ url: chrome.runtime.getURL('bookmark-manager.html') }, function() {
+          if (chrome.runtime.lastError) {
+            alert('无法打开我的书签管理器');
+          }
+        });
+      } else {
+        // 非扩展环境，直接打开
+        window.open('bookmark-manager.html', '_blank');
       }
     };
   }

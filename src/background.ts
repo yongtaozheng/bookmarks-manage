@@ -8,12 +8,10 @@ function isChromeExtensionContext(): boolean {
          chrome.bookmarks;
 }
 
-console.log('background loaded', chrome.bookmarks);
 
 if (isChromeExtensionContext()) {
   chrome.runtime.onMessage.addListener((message: any, sender: any, sendResponse: any) => {
     if (message && message.type === 'getAllBookmarks') {
-      console.log('getAllBookmarks called', chrome.bookmarks);
       chrome.bookmarks.getTree((tree: any[]) => {
         sendResponse({ tree });
       });
@@ -27,10 +25,9 @@ if (isChromeExtensionContext()) {
     
     // 转发token更新消息给popup
     if (message.type === 'updateToken' && message.token) {
-      console.log('Background转发token更新消息');
       // 存储token到storage，popup可以从storage中读取
       chrome.storage.local.set({ 'latestToken': message.token }, () => {
-        console.log('Token已存储到storage');
+        // Token已存储
       });
     }
     
