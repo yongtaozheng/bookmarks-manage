@@ -209,8 +209,9 @@ class BookmarkManager {
   }
 
   filterBookmarks(searchTerm) {
-    // 搜索功能现在直接在renderBookmarks中处理
+    // 搜索功能现在在根目录进行，并同步更新左侧目录
     this.renderBookmarks();
+    this.renderFolderTree();
   }
 
   applyFilter(filterType) {
@@ -267,9 +268,19 @@ class BookmarkManager {
 
   getFolders(bookmarks) {
     const folders = [];
+    const searchTerm = this.searchInput.value.trim();
+    
     for (const bookmark of bookmarks) {
       if (bookmark.children) {
         const childFolders = this.getFolders(bookmark.children);
+        
+        // 如果有搜索条件，检查目录是否包含搜索结果
+        if (searchTerm) {
+          const hasSearchResults = this.hasSearchResults(bookmark, searchTerm.toLowerCase());
+          if (!hasSearchResults) {
+            continue; // 跳过不包含搜索结果的目录
+          }
+        }
         
         // 根据当前筛选模式过滤目录
         if (this.currentFilter === 'hidden') {
@@ -306,6 +317,25 @@ class BookmarkManager {
         return true; // 子目录包含隐藏项
       }
     }
+    return false;
+  }
+
+  // 检查目录是否包含搜索结果
+  hasSearchResults(bookmark, searchTerm) {
+    // 检查当前书签是否匹配
+    if (bookmark.title.toLowerCase().includes(searchTerm)) {
+      return true;
+    }
+    
+    // 检查子项
+    if (bookmark.children) {
+      for (const child of bookmark.children) {
+        if (this.hasSearchResults(child, searchTerm)) {
+          return true;
+        }
+      }
+    }
+    
     return false;
   }
 
@@ -423,7 +453,16 @@ class BookmarkManager {
     if (folder) {
       this.currentFolder = folder;
       this.panelTitle.textContent = folder.title;
-      this.renderBookmarks();
+      
+      // 检查是否在搜索状态
+      const searchTerm = this.searchInput.value.trim();
+      if (searchTerm) {
+        // 在搜索状态下，显示该目录中包含搜索结果的子项
+        this.renderSearchResultsInFolder(folder, searchTerm);
+      } else {
+        // 正常状态下，显示该目录的所有内容
+        this.renderBookmarks();
+      }
     }
   }
 
@@ -470,6 +509,15 @@ class BookmarkManager {
   }
 
   renderBookmarks() {
+    const searchTerm = this.searchInput.value.trim();
+    
+    // 如果有搜索条件，在根目录进行搜索
+    if (searchTerm) {
+      this.renderSearchResults(searchTerm);
+      return;
+    }
+    
+    // 没有搜索条件时，显示当前文件夹内容
     if (!this.currentFolder) {
       this.bookmarkTree.innerHTML = `
         <div class="empty-state">
@@ -522,12 +570,6 @@ class BookmarkManager {
         break;
     }
     
-    // 如果有搜索条件，应用搜索过滤
-    const searchTerm = this.searchInput.value.trim();
-    if (searchTerm) {
-      filteredBookmarks = this.searchInBookmarks(filteredBookmarks, searchTerm.toLowerCase());
-    }
-    
     
     if (filteredBookmarks.length === 0) {
       this.bookmarkTree.innerHTML = `
@@ -540,6 +582,132 @@ class BookmarkManager {
     }
 
     this.bookmarkTree.innerHTML = this.renderBookmarkList(filteredBookmarks);
+  }
+
+  renderSearchResults(searchTerm) {
+    // 在根目录进行搜索
+    const rootBookmarks = this.bookmarks[0]?.children || [];
+    
+    // 根据当前筛选状态过滤书签
+    let filteredBookmarks = rootBookmarks;
+    switch (this.currentFilter) {
+      case 'visible':
+        filteredBookmarks = this.filterVisibleBookmarks(rootBookmarks);
+        break;
+      case 'hidden':
+        filteredBookmarks = this.filterHiddenOnlyBookmarks(rootBookmarks);
+        break;
+      case 'all':
+      default:
+        filteredBookmarks = rootBookmarks;
+        break;
+    }
+    
+    // 应用搜索过滤
+    const searchResults = this.searchInBookmarks(filteredBookmarks, searchTerm.toLowerCase());
+    
+    if (searchResults.length === 0) {
+      this.bookmarkTree.innerHTML = `
+        <div class="empty-state">
+          <h3>没有找到匹配的书签</h3>
+          <p>搜索 "${searchTerm}" 没有找到结果</p>
+        </div>
+      `;
+      // 清除左侧选中状态
+      document.querySelectorAll('.folder-item').forEach(item => {
+        item.classList.remove('active');
+      });
+      this.panelTitle.textContent = '搜索结果';
+      return;
+    }
+
+    // 显示搜索结果，包含文件夹路径信息
+    this.bookmarkTree.innerHTML = this.renderSearchResultsList(searchResults, searchTerm);
+    
+    // 更新面板标题
+    this.panelTitle.textContent = `搜索结果 (${searchResults.length} 项)`;
+    
+    // 清除左侧选中状态，因为显示的是全局搜索结果
+    document.querySelectorAll('.folder-item').forEach(item => {
+      item.classList.remove('active');
+    });
+  }
+
+  renderSearchResultsList(bookmarks, searchTerm) {
+    let html = '';
+    
+    for (const bookmark of bookmarks) {
+      if (bookmark.url) {
+        // 书签
+        const isHidden = bookmark.hidden || false;
+        const hiddenClass = isHidden ? ' hidden-bookmark' : '';
+        const hiddenIcon = isHidden ? '👁️‍🗨️' : '';
+        
+        // 检测是否为脚本书签
+        const isJavaScript = bookmark.url.startsWith('javascript:');
+        const isDataUrl = bookmark.url.startsWith('data:');
+        
+        let faviconUrl, displayUrl, clickHandler;
+        
+        if (isJavaScript || isDataUrl) {
+          // 脚本书签特殊处理
+          faviconUrl = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIgMkgxNFYxNEgyVjJaIiBzdHJva2U9IiM2NjYiIHN0cm9rZS13aWR0aD0iMS41IiBmaWxsPSJub25lIi8+CjxwYXRoIGQ9Ik0yIDZIMTRWNkg2VjJaIiBmaWxsPSIjNjY2Ii8+Cjwvc3ZnPgo=';
+          displayUrl = '脚本书签';
+          clickHandler = `data-script-url="${encodeURIComponent(bookmark.url)}" class="script-bookmark"`;
+        } else {
+          // 普通书签
+          faviconUrl = this.getFaviconUrl(bookmark.url);
+          displayUrl = bookmark.url;
+          clickHandler = `href="${bookmark.url}" target="_blank"`;
+        }
+        
+        html += `
+          <div class="bookmark-item${hiddenClass}">
+            <img class="bookmark-icon" src="${faviconUrl}" alt="书签" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIgMkgxNFYxNEgyVjJaIiBzdHJva2U9IiM2NjYiIHN0cm9rZS13aWR0aD0iMS41IiBmaWxsPSJub25lIi8+CjxwYXRoIGQ9Ik0yIDZIMTRWNkg2VjJaIiBmaWxsPSIjNjY2Ii8+Cjwvc3ZnPgo='">
+            <div class="bookmark-content">
+              <a ${clickHandler} class="bookmark-title">${this.highlightSearchTerm(bookmark.title, searchTerm)} ${hiddenIcon}</a>
+              <div class="bookmark-url">${displayUrl}</div>
+              <div class="bookmark-actions">
+                <button class="action-btn action-btn-edit" data-bookmark-id="${bookmark.id}">编辑</button>
+                <button class="action-btn action-btn-hide" data-bookmark-id="${bookmark.id}">${isHidden ? '显示' : '隐藏'}</button>
+                <button class="action-btn action-btn-delete" data-bookmark-id="${bookmark.id}">删除</button>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (bookmark.children) {
+        // 文件夹 - 递归渲染子项
+        html += this.renderSearchResultsList(bookmark.children, searchTerm);
+      }
+    }
+    
+    return html;
+  }
+
+  highlightSearchTerm(text, searchTerm) {
+    if (!searchTerm) return text;
+    const regex = new RegExp(`(${searchTerm})`, 'gi');
+    return text.replace(regex, '<mark>$1</mark>');
+  }
+
+  renderSearchResultsInFolder(folder, searchTerm) {
+    // 在该目录中搜索匹配的内容
+    const searchResults = this.searchInBookmarks(folder.children || [], searchTerm.toLowerCase());
+    
+    if (searchResults.length === 0) {
+      this.bookmarkTree.innerHTML = `
+        <div class="empty-state">
+          <h3>该目录中没有匹配的书签</h3>
+          <p>在 "${folder.title}" 中没有找到包含 "${searchTerm}" 的书签</p>
+        </div>
+      `;
+      this.panelTitle.textContent = `${folder.title} - 搜索结果 (0 项)`;
+      return;
+    }
+
+    // 显示该目录中的搜索结果
+    this.bookmarkTree.innerHTML = this.renderSearchResultsList(searchResults, searchTerm);
+    this.panelTitle.textContent = `${folder.title} - 搜索结果 (${searchResults.length} 项)`;
   }
 
   renderBookmarkList(bookmarks) {
