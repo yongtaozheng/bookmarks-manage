@@ -405,14 +405,15 @@ class BookmarkManager {
       const isHidden = folder.hidden || false;
       const hiddenIcon = isHidden ? '👁️‍🗨️' : '';
       const hiddenClass = isHidden ? ' hidden-folder' : '';
+      const hasChildren = folder.children && folder.children.length > 0;
       
       html += `
         <div class="folder-item${hiddenClass}" data-folder-id="${folder.id}" style="padding-left: ${16 + level * 16}px;">
-          <div class="folder-toggle">▼</div>
+          ${hasChildren ? '<div class="folder-toggle">▼</div>' : '<div class="folder-toggle" style="visibility: hidden;">▼</div>'}
           <div class="folder-icon">📁</div>
           <div class="folder-name">${folder.title} ${hiddenIcon}</div>
         </div>
-        ${folder.children.length > 0 ? `
+        ${hasChildren ? `
           <div class="folder-children" style="display: block;">
             ${this.renderFolderList(folder.children, level + 1)}
           </div>

@@ -14,13 +14,13 @@ class k{constructor(){this.bookmarks=[],this.filteredBookmarks=[],this.currentFo
                 <\/script>
               </body>
             </html>
-          `),t.document.close())}catch(t){alert("脚本执行失败: "+t.message)}}else i.startsWith("data:")&&window.open(i,"_blank")}renderFolderList(i,e=0){let t="";for(const o of i){const r=o.hidden||!1,n=r?"👁️‍🗨️":"";t+=`
-        <div class="folder-item${r?" hidden-folder":""}" data-folder-id="${o.id}" style="padding-left: ${16+e*16}px;">
-          <div class="folder-toggle">▼</div>
+          `),t.document.close())}catch(t){alert("脚本执行失败: "+t.message)}}else i.startsWith("data:")&&window.open(i,"_blank")}renderFolderList(i,e=0){let t="";for(const o of i){const r=o.hidden||!1,n=r?"👁️‍🗨️":"",s=r?" hidden-folder":"",a=o.children&&o.children.length>0;t+=`
+        <div class="folder-item${s}" data-folder-id="${o.id}" style="padding-left: ${16+e*16}px;">
+          ${a?'<div class="folder-toggle">▼</div>':'<div class="folder-toggle" style="visibility: hidden;">▼</div>'}
           <div class="folder-icon">📁</div>
           <div class="folder-name">${o.title} ${n}</div>
         </div>
-        ${o.children.length>0?`
+        ${a?`
           <div class="folder-children" style="display: block;">
             ${this.renderFolderList(o.children,e+1)}
           </div>

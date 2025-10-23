@@ -56,6 +56,49 @@
         transition: background 0.2s;
       }
       .open-tab-btn:hover { background: #369870; }
+      
+      /* 书签管理器按钮容器 */
+      .bookmark-manager-buttons {
+        display: flex;
+        gap: 0.5em;
+        margin: 1em auto 0.5em auto;
+        width: 580px;
+        justify-content: space-between;
+      }
+      
+      /* 系统书签管理器按钮 */
+      .system-bookmark-btn {
+        flex: 1;
+        padding: 0.5em 0;
+        background: #1976d2;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        font-size: var(--font-size-lg);
+        font-family: var(--font-family-primary);
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .system-bookmark-btn:hover { 
+        background: #1565c0; 
+      }
+      
+      /* 我的书签管理器按钮 */
+      .my-bookmark-btn {
+        flex: 1;
+        padding: 0.5em 0;
+        background: #42b983;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        font-size: var(--font-size-lg);
+        font-family: var(--font-family-primary);
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .my-bookmark-btn:hover { 
+        background: #369870; 
+      }
       .gitee-form {
         width: 580px;
         min-width: 580px;
@@ -75,7 +118,7 @@
         color: #1976d2;
       }
       .gitee-form input {
-        width: 100%;
+        width: 98%;
         margin-bottom: 0.7em;
         padding: 0.3em 0.6em;
         border: 1px solid #ccc;
@@ -193,8 +236,10 @@
     <h1 style="margin:0;padding:1em 0 0.5em 0;text-align:center;font-size:var(--font-size-2xl);color:#1976d2;" class="font-yunfeng">JYeontu书签管理器</h1>
     <div class="popup-header">
     </div>
-    <button class="open-tab-btn" id="openSystemBookmarksBtn">打开系统书签管理器</button>
-    <button class="open-tab-btn" id="openMyBookmarksBtn" style="margin-top: 0.5em;">打开我的书签管理器</button>
+    <div class="bookmark-manager-buttons">
+      <button class="system-bookmark-btn" id="openSystemBookmarksBtn">系统书签管理器</button>
+      <button class="my-bookmark-btn" id="openMyBookmarksBtn">我的书签管理器</button>
+    </div>
     <form class="gitee-form" id="giteeForm" autocomplete="off">
       <div class="msg" id="giteeMsg" style="min-height:1.5em;display:block;"></div>
       <label>Gitee Token
@@ -213,7 +258,7 @@
         <input type="text" id="giteeBranch" value="master" required placeholder="如: master" />
       </label>
       <label>书签目录（bookmarkDir）
-        <input type="text" id="bookmarkDir" required placeholder="如: bookmarks" value="bookmarks" style="width:100%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid #ccc;border-radius:4px;font-size:1em;" />
+        <input type="text" id="bookmarkDir" required placeholder="如: bookmarks" value="bookmarks" style="width:98%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid #ccc;border-radius:4px;font-size:1em;" />
       </label>
       <label>书签文件
         <select id="giteeFilePath" required style="width:100%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid #ccc;border-radius:4px;font-size:var(--font-size-md);font-family:var(--font-family-primary);"></select>
