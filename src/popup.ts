@@ -168,6 +168,19 @@ function getLocalBookmarks(): Promise<any[]> {
     chrome.bookmarks.getTree(resolve);
   });
 }
+
+// 获取书签管理器的完整数据（包含隐藏属性）
+function getBookmarkManagerData(): Promise<any[]> {
+  return new Promise(resolve => {
+    chrome.runtime.sendMessage({ type: 'getBookmarkManagerData' }, (response: any) => {
+      if (chrome.runtime.lastError) {
+        resolve([]);
+        return;
+      }
+      resolve(response?.bookmarks || []);
+    });
+  });
+}
 function removeAllBookmarks(): Promise<void> {
   return new Promise(resolve => {
     chrome.bookmarks.getTree((nodes: any[]) => {
@@ -209,6 +222,35 @@ function createBookmarks(nodes: any[], parentId = '1'): Promise<void> {
       });
     }
   })).then(() => {});
+}
+
+// == 筛选隐藏书签 ==
+function filterHiddenBookmarks(bookmarks: any[]): any[] {
+  const filterBookmarks = (items: any[]): any[] => {
+    const result: any[] = [];
+    
+    items.forEach(item => {
+      if (item.hidden) {
+        // 保留隐藏的书签
+        result.push(item);
+      } else if (item.children && item.children.length > 0) {
+        // 递归筛选子项
+        const filteredChildren = filterBookmarks(item.children);
+        
+        // 如果目录包含隐藏的子项，则保留整个目录
+        if (filteredChildren.length > 0) {
+          result.push({
+            ...item,
+            children: filteredChildren
+          });
+        }
+      }
+    });
+    
+    return result;
+  };
+  
+  return filterBookmarks(bookmarks);
 }
 
 // == 合并去重 ==
@@ -465,10 +507,37 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!confirm('确定要覆盖保存到Gitee吗？这将覆盖远程仓库中的书签数据。')) {
       return;
     }
+    
+    // 询问是否保留隐藏书签
+    const keepHidden = confirm('是否保留远程仓库中的隐藏书签？\n\n点击"确定"：保留远程隐藏书签并合并到本地书签\n点击"取消"：直接使用本地书签覆盖远程仓库');
+    
     try {
       const config = await getGiteeConfig();
       const tree = await getLocalBookmarks();
-      const content = tree[0]?.children || [];
+      let content = tree[0]?.children || [];
+      
+      if (keepHidden) {
+        // 需要保留隐藏书签，从书签管理器中获取包含隐藏属性的书签
+        try {
+          // 通过消息传递获取书签管理器的完整书签数据
+          const bookmarkManagerData = await getBookmarkManagerData();
+          
+          if (bookmarkManagerData && bookmarkManagerData.length > 0) {
+            // 筛选出书签管理器中的隐藏书签
+            const hiddenBookmarks = filterHiddenBookmarks(bookmarkManagerData);
+            
+            // 将隐藏书签合并到当前要保存的书签中
+            content = mergeBookmarks(content, hiddenBookmarks);
+            
+            showMsg('已保留书签管理器中的隐藏书签并合并到保存内容中');
+          } else {
+            showMsg('无法获取书签管理器数据，将直接使用当前书签覆盖', true);
+          }
+        } catch (error) {
+          showMsg('获取书签管理器数据失败，将直接使用当前书签覆盖', true);
+        }
+      }
+      
       await modifyFile(config, content, true);
       showMsg('覆盖保存成功！');
     } catch (e: any) {

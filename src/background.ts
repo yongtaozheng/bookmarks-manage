@@ -17,6 +17,15 @@ if (isChromeExtensionContext()) {
       });
       return true; // 异步响应
     }
+    
+    if (message && message.type === 'getBookmarkManagerData') {
+      // 从storage中获取书签管理器的数据
+      chrome.storage.local.get(['bookmarkManagerData'], (result: any) => {
+        sendResponse({ bookmarks: result.bookmarkManagerData || [] });
+      });
+      return true; // 异步响应
+    }
+    
     if (message && message.type === 'closeCurrentTab') {
       if (sender && sender.tab && sender.tab.id) {
         chrome.tabs.remove(sender.tab.id);

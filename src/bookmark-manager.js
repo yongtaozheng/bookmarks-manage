@@ -8,6 +8,7 @@ class BookmarkManager {
     this.bookmarkTree = document.getElementById('bookmarkTree');
     this.folderTree = document.getElementById('folderTree');
     this.panelTitle = document.getElementById('panelTitle');
+    this.backButton = document.getElementById('backButton');
     this.showHidden = true; // 默认显示隐藏的书签（我的书签管理器显示所有书签）
     this.currentFilter = 'all'; // 当前筛选状态：all, visible, hidden
     this.giteeConfig = {
@@ -44,6 +45,7 @@ class BookmarkManager {
           if (data && data.length > 0) {
             // 我的书签管理器显示所有书签（包括隐藏的），不进行过滤
             this.bookmarks = data;
+            this.saveBookmarksToStorage();
             return;
           }
         } catch (error) {
@@ -55,6 +57,7 @@ class BookmarkManager {
         const tree = await chrome.bookmarks.getTree();
         // 获取所有根节点的子节点，包括书签栏、其他书签等
         this.bookmarks = tree[0].children || [];
+        this.saveBookmarksToStorage();
       } else {
         // 模拟数据用于测试
         this.bookmarks = [
@@ -75,9 +78,19 @@ class BookmarkManager {
             ]
           }
         ];
+        this.saveBookmarksToStorage();
       }
     } catch (error) {
       this.bookmarks = [];
+    }
+  }
+
+  // 保存书签数据到storage，供popup使用
+  saveBookmarksToStorage() {
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      chrome.storage.local.set({ 'bookmarkManagerData': this.bookmarks }, () => {
+        // 数据已保存
+      });
     }
   }
 
@@ -127,6 +140,17 @@ class BookmarkManager {
 
     document.getElementById('saveConfigBtn').addEventListener('click', () => {
       this.saveConfig();
+    });
+
+    // 返回按钮事件监听
+    this.backButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      const parentId = this.backButton.getAttribute('data-parent-id');
+      if (parentId) {
+        this.selectFolder(parentId);
+        // 同步左侧选中状态
+        this.syncLeftSidebarSelection(parentId);
+      }
     });
 
     // 使用事件委托处理文件夹树的事件
@@ -194,6 +218,7 @@ class BookmarkManager {
         this.executeScript(scriptUrl);
         return;
       }
+      
       
       // 处理文件夹点击（只有在没有点击按钮时才触发）
       if (target.classList.contains('folder-item') || target.closest('.folder-item')) {
@@ -509,6 +534,20 @@ class BookmarkManager {
     return null;
   }
 
+  // 查找父目录
+  findParentFolder(bookmarks, childId, parent = null) {
+    for (const bookmark of bookmarks) {
+      if (bookmark.id === childId) {
+        return parent;
+      }
+      if (bookmark.children) {
+        const found = this.findParentFolder(bookmark.children, childId, bookmark);
+        if (found !== null) return found;
+      }
+    }
+    return null;
+  }
+
   renderBookmarks() {
     const searchTerm = this.searchInput.value.trim();
     
@@ -527,6 +566,18 @@ class BookmarkManager {
         </div>
       `;
       return;
+    }
+
+    // 查找父目录
+    const parentFolder = this.findParentFolder(this.bookmarks, this.currentFolder.id);
+
+    // 更新返回按钮显示状态
+    if (parentFolder) {
+      this.backButton.style.display = 'flex';
+      this.backButton.setAttribute('data-parent-id', parentFolder.id);
+      this.backButton.querySelector('.back-text').textContent = `返回 ${parentFolder.title}`;
+    } else {
+      this.backButton.style.display = 'none';
     }
 
     // 重新查找当前文件夹，因为数据可能已经更新
@@ -570,7 +621,6 @@ class BookmarkManager {
         filteredBookmarks = bookmarks;
         break;
     }
-    
     
     if (filteredBookmarks.length === 0) {
       this.bookmarkTree.innerHTML = `
@@ -917,6 +967,9 @@ class BookmarkManager {
       
       // 保存到Gitee仓库
       this.saveBookmarkTreeToGitee(this.bookmarks);
+      
+      // 保存到storage供popup使用
+      this.saveBookmarksToStorage();
       
       // 更新系统书签（过滤掉隐藏的书签）
       this.updateSystemBookmarks();

@@ -269,6 +269,12 @@
       justify-content: space-between;
     }
 
+    .panel-title-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
     .panel-title {
       font-size: 16px;
       font-weight: 500;
@@ -574,6 +580,38 @@
       margin: 0;
     }
 
+    /* 返回按钮样式 */
+    .back-button {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border: 1px solid #d0d0d0;
+      border-radius: 4px;
+      background: white;
+      color: #333;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+      text-decoration: none;
+      height: 32px;
+    }
+
+    .back-button:hover {
+      background: #f8f9fa;
+      border-color: #b0b0b0;
+      color: #4285f4;
+    }
+
+    .back-icon {
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .back-text {
+      font-weight: 400;
+    }
+
     /* 文件夹样式 */
     .bookmark-item[data-type="folder"] {
       background: #f8f9fa;
@@ -670,7 +708,13 @@
 
         <div class="main-panel">
           <div class="panel-header">
-            <h3 class="panel-title" id="panelTitle">选择文件夹</h3>
+            <div class="panel-title-section">
+              <button class="back-button" id="backButton" style="display: none;">
+                <span class="back-icon">←</span>
+                <span class="back-text">返回</span>
+              </button>
+              <h3 class="panel-title" id="panelTitle">选择文件夹</h3>
+            </div>
             <div class="panel-actions">
               <button class="btn" id="addBookmarkToFolderBtn">+ 添加书签</button>
             </div>
