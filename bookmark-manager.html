@@ -312,13 +312,62 @@
       border-bottom: none;
     }
 
+    /* 拖动排序样式 */
+    .bookmark-item {
+      cursor: move;
+      transition: all 0.2s ease;
+    }
+
+    .bookmark-item.dragging {
+      opacity: 0.5;
+      transform: rotate(5deg);
+      z-index: 1000;
+      position: relative;
+    }
+
+    .bookmark-item.drag-over {
+      border-top: 3px solid #4285f4;
+      background-color: #e3f2fd;
+    }
+
+    .bookmark-item.drag-over-bottom {
+      border-bottom: 3px solid #4285f4;
+      background-color: #e3f2fd;
+    }
+
+    .drag-handle {
+      width: 16px;
+      height: 16px;
+      margin-right: 8px;
+      cursor: move;
+      opacity: 0.3;
+      transition: opacity 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: #666;
+    }
+
+    .bookmark-item:hover .drag-handle {
+      opacity: 0.7;
+    }
+
+    .bookmark-item.dragging .drag-handle {
+      opacity: 1;
+    }
+
     .bookmark-item.folder-item {
-      cursor: pointer;
+      cursor: move;
       background-color: #f8f9fa;
     }
 
     .bookmark-item.folder-item:hover {
       background-color: #e9ecef;
+    }
+
+    .bookmark-item.folder-item .bookmark-content {
+      cursor: pointer;
     }
 
     .bookmark-item.folder-item.active {

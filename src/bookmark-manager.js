@@ -11,6 +11,8 @@ class BookmarkManager {
     this.backButton = document.getElementById('backButton');
     this.showHidden = true; // 默认显示隐藏的书签（我的书签管理器显示所有书签）
     this.currentFilter = 'all'; // 当前筛选状态：all, visible, hidden
+    this.draggedElement = null; // 当前被拖动的元素
+    this.dragOverElement = null; // 当前拖拽悬停的元素
     this.giteeConfig = {
       owner: '',
       repo: '',
@@ -153,6 +155,9 @@ class BookmarkManager {
       }
     });
 
+    // 拖动排序事件监听
+    this.setupDragAndDrop();
+
     // 使用事件委托处理文件夹树的事件
     this.folderTree.addEventListener('click', (e) => {
       const target = e.target;
@@ -179,6 +184,11 @@ class BookmarkManager {
     // 使用事件委托处理书签项目的事件
     this.bookmarkTree.addEventListener('click', (e) => {
       const target = e.target;
+      
+      // 如果点击的是拖动句柄，不处理其他事件
+      if (target.classList.contains('drag-handle')) {
+        return;
+      }
       
       // 处理编辑按钮
       if (target.classList.contains('action-btn-edit')) {
@@ -221,7 +231,8 @@ class BookmarkManager {
       
       
       // 处理文件夹点击（只有在没有点击按钮时才触发）
-      if (target.classList.contains('folder-item') || target.closest('.folder-item')) {
+      if ((target.classList.contains('folder-item') || target.closest('.folder-item')) && 
+          !target.classList.contains('drag-handle')) {
         const folderItem = target.classList.contains('folder-item') ? target : target.closest('.folder-item');
         const folderId = folderItem.getAttribute('data-folder-id');
         if (folderId) {
@@ -231,6 +242,174 @@ class BookmarkManager {
         }
       }
     });
+  }
+
+  setupDragAndDrop() {
+    // 使用事件委托处理拖动事件
+    this.bookmarkTree.addEventListener('dragstart', (e) => {
+      const bookmarkItem = e.target.closest('.bookmark-item');
+      if (bookmarkItem) {
+        // 重置所有拖动状态
+        this.resetDragState();
+        
+        this.draggedElement = bookmarkItem;
+        bookmarkItem.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/html', bookmarkItem.outerHTML);
+      }
+    });
+
+    this.bookmarkTree.addEventListener('dragend', (e) => {
+      const bookmarkItem = e.target.closest('.bookmark-item');
+      if (bookmarkItem) {
+        bookmarkItem.classList.remove('dragging');
+        // 清理拖动状态（拖拽可能被取消）
+        this.draggedElement = null;
+        this.dragOverElement = null;
+        this.clearDragOverClasses();
+      }
+    });
+
+    this.bookmarkTree.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      
+      const draggedOver = e.target.closest('.bookmark-item');
+      if (draggedOver && draggedOver !== this.draggedElement) {
+        this.clearDragOverClasses();
+        this.dragOverElement = draggedOver;
+        
+        const rect = draggedOver.getBoundingClientRect();
+        const midpoint = rect.top + rect.height / 2;
+        
+        if (e.clientY < midpoint) {
+          draggedOver.classList.add('drag-over');
+        } else {
+          draggedOver.classList.add('drag-over-bottom');
+        }
+      }
+    });
+
+    this.bookmarkTree.addEventListener('dragleave', (e) => {
+      if (!e.target.closest('.bookmark-item')) {
+        this.clearDragOverClasses();
+      }
+    });
+
+    this.bookmarkTree.addEventListener('drop', (e) => {
+      e.preventDefault();
+      
+      if (this.draggedElement && this.dragOverElement) {
+        this.handleDrop(this.draggedElement, this.dragOverElement, e);
+      }
+      
+      // 清理所有拖动状态
+      this.draggedElement = null;
+      this.dragOverElement = null;
+      this.clearDragOverClasses();
+    });
+  }
+
+  resetDragState() {
+    // 清理所有拖动相关的状态和样式
+    this.draggedElement = null;
+    this.dragOverElement = null;
+    this.clearDragOverClasses();
+    
+    // 清理所有可能的拖动样式
+    const elements = this.bookmarkTree.querySelectorAll('.bookmark-item');
+    elements.forEach(el => {
+      el.classList.remove('dragging', 'drag-over', 'drag-over-bottom');
+    });
+  }
+
+  clearDragOverClasses() {
+    const elements = this.bookmarkTree.querySelectorAll('.bookmark-item');
+    elements.forEach(el => {
+      el.classList.remove('drag-over', 'drag-over-bottom');
+    });
+    this.dragOverElement = null;
+  }
+
+  handleDrop(draggedElement, dropTarget, event) {
+    const draggedId = draggedElement.getAttribute('data-bookmark-id');
+    const dropTargetId = dropTarget.getAttribute('data-bookmark-id');
+    
+    if (draggedId === dropTargetId) return;
+    
+    // 获取当前文件夹的书签列表
+    const currentFolder = this.findFolderById(this.bookmarks, this.currentFolder.id);
+    if (!currentFolder || !currentFolder.children) return;
+    
+    const bookmarks = currentFolder.children;
+    const draggedIndex = bookmarks.findIndex(b => b.id === draggedId);
+    const dropIndex = bookmarks.findIndex(b => b.id === dropTargetId);
+    
+    if (draggedIndex === -1 || dropIndex === -1) return;
+    
+    // 确定插入位置
+    const rect = dropTarget.getBoundingClientRect();
+    const midpoint = rect.top + rect.height / 2;
+    const insertIndex = event.clientY < midpoint ? dropIndex : dropIndex + 1;
+    
+    // 重新排序
+    const draggedBookmark = bookmarks.splice(draggedIndex, 1)[0];
+    const adjustedInsertIndex = insertIndex > draggedIndex ? insertIndex - 1 : insertIndex;
+    bookmarks.splice(adjustedInsertIndex, 0, draggedBookmark);
+    
+    // 更新Chrome书签API
+    this.updateBookmarkOrder(draggedId, dropTargetId, insertIndex > dropIndex);
+    
+    // 保存到存储
+    this.saveBookmarksToStorage();
+    
+    // 延迟重新渲染，确保状态清理完成
+    setTimeout(() => {
+      this.renderBookmarks();
+    }, 50);
+  }
+
+  async updateBookmarkOrder(draggedId, dropTargetId, insertAfter) {
+    try {
+      // 使用当前文件夹作为父ID
+      const parentId = this.currentFolder.id;
+      
+      // 计算新的索引位置
+      const currentFolder = this.findFolderById(this.bookmarks, this.currentFolder.id);
+      if (!currentFolder || !currentFolder.children) return;
+      
+      const bookmarks = currentFolder.children;
+      const dropIndex = bookmarks.findIndex(b => b.id === dropTargetId);
+      if (dropIndex === -1) return;
+      
+      const newIndex = insertAfter ? dropIndex + 1 : dropIndex;
+      
+      // 移动书签
+      await chrome.bookmarks.move(draggedId, {
+        parentId: parentId,
+        index: newIndex
+      });
+    } catch (error) {
+      console.error('更新书签顺序失败:', error);
+    }
+  }
+
+  findBookmarkById(bookmarks, id) {
+    for (const bookmark of bookmarks) {
+      if (bookmark.id === id) return bookmark;
+      if (bookmark.children) {
+        const found = this.findBookmarkById(bookmark.children, id);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  getBookmarkIndex(bookmarkId) {
+    const currentFolder = this.findFolderById(this.bookmarks, this.currentFolder.id);
+    if (!currentFolder || !currentFolder.children) return 0;
+    
+    return currentFolder.children.findIndex(b => b.id === bookmarkId);
   }
 
   filterBookmarks(searchTerm) {
@@ -713,7 +892,8 @@ class BookmarkManager {
         }
         
         html += `
-          <div class="bookmark-item${hiddenClass}">
+          <div class="bookmark-item${hiddenClass}" data-bookmark-id="${bookmark.id}" draggable="true">
+            <div class="drag-handle">⋮⋮</div>
             <img class="bookmark-icon" src="${faviconUrl}" alt="书签" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIgMkgxNFYxNEgyVjJaIiBzdHJva2U9IiM2NjYiIHN0cm9rZS13aWR0aD0iMS41IiBmaWxsPSJub25lIi8+CjxwYXRoIGQ9Ik0yIDZIMTRWNkg2VjJaIiBmaWxsPSIjNjY2Ii8+Cjwvc3ZnPgo='">
             <div class="bookmark-content">
               <a ${clickHandler} class="bookmark-title">${this.highlightSearchTerm(bookmark.title, searchTerm)} ${hiddenIcon}</a>
@@ -793,7 +973,8 @@ class BookmarkManager {
         }
         
         html += `
-          <div class="bookmark-item${hiddenClass}">
+          <div class="bookmark-item${hiddenClass}" data-bookmark-id="${bookmark.id}" draggable="true">
+            <div class="drag-handle">⋮⋮</div>
             <img class="bookmark-icon" src="${faviconUrl}" alt="书签" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIgMkgxNFYxNEgyVjJaIiBzdHJva2U9IiM2NjYiIHN0cm9rZS13aWR0aD0iMS41IiBmaWxsPSJub25lIi8+CjxwYXRoIGQ9Ik0yIDZIMTRWNkg2VjJaIiBmaWxsPSIjNjY2Ii8+Cjwvc3ZnPgo='">
             <div class="bookmark-content">
               <a ${clickHandler} class="bookmark-title">${bookmark.title} ${hiddenIcon}</a>
@@ -811,7 +992,8 @@ class BookmarkManager {
         const hiddenClass = isHidden ? ' hidden-bookmark' : '';
         const hiddenIcon = isHidden ? '👁️‍🗨️' : '';
         html += `
-          <div class="bookmark-item folder-item${hiddenClass}" data-folder-id="${bookmark.id}">
+          <div class="bookmark-item folder-item${hiddenClass}" data-folder-id="${bookmark.id}" data-bookmark-id="${bookmark.id}" draggable="true">
+            <div class="drag-handle">⋮⋮</div>
             <div class="folder-icon">📁</div>
             <div class="bookmark-content">
               <div class="bookmark-title">${bookmark.title} ${hiddenIcon}</div>
