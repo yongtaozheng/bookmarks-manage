@@ -58,7 +58,28 @@ class BookmarkManager {
       if (typeof chrome !== 'undefined' && chrome.bookmarks) {
         const tree = await chrome.bookmarks.getTree();
         // 获取所有根节点的子节点，包括书签栏、其他书签等
-        this.bookmarks = tree[0].children || [];
+        const chromeBookmarks = tree[0].children || [];
+        
+        // 尝试从storage恢复隐藏状态
+        if (typeof chrome !== 'undefined' && chrome.storage) {
+          const storedData = await this.loadBookmarksFromStorage();
+          if (storedData && storedData.length > 0) {
+            // 验证存储的数据是否仍然有效
+            if (this.validateStoredBookmarks(storedData, chromeBookmarks)) {
+              // 存储的数据有效，使用存储的数据（包含隐藏属性）
+              this.bookmarks = storedData;
+              return;
+            } else {
+              // 存储的数据无效，合并隐藏状态到Chrome书签数据
+              this.bookmarks = this.mergeHiddenState(chromeBookmarks, storedData);
+            }
+          } else {
+            this.bookmarks = chromeBookmarks;
+          }
+        } else {
+          this.bookmarks = chromeBookmarks;
+        }
+        
         this.saveBookmarksToStorage();
       } else {
         // 模拟数据用于测试
@@ -85,6 +106,89 @@ class BookmarkManager {
     } catch (error) {
       this.bookmarks = [];
     }
+  }
+
+  // 从storage加载书签数据
+  loadBookmarksFromStorage() {
+    return new Promise((resolve) => {
+      if (typeof chrome !== 'undefined' && chrome.storage) {
+        chrome.storage.local.get(['bookmarkManagerData'], (result) => {
+          resolve(result.bookmarkManagerData || null);
+        });
+      } else {
+        resolve(null);
+      }
+    });
+  }
+
+  // 验证存储的书签数据是否仍然有效
+  validateStoredBookmarks(storedData, chromeBookmarks) {
+    // 创建Chrome书签ID映射
+    const chromeIds = new Set();
+    const collectIds = (bookmarks) => {
+      bookmarks.forEach(bookmark => {
+        chromeIds.add(bookmark.id);
+        if (bookmark.children) {
+          collectIds(bookmark.children);
+        }
+      });
+    };
+    collectIds(chromeBookmarks);
+    
+    // 检查存储的数据中的ID是否都存在于Chrome书签中
+    const checkIds = (bookmarks) => {
+      for (const bookmark of bookmarks) {
+        if (!chromeIds.has(bookmark.id)) {
+          return false;
+        }
+        if (bookmark.children) {
+          if (!checkIds(bookmark.children)) {
+            return false;
+          }
+        }
+      }
+      return true;
+    };
+    
+    return checkIds(storedData);
+  }
+
+  // 合并隐藏状态到Chrome书签数据
+  mergeHiddenState(chromeBookmarks, storedData) {
+    // 创建存储数据的ID到隐藏状态的映射
+    const hiddenStateMap = new Map();
+    const collectHiddenState = (bookmarks) => {
+      bookmarks.forEach(bookmark => {
+        if (bookmark.hidden !== undefined) {
+          hiddenStateMap.set(bookmark.id, bookmark.hidden);
+        }
+        if (bookmark.children) {
+          collectHiddenState(bookmark.children);
+        }
+      });
+    };
+    collectHiddenState(storedData);
+    
+    // 递归合并隐藏状态到Chrome书签数据
+    const mergeRecursive = (chromeItems) => {
+      return chromeItems.map(item => {
+        const merged = { ...item };
+        
+        // 恢复隐藏状态
+        if (hiddenStateMap.has(item.id)) {
+          merged.hidden = hiddenStateMap.get(item.id);
+        }
+        
+        // 递归处理子项
+        if (item.children && item.children.length > 0) {
+          merged.children = mergeRecursive(item.children);
+        }
+        
+        return merged;
+      });
+    };
+    
+    return mergeRecursive(chromeBookmarks);
   }
 
   // 保存书签数据到storage，供popup使用
