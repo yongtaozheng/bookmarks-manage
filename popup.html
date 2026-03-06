@@ -155,6 +155,76 @@
         transition: background 0.2s;
       }
       .sync-btns button:hover { background: #1256a2; }
+      /* 快捷键设置 */
+      .shortcut-form {
+        width: 580px;
+        min-width: 580px;
+        max-width: 580px;
+        margin: 0.5em auto;
+        background: #f6fafc;
+        border-radius: 8px;
+        padding: 1em 1em 0.5em 1em;
+        box-sizing: border-box;
+        border: 1px solid #e0e0e0;
+      }
+      .shortcut-form h3 {
+        margin: 0 0 0.5em 0;
+        font-size: var(--font-size-xl);
+        font-family: var(--font-family-primary);
+        color: #1976d2;
+      }
+      .shortcut-form label {
+        display: block;
+        margin-bottom: 0.2em;
+        font-size: var(--font-size-md);
+        font-family: var(--font-family-primary);
+        color: #1976d2;
+      }
+      .shortcut-form select,
+      .shortcut-form input[type="text"] {
+        width: 98%;
+        margin-bottom: 0.7em;
+        padding: 0.3em 0.6em;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: var(--font-size-md);
+        font-family: var(--font-family-primary);
+      }
+      .shortcut-form .shortcut-row {
+        display: flex;
+        gap: 0.5em;
+        align-items: flex-start;
+        margin-bottom: 0.5em;
+      }
+      .shortcut-form .shortcut-row label {
+        flex: 1;
+        margin-bottom: 0;
+      }
+      .shortcut-form .shortcut-row select,
+      .shortcut-form .shortcut-row input[type="text"] {
+        margin-bottom: 0;
+      }
+      .shortcut-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+        margin-bottom: 0.7em;
+      }
+      .shortcut-toggle input[type="checkbox"] {
+        width: auto;
+        margin: 0;
+      }
+      .shortcut-toggle label {
+        margin-bottom: 0 !important;
+        color: #333 !important;
+      }
+      .shortcut-msg {
+        color: #42b983;
+        font-size: var(--font-size-base);
+        font-family: var(--font-family-primary);
+        margin-bottom: 0.5em;
+        min-height: 1.5em;
+      }
       .popup-header {
         width: 100%;
         display: flex;
@@ -274,6 +344,61 @@
       <button id="btnGetOverwrite" type="button">覆盖获取</button>
       <button id="btnGetMerge" type="button">合并获取</button>
     </div>
+    <div class="shortcut-form" id="shortcutForm">
+      <h3>⌨️ 快捷键设置</h3>
+      <div class="shortcut-msg" id="shortcutMsg"></div>
+      <!-- 全局搜索 -->
+      <div style="border-bottom: 1px solid #e0e0e0; padding-bottom: 0.7em; margin-bottom: 0.7em;">
+        <div class="shortcut-toggle">
+          <input type="checkbox" id="searchEnabled" checked />
+          <label for="searchEnabled">启用全局书签搜索</label>
+        </div>
+        <label>触发键
+          <select id="searchTriggerKey">
+            <option value="any_modifier">任意修饰键 (Cmd/Ctrl/Alt)</option>
+            <option value="Meta">Cmd (Mac) / Win (Windows)</option>
+            <option value="Control">Control</option>
+            <option value="Alt">Alt</option>
+          </select>
+        </label>
+        <div class="shortcut-row">
+          <label>连按次数
+            <select id="searchPressCount">
+              <option value="2">2 次</option>
+              <option value="3" selected>3 次</option>
+              <option value="4">4 次</option>
+            </select>
+          </label>
+          <label>时间窗口
+            <select id="searchTimeWindow">
+              <option value="500">500ms (快速)</option>
+              <option value="800" selected>800ms (默认)</option>
+              <option value="1000">1000ms (慢速)</option>
+              <option value="1500">1500ms (最慢)</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <!-- 关闭标签页 -->
+      <div>
+        <div class="shortcut-toggle">
+          <input type="checkbox" id="closeTabEnabled" checked />
+          <label for="closeTabEnabled">启用关闭当前标签页快捷键</label>
+        </div>
+        <div class="shortcut-row">
+          <label>修饰键
+            <select id="closeTabModifier">
+              <option value="Alt" selected>Alt</option>
+              <option value="Control">Control</option>
+              <option value="Meta">Cmd (Mac) / Win (Windows)</option>
+            </select>
+          </label>
+          <label>按键
+            <input type="text" id="closeTabKey" value="W" maxlength="1" style="text-transform:uppercase;" placeholder="如：W" />
+          </label>
+        </div>
+      </div>
+    </div>
     <div id="app"></div>
     <div id="helpModal" class="help-modal" style="display:none;">
       <div class="help-modal-content">
@@ -285,10 +410,10 @@
           <li><b>覆盖获取：</b>使用Gitee上的书签数据来替换本地的书签数据</li>
           <li><b>合并获取：</b>获取Gitee上的书签数据并与本地书签数据合并后替换本地的书签数据</li>
         </ul>
-        <h3>快捷键</h3>
+        <h3>快捷键 <span style="font-size:0.75em;color:#888;font-weight:normal;">（可在「快捷键设置」中自定义）</span></h3>
         <ul>
-          <li><b>Alt+W：</b>关闭当前标签页</li>
-          <li><b>连续三次 Cmd[mac]/ctrl[window]：</b>呼出全局书签搜索</li>
+          <li><b>修饰键+字母键：</b>关闭当前标签页（默认 Alt+W）</li>
+          <li><b>连续按修饰键：</b>呼出全局书签搜索（默认连续三次 Cmd/Ctrl/Alt）</li>
           <li><b>ESC：</b>关闭搜索框</li>
         </ul>
         <h3>配置说明</h3>

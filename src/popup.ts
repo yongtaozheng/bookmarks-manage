@@ -61,6 +61,55 @@ function setConfigToDB(config: Record<string, string>) {
     });
   });
 }
+// == 快捷键配置工具 ==
+const DEFAULT_SHORTCUT_CONFIG = {
+  search: {
+    triggerKey: 'any_modifier',
+    pressCount: 3,
+    timeWindow: 800,
+    enabled: true,
+  },
+  closeTab: {
+    enabled: true,
+    modifier: 'Alt',
+    key: 'w',
+  },
+};
+
+function getShortcutConfig(): Promise<any> {
+  return new Promise((resolve) => {
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.get(['shortcut_config'], (result: any) => {
+        if (result.shortcut_config) {
+          try {
+            const saved = JSON.parse(result.shortcut_config);
+            resolve({
+              search: { ...DEFAULT_SHORTCUT_CONFIG.search, ...(saved.search || {}) },
+              closeTab: { ...DEFAULT_SHORTCUT_CONFIG.closeTab, ...(saved.closeTab || {}) },
+            });
+          } catch {
+            resolve(JSON.parse(JSON.stringify(DEFAULT_SHORTCUT_CONFIG)));
+          }
+        } else {
+          resolve(JSON.parse(JSON.stringify(DEFAULT_SHORTCUT_CONFIG)));
+        }
+      });
+    } else {
+      resolve(JSON.parse(JSON.stringify(DEFAULT_SHORTCUT_CONFIG)));
+    }
+  });
+}
+
+function saveShortcutConfig(config: any): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.set({ shortcut_config: JSON.stringify(config) }, () => resolve());
+    } else {
+      resolve();
+    }
+  });
+}
+
 // == Gitee 配置获取 ==
 function getGiteeConfig(): Promise<any> {
   const fields = ['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath'];
@@ -793,5 +842,94 @@ document.addEventListener('DOMContentLoaded', () => {
     helpModal.onclick = (e) => {
       if (e.target === helpModal) helpModal.style.display = 'none';
     };
+  }
+
+  // == 快捷键设置逻辑 ==
+  const searchEnabledEl = document.getElementById('searchEnabled') as HTMLInputElement;
+  const searchTriggerKeyEl = document.getElementById('searchTriggerKey') as HTMLSelectElement;
+  const searchPressCountEl = document.getElementById('searchPressCount') as HTMLSelectElement;
+  const searchTimeWindowEl = document.getElementById('searchTimeWindow') as HTMLSelectElement;
+  const closeTabEnabledEl = document.getElementById('closeTabEnabled') as HTMLInputElement;
+  const closeTabModifierEl = document.getElementById('closeTabModifier') as HTMLSelectElement;
+  const closeTabKeyEl = document.getElementById('closeTabKey') as HTMLInputElement;
+  const shortcutMsg = document.getElementById('shortcutMsg');
+
+  if (searchEnabledEl && searchTriggerKeyEl && searchPressCountEl && searchTimeWindowEl &&
+      closeTabEnabledEl && closeTabModifierEl && closeTabKeyEl) {
+
+    // 启用/禁用子控件联动
+    function updateSearchControlsState() {
+      const disabled = !searchEnabledEl.checked;
+      searchTriggerKeyEl.disabled = disabled;
+      searchPressCountEl.disabled = disabled;
+      searchTimeWindowEl.disabled = disabled;
+    }
+    function updateCloseTabControlsState() {
+      const disabled = !closeTabEnabledEl.checked;
+      closeTabModifierEl.disabled = disabled;
+      closeTabKeyEl.disabled = disabled;
+    }
+
+    // 加载已保存的配置并回填表单
+    getShortcutConfig().then((config: any) => {
+      searchEnabledEl.checked = config.search.enabled;
+      searchTriggerKeyEl.value = config.search.triggerKey;
+      searchPressCountEl.value = String(config.search.pressCount);
+      searchTimeWindowEl.value = String(config.search.timeWindow);
+      closeTabEnabledEl.checked = config.closeTab.enabled;
+      closeTabModifierEl.value = config.closeTab.modifier;
+      closeTabKeyEl.value = config.closeTab.key.toUpperCase();
+      updateSearchControlsState();
+      updateCloseTabControlsState();
+    });
+
+    // 收集表单数据并保存
+    function saveShortcuts() {
+      const config = {
+        search: {
+          triggerKey: searchTriggerKeyEl.value,
+          pressCount: parseInt(searchPressCountEl.value, 10),
+          timeWindow: parseInt(searchTimeWindowEl.value, 10),
+          enabled: searchEnabledEl.checked,
+        },
+        closeTab: {
+          enabled: closeTabEnabledEl.checked,
+          modifier: closeTabModifierEl.value,
+          key: (closeTabKeyEl.value || 'w').toLowerCase(),
+        },
+      };
+      saveShortcutConfig(config).then(() => {
+        if (shortcutMsg) {
+          shortcutMsg.textContent = '快捷键设置已保存！';
+          setTimeout(() => { if (shortcutMsg) shortcutMsg.textContent = ''; }, 1200);
+        }
+      });
+    }
+
+    // 绑定 change 事件 — select 和 checkbox
+    [searchEnabledEl, searchTriggerKeyEl, searchPressCountEl, searchTimeWindowEl,
+     closeTabEnabledEl, closeTabModifierEl].forEach((el: HTMLElement) => {
+      el.addEventListener('change', () => {
+        saveShortcuts();
+        updateSearchControlsState();
+        updateCloseTabControlsState();
+      });
+    });
+
+    // 关闭标签按键输入：限制单字符 + 自动保存
+    closeTabKeyEl.addEventListener('input', () => {
+      // 只保留最后输入的一个字符
+      if (closeTabKeyEl.value.length > 1) {
+        closeTabKeyEl.value = closeTabKeyEl.value.slice(-1);
+      }
+      closeTabKeyEl.value = closeTabKeyEl.value.toUpperCase();
+      saveShortcuts();
+    });
+    closeTabKeyEl.addEventListener('blur', () => {
+      if (!closeTabKeyEl.value) {
+        closeTabKeyEl.value = 'W'; // 为空时恢复默认值
+      }
+      saveShortcuts();
+    });
   }
 }); 

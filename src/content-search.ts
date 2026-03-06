@@ -2,9 +2,87 @@ declare const chrome: any;
 
 // 检查chrome API是否可用
 function isChromeExtensionContext(): boolean {
-  return typeof chrome !== 'undefined' && 
-         chrome.runtime && 
+  return typeof chrome !== 'undefined' &&
+         chrome.runtime &&
          chrome.runtime.sendMessage;
+}
+
+// == 快捷键配置 ==
+interface ShortcutConfig {
+  search: {
+    triggerKey: 'any_modifier' | 'Meta' | 'Control' | 'Alt';
+    pressCount: number;
+    timeWindow: number;
+    enabled: boolean;
+  };
+  closeTab: {
+    enabled: boolean;
+    modifier: 'Alt' | 'Control' | 'Meta';
+    key: string;
+  };
+}
+
+const DEFAULT_SHORTCUT_CONFIG: ShortcutConfig = {
+  search: {
+    triggerKey: 'any_modifier',
+    pressCount: 3,
+    timeWindow: 800,
+    enabled: true,
+  },
+  closeTab: {
+    enabled: true,
+    modifier: 'Alt',
+    key: 'w',
+  },
+};
+
+let shortcutConfig: ShortcutConfig = { ...DEFAULT_SHORTCUT_CONFIG, search: { ...DEFAULT_SHORTCUT_CONFIG.search }, closeTab: { ...DEFAULT_SHORTCUT_CONFIG.closeTab } };
+
+// 深度合并配置（处理版本升级时新增字段的情况）
+function mergeShortcutConfig(saved: any): ShortcutConfig {
+  return {
+    search: { ...DEFAULT_SHORTCUT_CONFIG.search, ...(saved.search || {}) },
+    closeTab: { ...DEFAULT_SHORTCUT_CONFIG.closeTab, ...(saved.closeTab || {}) },
+  };
+}
+
+// 从 chrome.storage.local 加载快捷键配置
+function loadShortcutConfig(): Promise<ShortcutConfig> {
+  return new Promise((resolve) => {
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.get(['shortcut_config'], (result: any) => {
+        if (result.shortcut_config) {
+          try {
+            resolve(mergeShortcutConfig(JSON.parse(result.shortcut_config)));
+          } catch {
+            resolve({ ...DEFAULT_SHORTCUT_CONFIG, search: { ...DEFAULT_SHORTCUT_CONFIG.search }, closeTab: { ...DEFAULT_SHORTCUT_CONFIG.closeTab } });
+          }
+        } else {
+          resolve({ ...DEFAULT_SHORTCUT_CONFIG, search: { ...DEFAULT_SHORTCUT_CONFIG.search }, closeTab: { ...DEFAULT_SHORTCUT_CONFIG.closeTab } });
+        }
+      });
+    } else {
+      resolve({ ...DEFAULT_SHORTCUT_CONFIG, search: { ...DEFAULT_SHORTCUT_CONFIG.search }, closeTab: { ...DEFAULT_SHORTCUT_CONFIG.closeTab } });
+    }
+  });
+}
+
+// 启动时加载配置
+loadShortcutConfig().then(config => {
+  shortcutConfig = config;
+});
+
+// 监听配置变更，实时同步到当前页面
+if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
+  chrome.storage.onChanged.addListener((changes: any, areaName: string) => {
+    if (areaName === 'local' && changes.shortcut_config) {
+      try {
+        shortcutConfig = mergeShortcutConfig(JSON.parse(changes.shortcut_config.newValue));
+      } catch {
+        // 解析失败时保持当前配置
+      }
+    }
+  });
 }
 
 let cmdCount = 0;
@@ -42,44 +120,60 @@ window.addEventListener('keyup', (e) => {
   try {
     // 检查是否为单独的修饰键（不与其他键组合）
     const isModifierKey = e.key === 'Meta' || e.key === 'OS' || e.key === 'Control' || e.key === 'Alt';
-    
-    if (isModifierKey) {
-      // 检查是否有其他修饰键被按下，如果有则不计数
-      const hasOtherModifiers = e.ctrlKey || e.metaKey || e.altKey || e.shiftKey;
-      
-      // 在 keyup 事件中，当前释放的修饰键状态会是 false，所以直接检查 key
-      const isCurrentModifier = 
-        (e.key === 'Control') ||
-        (e.key === 'Meta') ||
-        (e.key === 'OS') ||
-        (e.key === 'Alt');
-      
-      // 只有在当前修饰键被释放且没有其他修饰键被按下时才计数
-      if (isCurrentModifier && !hasOtherModifiers) {
-        const now = Date.now();
-        if (now - lastCmdTime < 800) {
-          cmdCount++;
-        } else {
-          cmdCount = 1;
-        }
-        lastCmdTime = now;
-        if (cmdCount === 3) {
-          e.preventDefault();
-          showSearchBox();
-          cmdCount = 0;
+
+    if (isModifierKey && shortcutConfig.search.enabled) {
+      // 判断按下的修饰键是否匹配配置的触发键
+      let matchesTrigger = false;
+      if (shortcutConfig.search.triggerKey === 'any_modifier') {
+        matchesTrigger = true;
+      } else {
+        // Windows 键报告为 'OS'，统一映射为 'Meta'
+        const normalizedKey = e.key === 'OS' ? 'Meta' : e.key;
+        matchesTrigger = normalizedKey === shortcutConfig.search.triggerKey;
+      }
+
+      if (matchesTrigger) {
+        // 检查是否有其他修饰键被按下，如果有则不计数
+        const hasOtherModifiers = e.ctrlKey || e.metaKey || e.altKey || e.shiftKey;
+
+        // 只有在当前修饰键被释放且没有其他修饰键被按下时才计数
+        if (!hasOtherModifiers) {
+          const now = Date.now();
+          if (now - lastCmdTime < shortcutConfig.search.timeWindow) {
+            cmdCount++;
+          } else {
+            cmdCount = 1;
+          }
+          lastCmdTime = now;
+          if (cmdCount === shortcutConfig.search.pressCount) {
+            e.preventDefault();
+            showSearchBox();
+            cmdCount = 0;
+          }
         }
       }
     } else if (e.key === 'Escape' && searchBox) {
       removeSearchBox();
     }
-    // Alt+W 关闭当前tab
-    else if ((e.altKey && (e.key === 'w' || e.key === 'W')) && typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.remove) {
-      e.preventDefault();
-      // 获取当前tabId并关闭
-      try {
-        chrome.runtime.sendMessage({ type: 'closeCurrentTab' });
-      } catch {}
-    }else{
+    // 可配置的关闭标签页快捷键（修复：content script 无 chrome.tabs 权限，改用消息通信）
+    else if (shortcutConfig.closeTab.enabled) {
+      const modifierPressed =
+        (shortcutConfig.closeTab.modifier === 'Alt' && e.altKey) ||
+        (shortcutConfig.closeTab.modifier === 'Control' && e.ctrlKey) ||
+        (shortcutConfig.closeTab.modifier === 'Meta' && e.metaKey);
+
+      const keyMatches = e.key.toLowerCase() === shortcutConfig.closeTab.key.toLowerCase();
+
+      if (modifierPressed && keyMatches && isChromeExtensionContext()) {
+        e.preventDefault();
+        try {
+          chrome.runtime.sendMessage({ type: 'closeCurrentTab' });
+        } catch {}
+      } else {
+        cmdCount = 0;
+        lastCmdTime = 0;
+      }
+    } else {
       cmdCount = 0;
       lastCmdTime = 0;
     }
