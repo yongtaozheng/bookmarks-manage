@@ -710,48 +710,51 @@
       }
     }
   </style>
+  <script type="module" crossorigin src="/bookmark-manager.js"></script>
+  <link rel="modulepreload" crossorigin href="/modulepreload-polyfill.js">
+  <link rel="modulepreload" crossorigin href="/index.js">
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>书签管理器</h1>
+      <h1 data-i18n="manager.header">书签管理器</h1>
       <div class="header-actions">
-        <button class="btn" id="configBtn">⚙️ 配置</button>
-        <button class="btn" id="refreshBtn">🔄 刷新</button>
-        <button class="btn btn-primary" id="addBookmarkBtn">+ 添加书签</button>
+        <button class="btn" id="configBtn" data-i18n="manager.config">⚙️ 配置</button>
+        <button class="btn" id="refreshBtn" data-i18n="btn.refresh">🔄 刷新</button>
+        <button class="btn btn-primary" id="addBookmarkBtn" data-i18n="manager.addBookmark">+ 添加书签</button>
       </div>
     </div>
 
     <div class="toolbar">
-      <input type="text" class="search-box" id="searchInput" placeholder="搜索书签...">
+      <input type="text" class="search-box" id="searchInput" placeholder="搜索书签..." data-i18n-placeholder="manager.searchPlaceholder">
       <select class="filter-select" id="filterSelect">
-        <option value="all">显示所有</option>
-        <option value="visible">只显示可见</option>
-        <option value="hidden">只显示隐藏</option>
+        <option value="all" data-i18n="manager.filterAll">显示所有</option>
+        <option value="visible" data-i18n="manager.filterVisible">只显示可见</option>
+        <option value="hidden" data-i18n="manager.filterHidden">只显示隐藏</option>
       </select>
-      <button class="btn" id="exportBtn">📤 导出</button>
+      <button class="btn" id="exportBtn" data-i18n="btn.export">📤 导出</button>
     </div>
 
     <div class="content">
       <div class="stats" id="statsContainer">
         <div class="stat-item">
           <span class="stat-number" id="totalBookmarks">0</span>
-          <span class="stat-label">书签</span>
+          <span class="stat-label" data-i18n="manager.statBookmarks">书签</span>
         </div>
         <div class="stat-item">
           <span class="stat-number" id="totalFolders">0</span>
-          <span class="stat-label">文件夹</span>
+          <span class="stat-label" data-i18n="manager.statFolders">文件夹</span>
         </div>
         <div class="stat-item">
           <span class="stat-number" id="recentBookmarks">0</span>
-          <span class="stat-label">最近添加</span>
+          <span class="stat-label" data-i18n="manager.statRecent">最近添加</span>
         </div>
       </div>
 
       <div class="main-content">
         <div class="sidebar">
           <div class="folder-tree" id="folderTree">
-            <div class="loading">加载中...</div>
+            <div class="loading" data-i18n="manager.loading">加载中...</div>
           </div>
         </div>
 
@@ -760,18 +763,18 @@
             <div class="panel-title-section">
               <button class="back-button" id="backButton" style="display: none;">
                 <span class="back-icon">←</span>
-                <span class="back-text">返回</span>
+                <span class="back-text" data-i18n="btn.back">返回</span>
               </button>
-              <h3 class="panel-title" id="panelTitle">选择文件夹</h3>
+              <h3 class="panel-title" id="panelTitle" data-i18n="manager.selectFolder">选择文件夹</h3>
             </div>
             <div class="panel-actions">
-              <button class="btn" id="addBookmarkToFolderBtn">+ 添加书签</button>
+              <button class="btn" id="addBookmarkToFolderBtn" data-i18n="manager.addBookmark">+ 添加书签</button>
             </div>
           </div>
           <div class="bookmark-tree" id="bookmarkTree">
             <div class="empty-state">
-              <h3>选择一个文件夹</h3>
-              <p>从左侧选择一个文件夹来查看其中的书签</p>
+              <h3 data-i18n="manager.selectFolderHint">选择一个文件夹</h3>
+              <p data-i18n="manager.selectFolderDesc">从左侧选择一个文件夹来查看其中的书签</p>
             </div>
           </div>
         </div>
@@ -783,25 +786,25 @@
   <div id="configModal" class="modal" style="display: none;">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>Gitee 仓库配置</h3>
+        <h3 data-i18n="manager.giteeConfig">Gitee 仓库配置</h3>
         <span class="close" id="closeConfigModal">&times;</span>
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label for="giteeOwner">Gitee 用户名:</label>
-          <input type="text" id="giteeOwner" placeholder="输入你的Gitee用户名">
+          <label for="giteeOwner" data-i18n="manager.giteeOwner">Gitee 用户名:</label>
+          <input type="text" id="giteeOwner" placeholder="输入你的Gitee用户名" data-i18n-placeholder="manager.giteeOwnerPlaceholder">
         </div>
         <div class="form-group">
-          <label for="giteeRepo">仓库名:</label>
-          <input type="text" id="giteeRepo" placeholder="输入仓库名">
+          <label for="giteeRepo" data-i18n="manager.giteeRepo">仓库名:</label>
+          <input type="text" id="giteeRepo" placeholder="输入仓库名" data-i18n-placeholder="manager.giteeRepoPlaceholder">
         </div>
         <div class="form-group">
-          <label for="giteeToken">访问令牌:</label>
-          <input type="password" id="giteeToken" placeholder="输入你的Gitee访问令牌">
+          <label for="giteeToken" data-i18n="manager.giteeToken">访问令牌:</label>
+          <input type="password" id="giteeToken" placeholder="输入你的Gitee访问令牌" data-i18n-placeholder="manager.giteeTokenPlaceholder">
         </div>
         <div class="form-actions">
-          <button class="btn btn-primary" id="saveConfigBtn">保存配置</button>
-          <button class="btn" id="cancelConfigBtn">取消</button>
+          <button class="btn btn-primary" id="saveConfigBtn" data-i18n="btn.save">保存配置</button>
+          <button class="btn" id="cancelConfigBtn" data-i18n="btn.cancel">取消</button>
         </div>
       </div>
     </div>

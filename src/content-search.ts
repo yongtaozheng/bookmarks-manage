@@ -1,5 +1,19 @@
 declare const chrome: any;
 
+import { initLocale, t } from './i18n/index';
+
+// 初始化语言
+initLocale();
+
+// 监听语言变更（用户在 Popup 切换语言后实时生效）
+if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
+  chrome.storage.onChanged.addListener((changes: any, areaName: string) => {
+    if (areaName === 'local' && changes.app_locale) {
+      initLocale();
+    }
+  });
+}
+
 // 检查chrome API是否可用
 function isChromeExtensionContext(): boolean {
   return typeof chrome !== 'undefined' &&
@@ -247,7 +261,7 @@ function showSearchBox() {
   
   inputEl = document.createElement('input');
   inputEl.type = 'text';
-  inputEl.placeholder = '搜索书签...';
+  inputEl.placeholder = t('search.placeholder');
   inputEl.style.fontSize = '1.4em';
   inputEl.style.fontFamily = "'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif";
   inputEl.style.padding = '0.5em 1em';
@@ -513,10 +527,10 @@ async function jumpTo(idx: number) {
         const newWindow = window.open(url, '_blank');
         if (!newWindow) {
           // 如果弹窗被阻止，提示用户手动打开
-          alert('请手动打开书签：' + url);
+          alert(t('content.openManually', url));
         }
       } catch (e) {
-        alert('无法打开此类型的书签，请手动访问：' + url);
+        alert(t('content.cannotOpen', url));
       }
     } else {
       // 普通URL，打开新标签页

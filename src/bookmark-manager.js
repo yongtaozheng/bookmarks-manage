@@ -1,3 +1,11 @@
+// i18n 辅助函数
+const t = (key, ...args) => {
+  if (window.__i18n && window.__i18n.t) {
+    return window.__i18n.t(key, ...args);
+  }
+  return key;
+};
+
 // 书签管理器类
 class BookmarkManager {
   constructor() {
@@ -86,7 +94,7 @@ class BookmarkManager {
         this.bookmarks = [
           {
             id: '1',
-            title: '示例文件夹',
+            title: t('manager.sampleFolder'),
             children: [
               {
                 id: '2',
@@ -494,7 +502,7 @@ class BookmarkManager {
         index: newIndex
       });
     } catch (error) {
-      console.error('更新书签顺序失败:', error);
+      console.error('Failed to update bookmark order:', error);
     }
   }
 
@@ -681,16 +689,16 @@ class BookmarkManager {
         if (newWindow) {
           newWindow.document.write(`
             <html>
-              <head><title>脚本执行</title></head>
+              <head><title>${t('manager.scriptExecution')}</title></head>
               <body>
-                <h3>脚本执行结果：</h3>
+                <h3>${t('manager.scriptExecutionResult')}</h3>
                 <div id="result"></div>
                 <script>
                   try {
                     const result = ${script};
                     document.getElementById('result').innerHTML = '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
                   } catch (error) {
-                    document.getElementById('result').innerHTML = '<p style="color: red;">执行错误: ' + error.message + '</p>';
+                    document.getElementById('result').innerHTML = '<p style="color: red;">${t('manager.executionError')}' + error.message + '</p>';
                   }
                 </script>
               </body>
@@ -699,7 +707,7 @@ class BookmarkManager {
           newWindow.document.close();
         }
       } catch (error) {
-        alert('脚本执行失败: ' + error.message);
+        alert(t('manager.scriptExecutionFailed') + error.message);
       }
     } else if (scriptUrl.startsWith('data:')) {
       // 对于data URL，直接打开
@@ -844,8 +852,8 @@ class BookmarkManager {
     if (!this.currentFolder) {
       this.bookmarkTree.innerHTML = `
         <div class="empty-state">
-          <h3>选择一个文件夹</h3>
-          <p>从左侧选择一个文件夹来查看其中的书签</p>
+          <h3>${t('manager.selectFolderHint')}</h3>
+          <p>${t('manager.selectFolderDesc')}</p>
         </div>
       `;
       return;
@@ -858,7 +866,7 @@ class BookmarkManager {
     if (parentFolder) {
       this.backButton.style.display = 'flex';
       this.backButton.setAttribute('data-parent-id', parentFolder.id);
-      this.backButton.querySelector('.back-text').textContent = `返回 ${parentFolder.title}`;
+      this.backButton.querySelector('.back-text').textContent = `${t('btn.back')} ${parentFolder.title}`;
     } else {
       this.backButton.style.display = 'none';
     }
@@ -868,8 +876,8 @@ class BookmarkManager {
     if (!folder) {
       this.bookmarkTree.innerHTML = `
         <div class="empty-state">
-          <h3>文件夹不存在</h3>
-          <p>此文件夹可能已被删除</p>
+          <h3>${t('manager.folderNotExist')}</h3>
+          <p>${t('manager.folderMayBeDeleted')}</p>
         </div>
       `;
       return;
@@ -883,8 +891,8 @@ class BookmarkManager {
     if (bookmarks.length === 0) {
       this.bookmarkTree.innerHTML = `
         <div class="empty-state">
-          <h3>文件夹为空</h3>
-          <p>此文件夹中没有书签</p>
+          <h3>${t('manager.folderEmpty')}</h3>
+          <p>${t('manager.folderNoBookmarks')}</p>
         </div>
       `;
       return;
@@ -908,8 +916,8 @@ class BookmarkManager {
     if (filteredBookmarks.length === 0) {
       this.bookmarkTree.innerHTML = `
         <div class="empty-state">
-          <h3>没有匹配的书签</h3>
-          <p>当前筛选条件下没有找到书签</p>
+          <h3>${t('manager.noMatchingBookmarks')}</h3>
+          <p>${t('manager.noBookmarksInFilter')}</p>
         </div>
       `;
       return;
@@ -943,15 +951,15 @@ class BookmarkManager {
     if (searchResults.length === 0) {
       this.bookmarkTree.innerHTML = `
         <div class="empty-state">
-          <h3>没有找到匹配的书签</h3>
-          <p>搜索 "${searchTerm}" 没有找到结果</p>
+          <h3>${t('manager.noSearchResults')}</h3>
+          <p>${t('manager.searchNoResult', searchTerm)}</p>
         </div>
       `;
       // 清除左侧选中状态
       document.querySelectorAll('.folder-item').forEach(item => {
         item.classList.remove('active');
       });
-      this.panelTitle.textContent = '搜索结果';
+      this.panelTitle.textContent = t('manager.searchResults');
       return;
     }
 
@@ -959,7 +967,7 @@ class BookmarkManager {
     this.bookmarkTree.innerHTML = this.renderSearchResultsList(searchResults, searchTerm);
     
     // 更新面板标题
-    this.panelTitle.textContent = `搜索结果 (${searchResults.length} 项)`;
+    this.panelTitle.textContent = `${t('manager.searchResults')} (${searchResults.length} ${t('manager.items')})`;
     
     // 清除左侧选中状态，因为显示的是全局搜索结果
     document.querySelectorAll('.folder-item').forEach(item => {
@@ -986,7 +994,7 @@ class BookmarkManager {
         if (isJavaScript || isDataUrl) {
           // 脚本书签特殊处理
           faviconUrl = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIgMkgxNFYxNEgyVjJaIiBzdHJva2U9IiM2NjYiIHN0cm9rZS13aWR0aD0iMS41IiBmaWxsPSJub25lIi8+CjxwYXRoIGQ9Ik0yIDZIMTRWNkg2VjJaIiBmaWxsPSIjNjY2Ii8+Cjwvc3ZnPgo=';
-          displayUrl = '脚本书签';
+          displayUrl = t('manager.scriptBookmark');
           clickHandler = `data-script-url="${encodeURIComponent(bookmark.url)}" class="script-bookmark"`;
         } else {
           // 普通书签
@@ -994,18 +1002,18 @@ class BookmarkManager {
           displayUrl = bookmark.url;
           clickHandler = `href="${bookmark.url}" target="_blank"`;
         }
-        
+
         html += `
           <div class="bookmark-item${hiddenClass}" data-bookmark-id="${bookmark.id}" draggable="true">
             <div class="drag-handle">⋮⋮</div>
-            <img class="bookmark-icon" src="${faviconUrl}" alt="书签" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIgMkgxNFYxNEgyVjJaIiBzdHJva2U9IiM2NjYiIHN0cm9rZS13aWR0aD0iMS41IiBmaWxsPSJub25lIi8+CjxwYXRoIGQ9Ik0yIDZIMTRWNkg2VjJaIiBmaWxsPSIjNjY2Ii8+Cjwvc3ZnPgo='">
+            <img class="bookmark-icon" src="${faviconUrl}" alt="${t('manager.statBookmarks')}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIgMkgxNFYxNEgyVjJaIiBzdHJva2U9IiM2NjYiIHN0cm9rZS13aWR0aD0iMS41IiBmaWxsPSJub25lIi8+CjxwYXRoIGQ9Ik0yIDZIMTRWNkg2VjJaIiBmaWxsPSIjNjY2Ii8+Cjwvc3ZnPgo='">
             <div class="bookmark-content">
               <a ${clickHandler} class="bookmark-title">${this.highlightSearchTerm(bookmark.title, searchTerm)} ${hiddenIcon}</a>
               <div class="bookmark-url">${displayUrl}</div>
               <div class="bookmark-actions">
-                <button class="action-btn action-btn-edit" data-bookmark-id="${bookmark.id}">编辑</button>
-                <button class="action-btn action-btn-hide" data-bookmark-id="${bookmark.id}">${isHidden ? '显示' : '隐藏'}</button>
-                <button class="action-btn action-btn-delete" data-bookmark-id="${bookmark.id}">删除</button>
+                <button class="action-btn action-btn-edit" data-bookmark-id="${bookmark.id}">${t('btn.edit')}</button>
+                <button class="action-btn action-btn-hide" data-bookmark-id="${bookmark.id}">${isHidden ? t('btn.show') : t('btn.hide')}</button>
+                <button class="action-btn action-btn-delete" data-bookmark-id="${bookmark.id}">${t('btn.delete')}</button>
               </div>
             </div>
           </div>
@@ -1032,17 +1040,17 @@ class BookmarkManager {
     if (searchResults.length === 0) {
       this.bookmarkTree.innerHTML = `
         <div class="empty-state">
-          <h3>该目录中没有匹配的书签</h3>
-          <p>在 "${folder.title}" 中没有找到包含 "${searchTerm}" 的书签</p>
+          <h3>${t('manager.noMatchInFolder')}</h3>
+          <p>${t('manager.noSearchResultInFolder', folder.title, searchTerm)}</p>
         </div>
       `;
-      this.panelTitle.textContent = `${folder.title} - 搜索结果 (0 项)`;
+      this.panelTitle.textContent = `${folder.title} - ${t('manager.searchResults')} (0 ${t('manager.items')})`;
       return;
     }
 
     // 显示该目录中的搜索结果
     this.bookmarkTree.innerHTML = this.renderSearchResultsList(searchResults, searchTerm);
-    this.panelTitle.textContent = `${folder.title} - 搜索结果 (${searchResults.length} 项)`;
+    this.panelTitle.textContent = `${folder.title} - ${t('manager.searchResults')} (${searchResults.length} ${t('manager.items')})`;
   }
 
   renderBookmarkList(bookmarks) {
@@ -1067,7 +1075,7 @@ class BookmarkManager {
         if (isJavaScript || isDataUrl) {
           // 脚本书签特殊处理
           faviconUrl = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIgMkgxNFYxNEgyVjJaIiBzdHJva2U9IiM2NjYiIHN0cm9rZS13aWR0aD0iMS41IiBmaWxsPSJub25lIi8+CjxwYXRoIGQ9Ik0yIDZIMTRWNkg2VjJaIiBmaWxsPSIjNjY2Ii8+Cjwvc3ZnPgo=';
-          displayUrl = '脚本书签';
+          displayUrl = t('manager.scriptBookmark');
           clickHandler = `data-script-url="${encodeURIComponent(bookmark.url)}" class="script-bookmark"`;
         } else {
           // 普通书签
@@ -1075,18 +1083,18 @@ class BookmarkManager {
           displayUrl = bookmark.url;
           clickHandler = `href="${bookmark.url}" target="_blank"`;
         }
-        
+
         html += `
           <div class="bookmark-item${hiddenClass}" data-bookmark-id="${bookmark.id}" draggable="true">
             <div class="drag-handle">⋮⋮</div>
-            <img class="bookmark-icon" src="${faviconUrl}" alt="书签" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIgMkgxNFYxNEgyVjJaIiBzdHJva2U9IiM2NjYiIHN0cm9rZS13aWR0aD0iMS41IiBmaWxsPSJub25lIi8+CjxwYXRoIGQ9Ik0yIDZIMTRWNkg2VjJaIiBmaWxsPSIjNjY2Ii8+Cjwvc3ZnPgo='">
+            <img class="bookmark-icon" src="${faviconUrl}" alt="${t('manager.statBookmarks')}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIgMkgxNFYxNEgyVjJaIiBzdHJva2U9IiM2NjYiIHN0cm9rZS13aWR0aD0iMS41IiBmaWxsPSJub25lIi8+CjxwYXRoIGQ9Ik0yIDZIMTRWNkg2VjJaIiBmaWxsPSIjNjY2Ii8+Cjwvc3ZnPgo='">
             <div class="bookmark-content">
               <a ${clickHandler} class="bookmark-title">${bookmark.title} ${hiddenIcon}</a>
               <div class="bookmark-url">${displayUrl}</div>
               <div class="bookmark-actions">
-                <button class="action-btn action-btn-edit" data-bookmark-id="${bookmark.id}">编辑</button>
-                <button class="action-btn action-btn-hide" data-bookmark-id="${bookmark.id}">${isHidden ? '显示' : '隐藏'}</button>
-                <button class="action-btn action-btn-delete" data-bookmark-id="${bookmark.id}">删除</button>
+                <button class="action-btn action-btn-edit" data-bookmark-id="${bookmark.id}">${t('btn.edit')}</button>
+                <button class="action-btn action-btn-hide" data-bookmark-id="${bookmark.id}">${isHidden ? t('btn.show') : t('btn.hide')}</button>
+                <button class="action-btn action-btn-delete" data-bookmark-id="${bookmark.id}">${t('btn.delete')}</button>
               </div>
             </div>
           </div>
@@ -1101,11 +1109,11 @@ class BookmarkManager {
             <div class="folder-icon">📁</div>
             <div class="bookmark-content">
               <div class="bookmark-title">${bookmark.title} ${hiddenIcon}</div>
-              <div class="bookmark-url">文件夹 (${bookmark.children.length} 项)</div>
+              <div class="bookmark-url">${t('manager.folderItems', String(bookmark.children.length))}</div>
               <div class="bookmark-actions">
-                <button class="action-btn action-btn-edit" data-bookmark-id="${bookmark.id}">编辑</button>
-                <button class="action-btn action-btn-hide" data-bookmark-id="${bookmark.id}">${isHidden ? '显示' : '隐藏'}</button>
-                <button class="action-btn action-btn-delete" data-bookmark-id="${bookmark.id}">删除</button>
+                <button class="action-btn action-btn-edit" data-bookmark-id="${bookmark.id}">${t('btn.edit')}</button>
+                <button class="action-btn action-btn-hide" data-bookmark-id="${bookmark.id}">${isHidden ? t('btn.show') : t('btn.hide')}</button>
+                <button class="action-btn action-btn-delete" data-bookmark-id="${bookmark.id}">${t('btn.delete')}</button>
               </div>
             </div>
           </div>
@@ -1149,10 +1157,10 @@ class BookmarkManager {
   }
 
   addBookmark() {
-    const title = prompt('请输入书签标题:');
+    const title = prompt(t('prompt.bookmarkTitle'));
     if (!title) return;
-    
-    const url = prompt('请输入书签URL:');
+
+    const url = prompt(t('prompt.bookmarkUrl'));
     if (!url) return;
 
     try {
@@ -1172,20 +1180,20 @@ class BookmarkManager {
           });
         });
       } else {
-        alert('书签添加功能需要浏览器扩展环境');
+        alert(t('manager.addBookmarkNeedExtension'));
       }
     } catch (error) {
-      alert('添加书签失败');
+      alert(t('manager.addBookmarkFailed'));
     }
   }
 
   editBookmark(id) {
     // 实现编辑书签功能
-    alert('编辑功能待实现');
+    alert(t('manager.editTodo'));
   }
 
   deleteBookmark(id) {
-    if (confirm('确定要删除这个书签吗？')) {
+    if (confirm(t('confirm.deleteBookmark'))) {
       try {
         if (typeof chrome !== 'undefined' && chrome.bookmarks) {
           chrome.bookmarks.remove(id, () => {
@@ -1200,10 +1208,10 @@ class BookmarkManager {
             });
           });
         } else {
-          alert('书签删除功能需要浏览器扩展环境');
+          alert(t('manager.deleteBookmarkNeedExtension'));
         }
       } catch (error) {
-        alert('删除书签失败');
+        alert(t('manager.deleteBookmarkFailed'));
       }
     }
   }
@@ -1416,7 +1424,7 @@ class BookmarkManager {
   loadBookmarksFromGitee() {
     return new Promise((resolve, reject) => {
       if (!this.giteeConfig || !this.giteeConfig.owner || !this.giteeConfig.repo || !this.giteeConfig.token) {
-        reject(new Error('Gitee配置不完整'));
+        reject(new Error(t('manager.giteeConfigIncomplete')));
         return;
       }
 
@@ -1435,7 +1443,7 @@ class BookmarkManager {
           const bookmarks = JSON.parse(content);
           resolve(bookmarks);
         } else {
-          reject(new Error('无法获取文件内容'));
+          reject(new Error(t('manager.cannotGetFileContent')));
         }
       })
       .catch(error => {
@@ -1541,7 +1549,7 @@ class BookmarkManager {
           'Authorization': `token ${this.giteeConfig.token}`
         },
         body: JSON.stringify({
-          message: '更新书签树 - 隐藏属性',
+          message: 'Update bookmark tree - hidden attributes',
           content: encodedContent,
           sha: sha
         })
@@ -1663,7 +1671,7 @@ class BookmarkManager {
     const token = document.getElementById('giteeToken').value.trim();
     
     if (!owner || !repo || !token) {
-      alert('请填写完整的配置信息');
+      alert(t('manager.configIncomplete'));
       return;
     }
     
@@ -1685,7 +1693,7 @@ class BookmarkManager {
     }
     
     this.hideConfigModal();
-    alert('配置已保存！');
+    alert(t('manager.configSaved'));
   }
 
 

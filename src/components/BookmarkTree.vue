@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { defineProps, ref, onMounted } from 'vue'
+import { t } from '../i18n/index'
 
 interface BookmarkNode {
   id: string
@@ -36,7 +37,7 @@ onMounted(() => {
     <template v-for="node in props.nodes" :key="node.id">
       <li v-if="node.url">
         <a :href="node.url" target="_blank">{{ node.title }}</a>
-        <button class="delete-btn" @click="removeBookmark(node.id)">删除</button>
+        <button class="delete-btn" @click="removeBookmark(node.id)">{{ t('btn.delete') }}</button>
       </li>
       <li v-else class="folder">
         <span class="folder-toggle" @click="toggleExpand(node.id)">

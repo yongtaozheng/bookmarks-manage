@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import BookmarkTree from './components/BookmarkTree.vue'
+import { initLocale, t } from './i18n/index'
+
+// 初始化语言
+initLocale()
 
 // 声明Chrome API类型
 declare global {
@@ -66,7 +70,7 @@ onMounted(() => {
 <template>
   <div v-if="isNewtab" class="nt-container">
     <div class="nt-card">
-      <h1 style="font-size: var(--font-size-3xl);">书签管理器</h1>
+      <h1 style="font-size: var(--font-size-3xl);">{{ t('app.title') }}</h1>
       <div class="nt-tree-container">
         <BookmarkTree :nodes="bookmarks" :defaultExpandAll="true" />
       </div>

@@ -1,0 +1,8 @@
+{
+  "extensionName": {
+    "message": "Bookmarks Manager"
+  },
+  "extensionDescription": {
+    "message": "A Chrome extension for managing browser bookmarks"
+  }
+}

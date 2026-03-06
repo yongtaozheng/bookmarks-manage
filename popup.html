@@ -301,80 +301,84 @@
     </style>
   </head>
   <body>
-    <button class="help-btn" id="helpBtn" title="帮助" style="position:absolute;top:10px;right:10px;z-index:1000;">?</button>
-    <h1 style="margin:0;padding:1em 0 0.5em 0;text-align:center;font-size:var(--font-size-2xl);color:#1976d2;" class="font-yunfeng">JYeontu书签管理器</h1>
+    <select id="langSelect" class="font-yunfeng" style="position:absolute;top:12px;right:50px;z-index:1000;padding:2px 6px;border:1px solid #ccc;border-radius:4px;font-size:var(--font-size-base);background:#fff;cursor:pointer;">
+      <option value="zh-CN" data-i18n="lang.zh">中文</option>
+      <option value="en" data-i18n="lang.en">English</option>
+    </select>
+    <button class="help-btn" id="helpBtn" title="帮助" data-i18n-title="btn.help" style="position:absolute;top:10px;right:10px;z-index:1000;">?</button>
+    <h1 style="margin:0;padding:1em 0 0.5em 0;text-align:center;font-size:var(--font-size-2xl);color:#1976d2;" class="font-yunfeng" data-i18n="app.name">JYeontu书签管理器</h1>
     <div class="popup-header">
     </div>
     <div class="bookmark-manager-buttons">
-      <button class="system-bookmark-btn" id="openSystemBookmarksBtn">系统书签管理器</button>
-      <button class="my-bookmark-btn" id="openMyBookmarksBtn">我的书签管理器</button>
+      <button class="system-bookmark-btn" id="openSystemBookmarksBtn" data-i18n="popup.systemBookmarks">系统书签管理器</button>
+      <button class="my-bookmark-btn" id="openMyBookmarksBtn" data-i18n="popup.myBookmarks">我的书签管理器</button>
     </div>
     <form class="gitee-form" id="giteeForm" autocomplete="off">
       <div class="msg" id="giteeMsg" style="min-height:1.5em;display:block;"></div>
-      <label>Gitee Token
+      <label><span data-i18n="gitee.token">Gitee Token</span>
         <div style="display:flex;align-items:center;gap:0.5em;">
-          <input type="password" id="giteeToken" required placeholder="个人访问Token" style="flex:1;" />
-          <a href="https://gitee.com/oauth/authorize?client_id=8ac7a94ff19ddb4b9d267d525c048e2845f589cf3b1e8d09ef2568ca63f74603&redirect_uri=https%3A%2F%2Fgitee.com%2Fapi%2Fv5%2Fswagger&response_type=code" target="_blank" style="color:#1976d2;font-size:0.9em;text-decoration:none;white-space:nowrap;">获取Token →</a>
+          <input type="password" id="giteeToken" required placeholder="个人访问Token" data-i18n-placeholder="gitee.tokenPlaceholder" style="flex:1;" />
+          <a href="https://gitee.com/oauth/authorize?client_id=8ac7a94ff19ddb4b9d267d525c048e2845f589cf3b1e8d09ef2568ca63f74603&redirect_uri=https%3A%2F%2Fgitee.com%2Fapi%2Fv5%2Fswagger&response_type=code" target="_blank" style="color:#1976d2;font-size:0.9em;text-decoration:none;white-space:nowrap;" data-i18n="gitee.getToken">获取Token →</a>
         </div>
       </label>
-      <label>仓库所有者（owner）
-        <input type="text" id="giteeOwner" required placeholder="如: zheng_yongtao" />
+      <label><span data-i18n="gitee.owner">仓库所有者（owner）</span>
+        <input type="text" id="giteeOwner" required placeholder="如: zheng_yongtao" data-i18n-placeholder="gitee.ownerPlaceholder" />
       </label>
-      <label>仓库名（repo）
-        <input type="text" id="giteeRepo" required placeholder="如: chrome-bookmarks-manage" />
+      <label><span data-i18n="gitee.repo">仓库名（repo）</span>
+        <input type="text" id="giteeRepo" required placeholder="如: chrome-bookmarks-manage" data-i18n-placeholder="gitee.repoPlaceholder" />
       </label>
-      <label>分支（branch）
-        <input type="text" id="giteeBranch" value="master" required placeholder="如: master" />
+      <label><span data-i18n="gitee.branch">分支（branch）</span>
+        <input type="text" id="giteeBranch" value="master" required placeholder="如: master" data-i18n-placeholder="gitee.branchPlaceholder" />
       </label>
-      <label>书签目录（bookmarkDir）
-        <input type="text" id="bookmarkDir" required placeholder="如: bookmarks" value="bookmarks" style="width:98%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid #ccc;border-radius:4px;font-size:1em;" />
+      <label><span data-i18n="gitee.bookmarkDir">书签目录（bookmarkDir）</span>
+        <input type="text" id="bookmarkDir" required placeholder="如: bookmarks" data-i18n-placeholder="gitee.bookmarkDirPlaceholder" value="bookmarks" style="width:98%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid #ccc;border-radius:4px;font-size:1em;" />
       </label>
-      <label>书签文件
+      <label><span data-i18n="gitee.bookmarkFile">书签文件</span>
         <select id="giteeFilePath" required style="width:100%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid #ccc;border-radius:4px;font-size:var(--font-size-md);font-family:var(--font-family-primary);"></select>
       </label>
               <div style="display:flex;gap:0.5em;margin-bottom:0.7em;">
-          <button type="button" id="addBookmarkFile" style="flex:1;padding:0.3em 0.6em;background:#42b983;color:#fff;border:none;border-radius:4px;font-size:var(--font-size-base);font-family:var(--font-family-primary);cursor:pointer;">新增书签文件</button>
-          <button type="button" id="deleteBookmarkFile" style="flex:1;padding:0.3em 0.6em;background:#f44336;color:#fff;border:none;border-radius:4px;font-size:var(--font-size-base);font-family:var(--font-family-primary);cursor:pointer;">删除书签文件</button>
+          <button type="button" id="addBookmarkFile" style="flex:1;padding:0.3em 0.6em;background:#42b983;color:#fff;border:none;border-radius:4px;font-size:var(--font-size-base);font-family:var(--font-family-primary);cursor:pointer;" data-i18n="gitee.addFile">新增书签文件</button>
+          <button type="button" id="deleteBookmarkFile" style="flex:1;padding:0.3em 0.6em;background:#f44336;color:#fff;border:none;border-radius:4px;font-size:var(--font-size-base);font-family:var(--font-family-primary);cursor:pointer;" data-i18n="gitee.deleteFile">删除书签文件</button>
         </div>
-              <button type="button" id="openGiteeRepo" style="width:100%;padding:0.3em 0.6em;background:#1976d2;color:#fff;border:none;border-radius:4px;font-size:var(--font-size-base);font-family:var(--font-family-primary);cursor:pointer;margin-bottom:0.7em;">打开Gitee仓库</button>
+              <button type="button" id="openGiteeRepo" style="width:100%;padding:0.3em 0.6em;background:#1976d2;color:#fff;border:none;border-radius:4px;font-size:var(--font-size-base);font-family:var(--font-family-primary);cursor:pointer;margin-bottom:0.7em;" data-i18n="gitee.openRepo">打开Gitee仓库</button>
     </form>
     <div class="sync-btns">
-      <button id="btnSaveOverwrite" type="button">覆盖保存</button>
-      <button id="btnSaveMerge" type="button">合并保存</button>
-      <button id="btnGetOverwrite" type="button">覆盖获取</button>
-      <button id="btnGetMerge" type="button">合并获取</button>
+      <button id="btnSaveOverwrite" type="button" data-i18n="sync.overwriteSave">覆盖保存</button>
+      <button id="btnSaveMerge" type="button" data-i18n="sync.mergeSave">合并保存</button>
+      <button id="btnGetOverwrite" type="button" data-i18n="sync.overwriteGet">覆盖获取</button>
+      <button id="btnGetMerge" type="button" data-i18n="sync.mergeGet">合并获取</button>
     </div>
     <div class="shortcut-form" id="shortcutForm">
-      <h3>⌨️ 快捷键设置</h3>
+      <h3 data-i18n="shortcut.title">⌨️ 快捷键设置</h3>
       <div class="shortcut-msg" id="shortcutMsg"></div>
       <!-- 全局搜索 -->
       <div style="border-bottom: 1px solid #e0e0e0; padding-bottom: 0.7em; margin-bottom: 0.7em;">
         <div class="shortcut-toggle">
           <input type="checkbox" id="searchEnabled" checked />
-          <label for="searchEnabled">启用全局书签搜索</label>
+          <label for="searchEnabled" data-i18n="shortcut.enableSearch">启用全局书签搜索</label>
         </div>
-        <label>触发键
+        <label><span data-i18n="shortcut.triggerKey">触发键</span>
           <select id="searchTriggerKey">
-            <option value="any_modifier">任意修饰键 (Cmd/Ctrl/Alt)</option>
-            <option value="Meta">Cmd (Mac) / Win (Windows)</option>
+            <option value="any_modifier" data-i18n="shortcut.triggerAnyModifier">任意修饰键 (Cmd/Ctrl/Alt)</option>
+            <option value="Meta" data-i18n="shortcut.triggerMeta">Cmd (Mac) / Win (Windows)</option>
             <option value="Control">Control</option>
             <option value="Alt">Alt</option>
           </select>
         </label>
         <div class="shortcut-row">
-          <label>连按次数
+          <label><span data-i18n="shortcut.pressCount">连按次数</span>
             <select id="searchPressCount">
               <option value="2">2 次</option>
               <option value="3" selected>3 次</option>
               <option value="4">4 次</option>
             </select>
           </label>
-          <label>时间窗口
+          <label><span data-i18n="shortcut.timeWindow">时间窗口</span>
             <select id="searchTimeWindow">
-              <option value="500">500ms (快速)</option>
-              <option value="800" selected>800ms (默认)</option>
-              <option value="1000">1000ms (慢速)</option>
-              <option value="1500">1500ms (最慢)</option>
+              <option value="500" data-i18n="shortcut.timeWindowFast">500ms (快速)</option>
+              <option value="800" selected data-i18n="shortcut.timeWindowDefault">800ms (默认)</option>
+              <option value="1000" data-i18n="shortcut.timeWindowSlow">1000ms (慢速)</option>
+              <option value="1500" data-i18n="shortcut.timeWindowSlowest">1500ms (最慢)</option>
             </select>
           </label>
         </div>
@@ -383,18 +387,18 @@
       <div>
         <div class="shortcut-toggle">
           <input type="checkbox" id="closeTabEnabled" checked />
-          <label for="closeTabEnabled">启用关闭当前标签页快捷键</label>
+          <label for="closeTabEnabled" data-i18n="shortcut.enableCloseTab">启用关闭当前标签页快捷键</label>
         </div>
         <div class="shortcut-row">
-          <label>修饰键
+          <label><span data-i18n="shortcut.modifier">修饰键</span>
             <select id="closeTabModifier">
               <option value="Alt" selected>Alt</option>
               <option value="Control">Control</option>
               <option value="Meta">Cmd (Mac) / Win (Windows)</option>
             </select>
           </label>
-          <label>按键
-            <input type="text" id="closeTabKey" value="W" maxlength="1" style="text-transform:uppercase;" placeholder="如：W" />
+          <label><span data-i18n="shortcut.key">按键</span>
+            <input type="text" id="closeTabKey" value="W" maxlength="1" style="text-transform:uppercase;" placeholder="如：W" data-i18n-placeholder="shortcut.keyPlaceholder" />
           </label>
         </div>
       </div>
@@ -403,40 +407,40 @@
     <div id="helpModal" class="help-modal" style="display:none;">
       <div class="help-modal-content">
         <span class="help-close" id="helpClose">&times;</span>
-        <h3>功能说明</h3>
+        <h3 data-i18n="help.title">功能说明</h3>
         <ul>
-          <li><b>覆盖保存：</b>将本地书签覆盖保存到Gitee</li>
-          <li><b>合并保存：</b>将本地书签与Gitee上的书签数据合并后保存到Gitee</li>
-          <li><b>覆盖获取：</b>使用Gitee上的书签数据来替换本地的书签数据</li>
-          <li><b>合并获取：</b>获取Gitee上的书签数据并与本地书签数据合并后替换本地的书签数据</li>
+          <li><b data-i18n="help.overwriteSave">覆盖保存：</b><span data-i18n="help.overwriteSaveDesc">将本地书签覆盖保存到Gitee</span></li>
+          <li><b data-i18n="help.mergeSave">合并保存：</b><span data-i18n="help.mergeSaveDesc">将本地书签与Gitee上的书签数据合并后保存到Gitee</span></li>
+          <li><b data-i18n="help.overwriteGet">覆盖获取：</b><span data-i18n="help.overwriteGetDesc">使用Gitee上的书签数据来替换本地的书签数据</span></li>
+          <li><b data-i18n="help.mergeGet">合并获取：</b><span data-i18n="help.mergeGetDesc">获取Gitee上的书签数据并与本地书签数据合并后替换本地的书签数据</span></li>
         </ul>
-        <h3>快捷键 <span style="font-size:0.75em;color:#888;font-weight:normal;">（可在「快捷键设置」中自定义）</span></h3>
+        <h3><span data-i18n="help.shortcutTitle">快捷键</span> <span style="font-size:0.75em;color:#888;font-weight:normal;" data-i18n="help.shortcutCustomizable">（可在「快捷键设置」中自定义）</span></h3>
         <ul>
-          <li><b>修饰键+字母键：</b>关闭当前标签页（默认 Alt+W）</li>
-          <li><b>连续按修饰键：</b>呼出全局书签搜索（默认连续三次 Cmd/Ctrl/Alt）</li>
-          <li><b>ESC：</b>关闭搜索框</li>
+          <li><b data-i18n="help.shortcutCloseTab">修饰键+字母键：</b><span data-i18n="help.shortcutCloseTabDesc">关闭当前标签页（默认 Alt+W）</span></li>
+          <li><b data-i18n="help.shortcutSearch">连续按修饰键：</b><span data-i18n="help.shortcutSearchDesc">呼出全局书签搜索（默认连续三次 Cmd/Ctrl/Alt）</span></li>
+          <li><b data-i18n="help.shortcutEsc">ESC：</b><span data-i18n="help.shortcutEscDesc">关闭搜索框</span></li>
         </ul>
-        <h3>配置说明</h3>
+        <h3 data-i18n="help.configTitle">配置说明</h3>
         <ul>
-          <li><b>Gitee Token：</b>个人访问令牌，用于API调用</li>
-          <li><b>仓库所有者：</b>Gitee用户名或组织名</li>
-          <li><b>仓库名：</b>用于存储书签的仓库名称</li>
-          <li><b>分支：</b>默认master，自动获取仓库分支列表</li>
-          <li><b>书签目录：</b>存放书签文件的目录路径</li>
-          <li><b>书签文件：</b>具体的书签文件，支持新增和删除</li>
+          <li><b data-i18n="help.configToken">Gitee Token：</b><span data-i18n="help.configTokenDesc">个人访问令牌，用于API调用</span></li>
+          <li><b data-i18n="help.configOwner">仓库所有者：</b><span data-i18n="help.configOwnerDesc">Gitee用户名或组织名</span></li>
+          <li><b data-i18n="help.configRepo">仓库名：</b><span data-i18n="help.configRepoDesc">用于存储书签的仓库名称</span></li>
+          <li><b data-i18n="help.configBranch">分支：</b><span data-i18n="help.configBranchDesc">默认master，自动获取仓库分支列表</span></li>
+          <li><b data-i18n="help.configDir">书签目录：</b><span data-i18n="help.configDirDesc">存放书签文件的目录路径</span></li>
+          <li><b data-i18n="help.configFile">书签文件：</b><span data-i18n="help.configFileDesc">具体的书签文件，支持新增和删除</span></li>
         </ul>
-        <h3>使用技巧</h3>
+        <h3 data-i18n="help.tipsTitle">使用技巧</h3>
         <ul>
-          <li><b>自动配置：</b>输入Token、Owner、Repo后自动获取分支和文件列表</li>
-          <li><b>智能排序：</b>搜索时优先显示最近使用和最常用的书签</li>
-          <li><b>文件管理：</b>支持在指定目录下新增和删除书签文件</li>
-          <li><b>快速访问：</b>一键跳转到Gitee仓库查看书签文件</li>
+          <li><b data-i18n="help.tipsAutoConfig">自动配置：</b><span data-i18n="help.tipsAutoConfigDesc">输入Token、Owner、Repo后自动获取分支和文件列表</span></li>
+          <li><b data-i18n="help.tipsSmartSort">智能排序：</b><span data-i18n="help.tipsSmartSortDesc">搜索时优先显示最近使用和最常用的书签</span></li>
+          <li><b data-i18n="help.tipsFileManage">文件管理：</b><span data-i18n="help.tipsFileManageDesc">支持在指定目录下新增和删除书签文件</span></li>
+          <li><b data-i18n="help.tipsQuickAccess">快速访问：</b><span data-i18n="help.tipsQuickAccessDesc">一键跳转到Gitee仓库查看书签文件</span></li>
         </ul>
-        <h3>联系作者</h3>
+        <h3 data-i18n="help.contactTitle">联系作者</h3>
         <ul>
-          <li><b>微信公众号：</b>前端也能这么有趣</li>
-          <li><b>GitHub：</b><a href="https://github.com/yongtaozheng/bookmarks-manage" target="_blank" style="color:#1976d2;">项目地址</a></li>
-          <li><b>Gitee：</b><a href="https://gitee.com/zheng_yongtao/bookmarks-manage" target="_blank" style="color:#1976d2;">项目地址</a></li>
+          <li><b data-i18n="help.contactWechat">微信公众号：</b><span data-i18n="help.contactWechatName">前端也能这么有趣</span></li>
+          <li><b data-i18n="help.contactGithub">GitHub：</b><a href="https://github.com/yongtaozheng/bookmarks-manage" target="_blank" style="color:#1976d2;" data-i18n="help.contactProjectLink">项目地址</a></li>
+          <li><b data-i18n="help.contactGitee">Gitee：</b><a href="https://gitee.com/zheng_yongtao/bookmarks-manage" target="_blank" style="color:#1976d2;" data-i18n="help.contactProjectLink">项目地址</a></li>
         </ul>
       </div>
     </div>

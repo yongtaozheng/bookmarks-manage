@@ -1,3 +1,6 @@
+import { initLocale, t, setLocale, getLocale, translateDOM } from './i18n/index';
+import type { Locale } from './i18n/index';
+
 declare const chrome: any;
 
 // 检查chrome API是否可用
@@ -150,9 +153,9 @@ async function putFileContent(apiUrl: string, accessToken: string, encodedConten
     body: JSON.stringify(commitData),
   });
   if (putResponse.ok) {
-    showMsg("已上传书签数据");
+    showMsg(t('msg.uploaded'));
   } else {
-    showMsg("上传书签数据失败", true);
+    showMsg(t('msg.uploadFailed'), true);
   }
 }
 function safeBtoa(data: Uint8Array) {
@@ -186,7 +189,7 @@ async function modifyFile(gitInfo: any, modifiedContent: any, isCover: boolean) 
     const encodedContent = safeBtoa(data);
     await putFileContent(apiUrl, accessToken, encodedContent, file.sha);
   } catch (error) {
-    showMsg("上传书签数据失败", true);
+    showMsg(t('msg.uploadFailed'), true);
   }
 }
 async function getFile(gitInfo: any) {
@@ -343,7 +346,21 @@ function showMsg(text: string, isError = false) {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // 初始化语言
+  await initLocale();
+  translateDOM();
+
+  // 语言选择器
+  const langSelect = document.getElementById('langSelect') as HTMLSelectElement;
+  if (langSelect) {
+    langSelect.value = getLocale();
+    langSelect.addEventListener('change', async () => {
+      await setLocale(langSelect.value as Locale);
+      translateDOM();
+    });
+  }
+
   // 如果不是Chrome扩展环境，直接返回
   if (!isChromeExtensionContext()) {
     return;
@@ -387,7 +404,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       setConfigToDB(config).then(() => {
         if (msg) {
-          msg.textContent = 'Gitee 配置已保存！';
+          msg.textContent = t('msg.configSaved');
           setTimeout(() => { msg.textContent = ''; }, 1200);
         }
       });
@@ -412,7 +429,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tokenEl.value = message.token;
         // 触发自动保存
         tokenEl.dispatchEvent(new Event('blur'));
-        showMsg('Token已自动更新');
+        showMsg(t('msg.tokenUpdated'));
       }
     }
     // 返回响应表示消息已处理
@@ -428,7 +445,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (tokenEl) {
           tokenEl.value = result.latestToken;
           tokenEl.dispatchEvent(new Event('blur'));
-          showMsg('Token已自动更新');
+          showMsg(t('msg.tokenUpdated'));
           // 清除storage中的token，避免重复使用
           chrome.storage.local.remove(['latestToken']);
         }
@@ -436,7 +453,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }, 100);
   
-  function fillSelectOptions(select: HTMLSelectElement, options: string[], placeholder = '请选择') {
+  function fillSelectOptions(select: HTMLSelectElement, options: string[], placeholder = t('select.placeholder')) {
     select.innerHTML = '';
     const opt = document.createElement('option');
     opt.value = '';
@@ -455,14 +472,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (dir) url += `/${encodeURIComponent(dir)}`;
     url += `?ref=${branch}&access_token=${token}`;
     const res = await fetch(url);
-    if (!res.ok) throw new Error('获取文件失败');
+    if (!res.ok) throw new Error(t('select.getFileFailed'));
     const data = await res.json();
     return Array.isArray(data) ? data.filter((f: any) => f.type === 'file').map((f: any) => f.path) : [];
   }
   async function fetchGiteeBranches(token: string, owner: string, repo: string): Promise<string[]> {
     const url = `https://gitee.com/api/v5/repos/${owner}/${repo}/branches?access_token=${token}`;
     const res = await fetch(url);
-    if (!res.ok) throw new Error('获取分支失败');
+    if (!res.ok) throw new Error(t('select.getBranchFailed'));
     const data = await res.json();
     return data.map((b: any) => b.name);
   }
@@ -473,14 +490,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const branch = branchSel.value;
     const dir = bookmarkDirInput.value.trim();
     if (!token || !owner || !repo || !branch || !dir) return;
-    fillSelectOptions(filePathSelect, [], '加载中...');
+    fillSelectOptions(filePathSelect, [], t('select.loading'));
     try {
       const files = await fetchGiteeFiles(token, owner, repo, branch, dir);
       // 过滤掉 .keep 文件
       const filtered = files.filter((f: string) => !f.endsWith('.keep'));
-      fillSelectOptions(filePathSelect, filtered, '请选择文件');
+      fillSelectOptions(filePathSelect, filtered, t('select.selectFile'));
     } catch (e) {
-      fillSelectOptions(filePathSelect, [], '获取文件失败');
+      fillSelectOptions(filePathSelect, [], t('select.getFileFailed'));
     }
   }
   async function updateBranches() {
@@ -490,10 +507,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!token || !owner || !repo) return;
     if (token === lastToken && owner === lastOwner && repo === lastRepo) return;
     lastToken = token; lastOwner = owner; lastRepo = repo;
-    fillSelectOptions(branchSel, [], '加载中...');
+    fillSelectOptions(branchSel, [], t('select.loading'));
     try {
       const branches = await fetchGiteeBranches(token, owner, repo);
-      fillSelectOptions(branchSel, branches, '请选择分支');
+      fillSelectOptions(branchSel, branches, t('select.selectBranch'));
       // 默认选中 master 分支
       if (branches.includes('master')) {
         branchSel.value = 'master';
@@ -503,10 +520,10 @@ document.addEventListener('DOMContentLoaded', () => {
       // 触发文件列表刷新
       updateFilePathOptions();
     } catch (e) {
-      fillSelectOptions(branchSel, [], '获取分支失败');
-      fillSelectOptions(filePathSelect, [], '请先选择分支');
+      fillSelectOptions(branchSel, [], t('select.getBranchFailed'));
+      fillSelectOptions(filePathSelect, [], t('select.selectBranch'));
     }
-    fillSelectOptions(filePathSelect, [], '请先选择分支');
+    fillSelectOptions(filePathSelect, [], t('select.selectBranch'));
   }
   // 记录上次的值
   let lastToken = '', lastOwner = '', lastRepo = '', lastBookmarkDir = '';
@@ -553,49 +570,49 @@ document.addEventListener('DOMContentLoaded', () => {
   }, 300);
 
   document.getElementById('btnSaveOverwrite')!.onclick = async function() {
-    if (!confirm('确定要覆盖保存到Gitee吗？这将覆盖远程仓库中的书签数据。')) {
+    if (!confirm(t('confirm.overwriteSave'))) {
       return;
     }
-    
+
     // 询问是否保留隐藏书签
-    const keepHidden = confirm('是否保留远程仓库中的隐藏书签？\n\n点击"确定"：保留远程隐藏书签并合并到本地书签\n点击"取消"：直接使用本地书签覆盖远程仓库');
-    
+    const keepHidden = confirm(t('confirm.keepHidden'));
+
     try {
       const config = await getGiteeConfig();
       const tree = await getLocalBookmarks();
       let content = tree[0]?.children || [];
-      
+
       if (keepHidden) {
         // 需要保留隐藏书签，从书签管理器中获取包含隐藏属性的书签
         try {
           // 通过消息传递获取书签管理器的完整书签数据
           const bookmarkManagerData = await getBookmarkManagerData();
-          
+
           if (bookmarkManagerData && bookmarkManagerData.length > 0) {
             // 筛选出书签管理器中的隐藏书签
             const hiddenBookmarks = filterHiddenBookmarks(bookmarkManagerData);
-            
+
             // 将隐藏书签合并到当前要保存的书签中
             content = mergeBookmarks(content, hiddenBookmarks);
-            
-            showMsg('已保留书签管理器中的隐藏书签并合并到保存内容中');
+
+            showMsg(t('msg.hiddenBookmarksKept'));
           } else {
-            showMsg('无法获取书签管理器数据，将直接使用当前书签覆盖', true);
+            showMsg(t('msg.cannotGetManagerData'), true);
           }
         } catch (error) {
-          showMsg('获取书签管理器数据失败，将直接使用当前书签覆盖', true);
+          showMsg(t('msg.getManagerDataFailed'), true);
         }
       }
-      
+
       await modifyFile(config, content, true);
-      showMsg('覆盖保存成功！');
+      showMsg(t('msg.overwriteSaveSuccess'));
     } catch (e: any) {
-      showMsg('覆盖保存失败: ' + e.message, true);
+      showMsg(t('msg.overwriteSaveFailed', e.message), true);
     }
   };
 
   document.getElementById('btnSaveMerge')!.onclick = async function() {
-    if (!confirm('确定要合并保存到Gitee吗？这将把本地书签与远程书签合并后保存。')) {
+    if (!confirm(t('confirm.mergeSave'))) {
       return;
     }
     try {
@@ -603,20 +620,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const tree = await getLocalBookmarks();
       const content = tree[0]?.children || [];
       await modifyFile(config, content, false);
-      showMsg('合并保存成功！');
+      showMsg(t('msg.mergeSaveSuccess'));
     } catch (e: any) {
-      showMsg('合并保存失败: ' + e.message, true);
+      showMsg(t('msg.mergeSaveFailed', e.message), true);
     }
   };
 
   document.getElementById('btnGetOverwrite')!.onclick = async function() {
-    if (!confirm('确定要覆盖获取吗？这将用远程书签完全替换本地书签数据，本地书签将被删除。')) {
+    if (!confirm(t('confirm.overwriteGet'))) {
       return;
     }
     try {
       const config = await getGiteeConfig();
       const data = await getFile(config);
-      
+
       // 检查数据结构
       let bookmarksToCreate;
       if (Array.isArray(data)) {
@@ -626,29 +643,29 @@ document.addEventListener('DOMContentLoaded', () => {
         // 如果是对象且有children属性
         bookmarksToCreate = data.children;
       } else {
-        throw new Error('远程书签数据格式不正确');
+        throw new Error(t('msg.remoteDataFormatError'));
       }
-      
-      
+
+
       await removeAllBookmarks();
       await createBookmarks(bookmarksToCreate, '1'); // 只写入书签栏
-      showMsg('覆盖获取并替换本地书签成功！');
+      showMsg(t('msg.overwriteGetSuccess'));
     } catch (e: any) {
-      showMsg('覆盖获取失败: ' + e.message, true);
+      showMsg(t('msg.overwriteGetFailed', e.message), true);
     }
   };
 
   document.getElementById('btnGetMerge')!.onclick = async function() {
-    if (!confirm('确定要合并获取吗？这将把远程书签与本地书签合并后替换本地数据。')) {
+    if (!confirm(t('confirm.mergeGet'))) {
       return;
     }
     try {
       const config = await getGiteeConfig();
       const data = await getFile(config);
-      
+
       const tree = await getLocalBookmarks();
       const local = tree[0]?.children || [];
-      
+
       // 检查数据结构并获取远程书签
       let remoteBookmarks;
       if (Array.isArray(data)) {
@@ -656,7 +673,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (data.children) {
         remoteBookmarks = data.children;
       } else {
-        throw new Error('远程书签数据格式不正确');
+        throw new Error(t('msg.remoteDataFormatError'));
       }
       
       
@@ -668,36 +685,36 @@ document.addEventListener('DOMContentLoaded', () => {
       
       await removeAllBookmarks();
       await createBookmarks(merged, '1'); // 只写入书签栏
-      showMsg('合并获取并替换本地书签成功！');
+      showMsg(t('msg.mergeGetSuccess'));
     } catch (e: any) {
-      showMsg('合并获取失败: ' + e.message, true);
+      showMsg(t('msg.mergeGetFailed', e.message), true);
     }
   };
 
   // 新增书签文件
   document.getElementById('addBookmarkFile')!.onclick = async function() {
-    const fileName = prompt('请输入书签文件名（如：bookmarks.json）：');
+    const fileName = prompt(t('prompt.newFileName'));
     if (!fileName) return;
-    
+
     // 如果文件名没有后缀，自动补全为.json
     const finalFileName = fileName.includes('.') ? fileName : `${fileName}.json`;
-    
+
     const token = tokenEl.value.trim();
     const owner = ownerEl.value.trim();
     const repo = repoEl.value.trim();
     const branch = branchSel.value;
     const dir = bookmarkDirInput.value.trim();
-    
+
     if (!token || !owner || !repo || !branch || !dir) {
-      showMsg('请先填写完整的配置信息', true);
+      showMsg(t('msg.fillConfigFirst'), true);
       return;
     }
-    
+
     try {
       const filePath = dir ? `${dir}/${finalFileName}` : finalFileName;
       const content = JSON.stringify([], null, 2); // 空的书签数组
       const encodedContent = btoa(unescape(encodeURIComponent(content)));
-      
+
       const url = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeURIComponent(filePath)}?ref=${branch}&access_token=${token}`;
       const response = await fetch(url, {
         method: 'POST',
@@ -709,15 +726,15 @@ document.addEventListener('DOMContentLoaded', () => {
           branch: branch
         })
       });
-      
+
       if (response.ok) {
-        showMsg(`新增书签文件成功：${finalFileName}`);
+        showMsg(t('msg.addFileSuccess', finalFileName));
         updateFilePathOptions(); // 刷新文件列表
       } else {
-        showMsg('新增书签文件失败', true);
+        showMsg(t('msg.addFileFailed'), true);
       }
     } catch (e: any) {
-      showMsg('新增书签文件失败：' + e.message, true);
+      showMsg(t('msg.addFileFailed') + ': ' + e.message, true);
     }
   };
   
@@ -725,34 +742,34 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('deleteBookmarkFile')!.onclick = async function() {
     const selectedFile = filePathSelect.value;
     if (!selectedFile) {
-      showMsg('请先选择要删除的书签文件', true);
+      showMsg(t('msg.selectFileFirst'), true);
       return;
     }
-    
-    if (!confirm(`确定要删除书签文件：${selectedFile.split('/').pop()} 吗？`)) {
+
+    if (!confirm(t('confirm.deleteFile', selectedFile.split('/').pop() || ''))) {
       return;
     }
-    
+
     const token = tokenEl.value.trim();
     const owner = ownerEl.value.trim();
     const repo = repoEl.value.trim();
     const branch = branchSel.value;
-    
+
     if (!token || !owner || !repo || !branch) {
-      showMsg('请先填写完整的配置信息', true);
+      showMsg(t('msg.fillConfigFirst'), true);
       return;
     }
-    
+
     try {
       // 先获取文件信息（需要 sha）
       const getUrl = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeURIComponent(selectedFile)}?ref=${branch}&access_token=${token}`;
       const getResponse = await fetch(getUrl);
       if (!getResponse.ok) {
-        showMsg('获取文件信息失败', true);
+        showMsg(t('msg.fileInfoFailed'), true);
         return;
       }
       const fileInfo = await getResponse.json();
-      
+
       // 删除文件
       const deleteUrl = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeURIComponent(selectedFile)}?ref=${branch}&access_token=${token}`;
       const deleteResponse = await fetch(deleteUrl, {
@@ -765,15 +782,15 @@ document.addEventListener('DOMContentLoaded', () => {
           branch: branch
         })
       });
-      
+
       if (deleteResponse.ok) {
-        showMsg(`删除书签文件成功：${selectedFile.split('/').pop()}`);
+        showMsg(t('msg.deleteFileSuccess', selectedFile.split('/').pop() || ''));
         updateFilePathOptions(); // 刷新文件列表
       } else {
-        showMsg('删除书签文件失败', true);
+        showMsg(t('msg.deleteFileFailed'), true);
       }
     } catch (e: any) {
-      showMsg('删除书签文件失败：' + e.message, true);
+      showMsg(t('msg.deleteFileFailed') + ': ' + e.message, true);
     }
   };
 
@@ -785,12 +802,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const file = filePathSelect.value;
     
     if (!owner || !repo) {
-      showMsg('请先填写仓库所有者(owner)和仓库名(repo)', true);
+      showMsg(t('msg.fillOwnerRepo'), true);
       return;
     }
     
     if (!file) {
-      showMsg('请先选择书签文件', true);
+      showMsg(t('msg.selectBookmarkFile'), true);
       return;
     }
     
@@ -806,11 +823,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (chrome && chrome.tabs && chrome.tabs.create) {
         chrome.tabs.create({ url: 'chrome://bookmarks/' }, function() {
           if (chrome.runtime.lastError) {
-            alert('无法自动打开书签管理器，请手动访问 chrome://bookmarks/');
+            alert(t('msg.cannotOpenManager'));
           }
         });
       } else {
-        alert('请手动打开 chrome://bookmarks/');
+        alert(t('msg.pleaseOpenManually'));
       }
     };
   }
@@ -822,7 +839,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (chrome && chrome.tabs && chrome.tabs.create) {
         chrome.tabs.create({ url: chrome.runtime.getURL('bookmark-manager.html') }, function() {
           if (chrome.runtime.lastError) {
-            alert('无法打开我的书签管理器');
+            alert(t('msg.cannotOpenMyManager'));
           }
         });
       } else {
@@ -900,7 +917,7 @@ document.addEventListener('DOMContentLoaded', () => {
       };
       saveShortcutConfig(config).then(() => {
         if (shortcutMsg) {
-          shortcutMsg.textContent = '快捷键设置已保存！';
+          shortcutMsg.textContent = t('msg.shortcutSaved');
           setTimeout(() => { if (shortcutMsg) shortcutMsg.textContent = ''; }, 1200);
         }
       });
