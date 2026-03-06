@@ -19,21 +19,22 @@
   <a href="https://gitee.com/zheng_yongtao/bookmarks-manage/members" target="_blank">
     <img src="https://gitee.com/zheng_yongtao/bookmarks-manage/badge/fork.svg?theme=gvp" alt="Gitee forks" />
   </a>
-  <img src="https://img.shields.io/badge/Vue-3.x-brightgreen" alt="Vue 3" />
-  <img src="https://img.shields.io/badge/TypeScript-4.x-blue" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/Vite-4.x-ff69b4" alt="Vite" />
+  <img src="https://img.shields.io/badge/Vue-3.5-brightgreen" alt="Vue 3" />
+  <img src="https://img.shields.io/badge/TypeScript-5.8-blue" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Vite-5.4-ff69b4" alt="Vite" />
+  <img src="https://img.shields.io/badge/Manifest-V3-orange" alt="Chrome Manifest V3" />
 </p>
 
-一个基于 Vue 3 + TypeScript + Vite 的现代浏览器书签管理器插件，支持本地书签树管理、Gitee 云同步、智能搜索、批量操作等功能。
+一个基于 Vue 3 + TypeScript + Vite 的现代浏览器书签管理 Chrome 插件（Manifest V3），支持本地书签树管理、Gitee 云同步、全局智能搜索、快捷键自定义等功能。
 
 ## 功能特性
 
-- 📚 **书签树管理**：可视化管理浏览器书签，支持多级目录、批量删除、拖拽排序。
-- 🔍 **全局搜索**：支持快捷键（连续三次 Cmd/Win）呼出搜索框，模糊搜索书签和目录，输入目录名可直接浏览该目录下所有书签。
-- ☁️ **Gitee 云同步**：支持将本地书签一键同步到 Gitee 仓库，支持覆盖/合并上传与下载。
-- 🗂️ **递归合并**：合并时会递归合并所有目录和书签，避免重复。
-- 🛡️ **数据安全**：配置信息存储于浏览器 indexDB，安全可靠。
-- 🖥️ **美观易用**：现代化 UI，交互友好。
+- **书签树管理**：可视化管理浏览器书签，支持多级目录展示、批量删除、隐藏/显示书签、拖拽排序。
+- **全局搜索**：在任意页面连续按修饰键（默认三次 Cmd/Ctrl/Alt）呼出搜索框，支持模糊匹配书签标题和 URL、输入目录名浏览该目录下所有书签、按使用频率和最近使用时间智能排序。
+- **Gitee 云同步**：将本地书签同步到 Gitee 仓库，支持覆盖保存、合并保存、覆盖获取、合并获取四种模式，合并时递归去重。
+- **快捷键自定义**：可在 Popup 面板中自定义全局搜索触发键、连按次数、时间窗口，以及关闭标签页的快捷键组合，修改后实时生效。
+- **书签隐藏**：支持隐藏指定书签，隐藏状态通过 IndexedDB 持久化保存，云同步时可选择保留隐藏书签。
+- **数据安全**：Gitee 配置信息存储于浏览器 IndexedDB，快捷键配置和书签使用数据存储于 chrome.storage.local。
 
 ## 安装与开发
 
@@ -41,7 +42,7 @@
 
 ```bash
 git clone https://github.com/yongtaozheng/bookmarks-manage.git
-cd bookmarks-plus
+cd bookmarks-manage
 ```
 
 ### 安装依赖
@@ -57,7 +58,7 @@ npm run dev
 ```
 
 - 访问 `http://localhost:5173` 预览开发页面（仅用于调试 UI）。
-- 插件开发建议使用 Chrome 的“加载已解压的扩展程序”功能，选择 `dist` 目录。
+- 插件开发调试请使用 Chrome 的"加载已解压的扩展程序"功能，选择 `dist` 目录。
 
 ### 构建打包
 
@@ -65,54 +66,137 @@ npm run dev
 npm run build
 ```
 
-- 打包后产物在 `dist/` 目录，可直接用于 Chrome 插件加载。
+打包后产物在 `dist/` 目录，可直接用于 Chrome 插件加载。
+
+### 打包 zip
+
+```bash
+npm run zip
+```
+
+将 `dist/` 目录打包为 `dist.zip`，便于分发。
 
 ## 目录结构
 
 ```
-bookmarks-plus/
-├── public/           # 公共资源
-│   └── icon.jpg      # 插件图标
+bookmarks-manage/
+├── public/                  # 公共资源
+│   ├── icon.png             # 插件图标
+│   └── 我的字体.ttf          # 自定义字体
 ├── src/
-│   ├── assets/       # 静态资源
-│   ├── components/   # Vue 组件（如 BookmarkTree）
-│   ├── App.vue       # 主界面
-│   ├── popup.ts      # 弹窗主逻辑，Gitee 同步
-│   ├── content-search.ts # 内容脚本，支持全局搜索
-│   ├── background.ts # 后台脚本，处理书签数据通信
-│   └── style.css     # 全局样式
-├── popup.html        # 插件弹窗页面
-├── manifest.json     # Chrome 插件清单
-├── vite.config.ts    # Vite 配置
-└── ...               # 其他配置文件
+│   ├── components/          # Vue 组件
+│   │   └── BookmarkTree.vue # 递归书签树组件
+│   ├── App.vue              # 新标签页主界面
+│   ├── main.ts              # Vue 应用入口
+│   ├── popup.ts             # Popup 面板逻辑（Gitee 同步、快捷键设置）
+│   ├── content-search.ts    # 内容脚本（全局搜索、快捷键监听）
+│   ├── background.ts        # Service Worker（消息中继、标签页管理）
+│   ├── bookmark-manager.js  # 书签管理器页面逻辑
+│   └── style.css            # 全局样式
+├── popup.html               # Popup 弹窗页面
+├── bookmark-manager.html    # 书签管理器页面
+├── manifest.json            # Chrome 插件清单（Manifest V3）
+├── vite.config.ts           # Vite 构建配置
+├── tsconfig.json            # TypeScript 配置
+├── zip-dist.js              # 打包脚本
+└── package.json             # 项目依赖
 ```
 
-## 主要功能说明
+## 功能说明
 
-- **弹窗面板**：点击扩展图标弹出，支持一键打开书签管理器、Gitee 配置、同步按钮、帮助说明。
-- **Gitee 同步**：
-  - 覆盖保存：将本地书签覆盖保存到 Gitee。
-  - 合并保存：将本地书签与 Gitee 上的书签递归合并后保存。
-  - 覆盖获取：用 Gitee 上的书签数据替换本地书签。
-  - 合并获取：将 Gitee 上的书签与本地递归合并后替换本地书签。
-- **全局搜索**：任意页面连续三次 Cmd/Win 呼出搜索，支持模糊匹配、目录内书签浏览、回车/点击跳转。
+### Popup 弹窗面板
+
+点击扩展图标弹出，包含：
+
+- 打开系统书签管理器 / 自定义书签管理器的入口按钮
+- Gitee 云同步配置表单（Token、仓库、分支、书签文件选择）
+- 四个同步操作按钮（覆盖保存 / 合并保存 / 覆盖获取 / 合并获取）
+- 书签文件管理（新增 / 删除远程书签文件）
+- 快捷键设置面板
+- 帮助说明
+
+### Gitee 云同步
+
+| 操作 | 说明 |
+|------|------|
+| 覆盖保存 | 用本地书签覆盖 Gitee 远程文件，可选择保留远程隐藏书签 |
+| 合并保存 | 将本地书签与远程书签递归合并后保存，自动去重 |
+| 覆盖获取 | 用 Gitee 远程书签完全替换本地书签 |
+| 合并获取 | 将远程书签与本地书签递归合并后替换本地书签 |
+
+配置信息（Token、仓库等）输入后自动保存到 IndexedDB，下次打开自动回填。支持从 Gitee 页面自动检测并填入 API Token。
+
+### 全局搜索
+
+- 在任意网页上连续按修饰键即可呼出搜索框（默认连续三次 Cmd/Ctrl/Alt，800ms 时间窗口）
+- 输入关键词模糊搜索书签标题和 URL
+- 输入目录名可浏览该目录下所有书签
+- 搜索结果按最近使用时间、使用次数、匹配度综合排序
+- 支持键盘上下箭头导航，回车打开选中书签
+- 按 Escape 关闭搜索框
+
+### 快捷键
+
+| 快捷键 | 功能 | 是否可自定义 |
+|--------|------|:---:|
+| 连续按修饰键（默认 3 次） | 呼出全局书签搜索 | 是 |
+| Alt + W | 关闭当前标签页 | 是 |
+| Escape | 关闭搜索框 | 否 |
+
+可在 Popup 面板的「快捷键设置」中自定义：
+
+- 全局搜索：触发键（任意修饰键 / Cmd / Ctrl / Alt）、连按次数（2/3/4）、时间窗口（500–1500ms）、启用开关
+- 关闭标签页：修饰键、按键字母、启用开关
+
+修改后无需刷新页面，所有已打开的标签页立即生效。
+
+### 书签管理器
+
+独立的书签管理页面，提供：
+
+- 左侧目录树 + 右侧书签列表的分栏布局
+- 书签搜索与过滤
+- 书签隐藏/显示（隐藏状态持久化到 IndexedDB）
+- 拖拽排序
+- 批量操作
 
 ## 权限说明
 
-- `bookmarks`：访问和管理浏览器书签
-- `tabs`、`activeTab`：用于打开新标签页
-- `storage`（通过 indexDB 实现）：本地存储配置信息
+| 权限 | 用途 |
+|------|------|
+| `bookmarks` | 读取和管理浏览器书签 |
+| `tabs` | 创建/关闭标签页 |
+| `activeTab` | 获取当前标签页信息 |
+| `storage` | 存储快捷键配置、书签使用数据 |
 
-## Gitee 配置
+## 架构简述
 
-在弹窗面板填写 Gitee Token、仓库信息、分支、文件路径等，支持自动保存和自动填充。
+```
+┌─ Popup (popup.ts) ──────────────────────────────┐
+│  Gitee 配置 / 同步操作 / 快捷键设置              │
+└──────────────┬──────────────────────────────────┘
+               │ chrome.storage.local (快捷键配置实时同步)
+               ▼
+┌─ Content Script (content-search.ts) ────────────┐
+│  全局搜索 / 快捷键监听 / 注入所有页面             │
+└──────────────┬──────────────────────────────────┘
+               │ chrome.runtime.sendMessage
+               ▼
+┌─ Background Service Worker (background.ts) ─────┐
+│  消息中继 / Chrome Bookmarks API / 标签页管理     │
+└─────────────────────────────────────────────────┘
+```
 
 ## 开发建议
 
-- 推荐使用最新版 Chrome 浏览器。
-- 插件开发调试建议使用“开发者模式”加载 `dist` 目录。
-- 代码基于 TypeScript 严格模式，建议使用 VSCode 编辑器。
+- 推荐使用最新版 Chrome 浏览器
+- 插件调试请在 `chrome://extensions/` 开启「开发者模式」并加载 `dist` 目录
+- 代码基于 TypeScript 严格模式，推荐使用 VSCode
+- Node 版本建议 18.x，npm 版本建议 11.x
 
 ## 贡献与反馈
 
 欢迎提 Issue、PR 或联系作者改进本项目！
+
+- GitHub：[yongtaozheng/bookmarks-manage](https://github.com/yongtaozheng/bookmarks-manage)
+- Gitee：[zheng_yongtao/bookmarks-manage](https://gitee.com/zheng_yongtao/bookmarks-manage)

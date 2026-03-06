@@ -21,7 +21,7 @@ export default defineConfig({
           dest: '.'
         },
         {
-          src: 'public/icon.jpg',
+          src: 'public/icon.png',
           dest: '.'
         },
         {

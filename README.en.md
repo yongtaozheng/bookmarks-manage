@@ -19,92 +19,166 @@
   <a href="https://gitee.com/zheng_yongtao/bookmarks-manage/members" target="_blank">
     <img src="https://gitee.com/zheng_yongtao/bookmarks-manage/badge/fork.svg?theme=gvp" alt="Gitee forks" />
   </a>
-  <img src="https://img.shields.io/badge/Vue-3.x-brightgreen" alt="Vue 3" />
-  <img src="https://img.shields.io/badge/TypeScript-4.x-blue" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/Vite-4.x-ff69b4" alt="Vite" />
+  <img src="https://img.shields.io/badge/Vue-3.5-brightgreen" alt="Vue 3" />
+  <img src="https://img.shields.io/badge/TypeScript-5.8-blue" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Vite-5.4-ff69b4" alt="Vite" />
+  <img src="https://img.shields.io/badge/Manifest-V3-orange" alt="Chrome Manifest V3" />
 </p>
 
-A modern Chrome bookmarks manager extension built with Vue 3, TypeScript, and Vite. Features local bookmark tree management, Gitee cloud sync, smart search, batch operations, and more.
+A modern Chrome bookmarks manager extension (Manifest V3) built with Vue 3 + TypeScript + Vite. Features local bookmark tree management, Gitee cloud sync, global smart search, customizable keyboard shortcuts, and more.
 
 ## Features
 
-- 📚 **Bookmark Tree Management**: Visualize and manage bookmarks with multi-level folders, batch delete, and drag-and-drop sorting.
-- 🔍 **Global Search**: Trigger search box with triple Cmd/Win, fuzzy search bookmarks/folders, type folder name to browse all bookmarks inside.
-- ☁️ **Gitee Cloud Sync**: One-click sync to Gitee repo, supports overwrite/merge upload and download.
-- 🗂️ **Recursive Merge**: Merges all folders and bookmarks recursively, avoiding duplicates.
-- 🛡️ **Data Security**: Config stored in browser indexDB.
-- 🖥️ **Modern UI**: Beautiful, user-friendly, dark mode supported.
+- **Bookmark Tree Management**: Visualize and manage bookmarks with multi-level folders, batch delete, hide/show bookmarks, and drag-and-drop sorting.
+- **Global Search**: Press a modifier key repeatedly (default: triple Cmd/Ctrl/Alt) on any page to open the search box. Supports fuzzy matching of titles and URLs, folder browsing by name, and smart ranking by usage frequency and recency.
+- **Gitee Cloud Sync**: Sync local bookmarks to a Gitee repository with four modes — overwrite save, merge save, overwrite fetch, and merge fetch — with recursive deduplication on merge.
+- **Customizable Shortcuts**: Configure the global search trigger key, press count, time window, and close-tab shortcut in the Popup panel. Changes take effect immediately across all open tabs.
+- **Bookmark Hiding**: Hide specific bookmarks with persistent state stored in IndexedDB. Hidden bookmarks can optionally be preserved during cloud sync.
+- **Data Security**: Gitee configuration stored in browser IndexedDB; shortcut settings and bookmark usage data stored in chrome.storage.local.
 
 ## Getting Started
 
+### Clone
+
 ```bash
 git clone https://github.com/yongtaozheng/bookmarks-manage.git
-cd bookmarks-plus
+cd bookmarks-manage
+```
+
+### Install dependencies
+
+```bash
 npm install
+```
+
+### Development
+
+```bash
 npm run dev
 ```
 
-- Visit `http://localhost:5173` for UI preview.
+- Visit `http://localhost:5173` for UI preview (debugging only).
 - For extension development, use Chrome's "Load unpacked" and select the `dist` folder.
 
-## Build
+### Build
 
 ```bash
 npm run build
 ```
 
-- The build output is in the `dist/` directory, ready for Chrome extension loading.
+Build output is in the `dist/` directory, ready for Chrome extension loading.
+
+### Package as zip
+
+```bash
+npm run zip
+```
+
+Packages `dist/` into `dist.zip` for distribution.
 
 ## Directory Structure
 
 ```
-bookmarks-plus/
-├── public/           # Public assets
-│   └── icon.jpg      # Extension icon
+bookmarks-manage/
+├── public/                  # Public assets
+│   ├── icon.png             # Extension icon
+│   └── 我的字体.ttf          # Custom font
 ├── src/
-│   ├── assets/       # Static assets
-│   ├── components/   # Vue components (e.g. BookmarkTree)
-│   ├── App.vue       # Main UI
-│   ├── popup.ts      # Popup logic, Gitee sync
-│   ├── content-search.ts # Content script, global search
-│   ├── background.ts # Background script, bookmark data communication
-│   └── style.css     # Global styles
-├── popup.html        # Extension popup page
-├── manifest.json     # Chrome extension manifest
-├── vite.config.ts    # Vite config
-└── ...               # Other config files
+│   ├── components/          # Vue components
+│   │   └── BookmarkTree.vue # Recursive bookmark tree component
+│   ├── App.vue              # New tab page main UI
+│   ├── main.ts              # Vue app entry point
+│   ├── popup.ts             # Popup panel logic (Gitee sync, shortcut settings)
+│   ├── content-search.ts    # Content script (global search, shortcut handling)
+│   ├── background.ts        # Service Worker (message relay, tab management)
+│   ├── bookmark-manager.js  # Bookmark manager page logic
+│   └── style.css            # Global styles
+├── popup.html               # Popup page
+├── bookmark-manager.html    # Bookmark manager page
+├── manifest.json            # Chrome extension manifest (Manifest V3)
+├── vite.config.ts           # Vite build configuration
+├── tsconfig.json            # TypeScript configuration
+├── zip-dist.js              # Zip packaging script
+└── package.json             # Project dependencies
 ```
 
-## Main Features
+## Feature Details
 
-- **Popup Panel**: Click the extension icon to open, supports one-click open bookmarks manager, Gitee config, sync buttons, help.
-- **Gitee Sync**:
-  - Overwrite Save: Overwrite Gitee with local bookmarks.
-  - Merge Save: Recursively merge local and Gitee bookmarks, then save.
-  - Overwrite Fetch: Replace local bookmarks with Gitee data.
-  - Merge Fetch: Recursively merge Gitee and local bookmarks, then replace local.
-- **Global Search**: Triple Cmd/Win to open search, supports fuzzy match, folder search, enter/click to jump.
+### Popup Panel
+
+Click the extension icon to open. Includes:
+
+- Buttons to open the system bookmark manager or custom bookmark manager
+- Gitee cloud sync configuration form (Token, repo, branch, bookmark file selection)
+- Four sync action buttons (overwrite save / merge save / overwrite fetch / merge fetch)
+- Bookmark file management (create / delete remote bookmark files)
+- Keyboard shortcut settings panel
+- Help documentation
+
+### Gitee Cloud Sync
+
+| Action | Description |
+|--------|-------------|
+| Overwrite Save | Overwrite the Gitee remote file with local bookmarks, with option to preserve remote hidden bookmarks |
+| Merge Save | Recursively merge local and remote bookmarks, then save with automatic deduplication |
+| Overwrite Fetch | Replace all local bookmarks with remote Gitee data |
+| Merge Fetch | Recursively merge remote and local bookmarks, then replace local |
+
+Configuration (Token, repo, etc.) is auto-saved to IndexedDB and auto-filled on next open. Supports automatic API Token detection from Gitee pages.
+
+### Global Search
+
+- Press a modifier key repeatedly on any page to open the search box (default: triple Cmd/Ctrl/Alt within 800ms)
+- Fuzzy search bookmark titles and URLs
+- Type a folder name to browse all bookmarks within that folder
+- Results ranked by: last used time > usage count > match score
+- Keyboard navigation with arrow keys, Enter to open
+- Press Escape to close
+
+### Keyboard Shortcuts
+
+| Shortcut | Function | Customizable |
+|----------|----------|:---:|
+| Press modifier key repeatedly (default 3 times) | Open global bookmark search | Yes |
+| Alt + W | Close current tab | Yes |
+| Escape | Close search box | No |
+
+Customizable in the Popup panel under "Shortcut Settings":
+
+- Global search: trigger key (any modifier / Cmd / Ctrl / Alt), press count (2/3/4), time window (500–1500ms), enable/disable toggle
+- Close tab: modifier key, letter key, enable/disable toggle
+
+Changes apply immediately to all open tabs without page refresh.
+
+### Bookmark Manager
+
+A dedicated bookmark management page with:
+
+- Split layout: folder tree on the left, bookmark list on the right
+- Bookmark search and filtering
+- Hide/show bookmarks (hidden state persisted to IndexedDB)
+- Drag-and-drop sorting
+- Batch operations
 
 ## Permissions
 
-- `bookmarks`: Access and manage browser bookmarks
-- `tabs`, `activeTab`: Open new tabs
-- `storage` (via indexDB): Store config locally
-
-## Gitee Config
-
-Fill in your Gitee Token, repo, branch, and file path in the popup panel. Supports auto-save and auto-fill.
+| Permission | Purpose |
+|-----------|---------|
+| `bookmarks` | Read and manage browser bookmarks |
+| `tabs` | Create/close tabs |
+| `activeTab` | Get current tab info |
+| `storage` | Store shortcut settings and bookmark usage data |
 
 ## Development Tips
 
-- Use the latest Chrome browser.
-- For extension debugging, use "Developer mode" and load the `dist` directory.
-- Code is TypeScript strict-mode, VSCode recommended.
+- Use the latest Chrome browser
+- Enable "Developer mode" at `chrome://extensions/` and load the `dist` directory
+- Code uses TypeScript strict mode; VSCode recommended
+- Recommended: Node 18.x, npm 11.x
 
-## Contribution
+## Contributing
 
 PRs and issues are welcome!
 
----
-
-> **Tip:** Replace badge URLs and screenshot paths with your own resources as needed.
+- GitHub: [yongtaozheng/bookmarks-manage](https://github.com/yongtaozheng/bookmarks-manage)
+- Gitee: [zheng_yongtao/bookmarks-manage](https://gitee.com/zheng_yongtao/bookmarks-manage)
