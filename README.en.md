@@ -25,7 +25,7 @@
   <img src="https://img.shields.io/badge/Manifest-V3-orange" alt="Chrome Manifest V3" />
 </p>
 
-A modern Chrome bookmarks manager extension (Manifest V3) built with Vue 3 + TypeScript + Vite. Features local bookmark tree management, Gitee cloud sync, global smart search, customizable keyboard shortcuts, password protection, and more.
+A modern Chrome bookmarks manager extension (Manifest V3) built with Vue 3 + TypeScript + Vite. Features local bookmark tree management, Gitee cloud sync, global smart search, customizable keyboard shortcuts, password protection, theme switching, duplicate detection, broken link detection, and more.
 
 ## Features
 
@@ -35,6 +35,9 @@ A modern Chrome bookmarks manager extension (Manifest V3) built with Vue 3 + Typ
 - **Customizable Shortcuts**: Configure the global search trigger key, press count, time window, and close-tab shortcut in the Popup panel. Changes take effect immediately across all open tabs.
 - **Bookmark Hiding**: Hide specific bookmarks with persistent state stored in IndexedDB. Hidden bookmarks can optionally be preserved during cloud sync.
 - **Password Protection**: Protect the extension popup with a password lock. When enabled, a password is required each time the popup opens. Password configuration is stored in the Gitee repository for automatic multi-device sync.
+- **Theme Switching**: Choose between Light, Dark, or System (auto) theme modes with one click. Preference is automatically saved and synced across extension pages.
+- **Duplicate Detection**: Detect duplicate bookmarks by exact URL match or fuzzy title match (Dice similarity algorithm). Batch select and delete duplicates.
+- **Broken Link Detection**: Automatically verify all bookmark URLs with concurrent HTTP checks, real-time progress, status filtering, and batch deletion of broken links.
 - **Data Security**: Gitee configuration stored in browser IndexedDB; shortcut settings and bookmark usage data stored in chrome.storage.local.
 
 ## Getting Started
@@ -91,8 +94,12 @@ bookmarks-manage/
 │   ├── main.ts              # Vue app entry point
 │   ├── popup.ts             # Popup panel logic (Gitee sync, shortcut settings, password protection)
 │   ├── content-search.ts    # Content script (global search, shortcut handling)
-│   ├── background.ts        # Service Worker (message relay, tab management)
+│   ├── background.ts        # Service Worker (message relay, tab management, link checking)
 │   ├── bookmark-manager.js  # Bookmark manager page logic
+│   ├── theme.ts             # Theme switching module (Light / Dark / System)
+│   ├── i18n/                # Internationalization language packs
+│   │   ├── en.ts            # English
+│   │   └── zh-CN.ts         # Chinese
 │   └── style.css            # Global styles
 ├── popup.html               # Popup page
 ├── bookmark-manager.html    # Bookmark manager page
@@ -115,6 +122,7 @@ Click the extension icon to open. Includes:
 - Bookmark file management (create / delete remote bookmark files)
 - Keyboard shortcut settings panel
 - Password protection settings
+- Theme toggle button (Light / Dark / System)
 - Help documentation
 
 ### Gitee Cloud Sync
@@ -170,6 +178,19 @@ Add a password lock to the extension popup to prevent unauthorized access to you
 - Password configuration is stored as a `密码.json` file in the bookmark directory of your Gitee repository, automatically synced across devices
 - To disable, simply uncheck "Enable password protection" and save
 
+### Theme Switching
+
+Three theme modes to suit different preferences:
+
+| Mode | Description |
+|------|-------------|
+| 🖥️ System | Automatically follows OS light/dark preference, responds to system changes in real time |
+| ☀️ Light | Force light theme |
+| 🌙 Dark | Force dark theme |
+
+- Click the theme toggle button in the Popup or Bookmark Manager to cycle through modes
+- Theme preference is saved in `chrome.storage.local` and synced across all extension pages
+
 ### Bookmark Manager
 
 A dedicated bookmark management page with:
@@ -179,6 +200,50 @@ A dedicated bookmark management page with:
 - Hide/show bookmarks (hidden state persisted to IndexedDB)
 - Drag-and-drop sorting
 - Batch operations
+- Duplicate bookmark detection
+- Broken link detection
+
+### Duplicate Bookmark Detection
+
+Find and clean up duplicate bookmarks with two detection modes:
+
+| Mode | Description |
+|------|-------------|
+| URL Exact Match | Detect identical URLs (optionally ignore query parameters) |
+| Title Fuzzy Match | Detect similar titles using Dice similarity algorithm (threshold ≥ 0.6) |
+
+**How to Use:**
+
+1. Click the "Detect Duplicates" button in the Bookmark Manager
+2. Choose a detection mode (for URL mode, optionally check "Ignore query parameters")
+3. Review grouped duplicate results — the first item in each group is marked as "keep" by default
+4. Select duplicates to remove and click "Delete Selected"
+
+### Broken Link Detection
+
+Automatically verify all bookmark URLs and quickly identify broken links for cleanup.
+
+**Detection Strategy:**
+
+- Uses HEAD requests first (efficient); automatically falls back to GET if the server doesn't support HEAD
+- 15-second timeout per link
+- Configurable concurrency (default: 8 concurrent checks)
+
+**Status Classification:**
+
+| Status | Description |
+|--------|-------------|
+| ✅ Available | HTTP 2xx/3xx responses |
+| ⚠️ May be Broken | HTTP 429 (rate limited), 5xx server errors, or timeout |
+| ❌ Broken | HTTP 404/410 or other 4xx client errors, network unreachable |
+
+**How to Use:**
+
+1. Click the "Broken Link Check" button in the Bookmark Manager
+2. Set concurrency level and click "Start"
+3. Watch real-time progress bar and results
+4. Filter results by status (All / Broken only / Warning only / Available only)
+5. Select broken links to remove and click "Delete Selected"
 
 ## Permissions
 
@@ -202,6 +267,12 @@ PRs and issues are welcome!
 
 - GitHub: [yongtaozheng/bookmarks-manage](https://github.com/yongtaozheng/bookmarks-manage)
 - Gitee: [zheng_yongtao/bookmarks-manage](https://gitee.com/zheng_yongtao/bookmarks-manage)
+
+## Community
+
+Join our WeChat group to discuss tips and feature suggestions!
+
+<img src="http://jyeontu.xyz:3003/viewImage/qrcode.png" width="200" alt="WeChat Group" />
 
 ## License
 
