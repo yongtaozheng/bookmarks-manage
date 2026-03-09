@@ -23,6 +23,9 @@ class BookmarkManager {
     this.dragOverElement = null; // 当前拖拽悬停的元素
     this.pendingImportData = null; // 待导入的书签数据
     this.currentDuplicateGroups = []; // 当前重复检测结果
+    this.linkCheckResults = []; // 失效链接检测结果
+    this.linkCheckRunning = false; // 是否正在检测
+    this.linkCheckCurrentFilter = 'all'; // 当前筛选状态
     this.giteeConfig = {
       owner: '',
       repo: '',
@@ -292,6 +295,44 @@ class BookmarkManager {
 
     document.getElementById('stripQueryParam').addEventListener('change', () => {
       this.runDuplicateDetection();
+    });
+
+    // 失效链接检测对话框事件
+    document.getElementById('linkCheckBtn').addEventListener('click', () => {
+      this.showLinkCheckModal();
+    });
+
+    document.getElementById('closeLinkCheckModal').addEventListener('click', () => {
+      this.hideLinkCheckModal();
+    });
+
+    document.getElementById('cancelLinkCheckBtn').addEventListener('click', () => {
+      this.hideLinkCheckModal();
+    });
+
+    document.getElementById('linkCheckStartBtn').addEventListener('click', () => {
+      this.startLinkCheck();
+    });
+
+    document.getElementById('linkCheckStopBtn').addEventListener('click', () => {
+      this.stopLinkCheck();
+    });
+
+    document.getElementById('linkCheckFilter').addEventListener('change', (e) => {
+      this.linkCheckCurrentFilter = e.target.value;
+      this.renderLinkCheckResults();
+    });
+
+    document.getElementById('linkCheckSelectAllBrokenBtn').addEventListener('click', () => {
+      this.toggleLinkCheckCheckboxes('broken');
+    });
+
+    document.getElementById('linkCheckDeselectAllBtn').addEventListener('click', () => {
+      this.toggleLinkCheckCheckboxes('none');
+    });
+
+    document.getElementById('deleteBrokenLinksBtn').addEventListener('click', () => {
+      this.deleteSelectedBrokenLinks();
     });
 
     // 配置对话框事件
@@ -1904,38 +1945,98 @@ class BookmarkManager {
     return filterBookmarks(bookmarks);
   }
 
+  // 合并两个书签树数组（递归去重），与popup.ts中mergeBookmarks逻辑一致
+  mergeBookmarks(arr1, arr2) {
+    const map = new Map();
+    const getKey = (node) => {
+      return node.url ? `bookmark:${node.title}|${node.url}` : `folder:${node.title}`;
+    };
+    // 先放 arr1（本地优先）
+    arr1.forEach(n1 => {
+      const key = getKey(n1);
+      map.set(key, { ...n1, children: n1.children ? this.mergeBookmarks(n1.children, []) : undefined });
+    });
+    // 合并 arr2（远程数据）
+    arr2.forEach(n2 => {
+      const key = getKey(n2);
+      if (map.has(key)) {
+        // 文件夹递归合并children，保留本地的hidden属性
+        if (!n2.url) {
+          const existing = map.get(key);
+          map.set(key, {
+            ...n2,
+            hidden: existing.hidden !== undefined ? existing.hidden : n2.hidden,
+            children: this.mergeBookmarks(existing.children || [], n2.children || [])
+          });
+        }
+        // 书签已存在则跳过（保留本地版本，包含hidden状态）
+      } else {
+        map.set(key, { ...n2, children: n2.children ? this.mergeBookmarks([], n2.children) : undefined });
+      }
+    });
+    return Array.from(map.values());
+  }
+
   saveBookmarkTreeToGitee(bookmarks) {
     if (!this.giteeConfig || !this.giteeConfig.owner || !this.giteeConfig.repo || !this.giteeConfig.token) {
       return;
     }
 
-    const content = JSON.stringify(bookmarks, null, 2);
-    const encodedContent = btoa(unescape(encodeURIComponent(content)));
-    
-    // 获取文件SHA
-    this.getFileSha().then(sha => {
-      const url = `https://gitee.com/api/v5/repos/${this.giteeConfig.owner}/${this.giteeConfig.repo}/contents/${this.giteeConfig.filePath}`;
-      
-      fetch(url, {
+    const apiUrl = `https://gitee.com/api/v5/repos/${this.giteeConfig.owner}/${this.giteeConfig.repo}/contents/${this.giteeConfig.filePath}`;
+
+    // 使用合并保存方式：先获取远程数据，合并后再上传
+    fetch(`${apiUrl}?ref=${this.giteeConfig.branch}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `token ${this.giteeConfig.token}`
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      let mergedBookmarks = bookmarks;
+      const sha = data.sha;
+
+      if (data.content) {
+        try {
+          // 解码远程文件内容
+          const remoteContent = decodeURIComponent(escape(atob(data.content)));
+          const remoteBookmarks = JSON.parse(remoteContent);
+
+          // 合并本地和远程书签（本地优先，保留hidden状态）
+          mergedBookmarks = this.mergeBookmarks(bookmarks, remoteBookmarks);
+        } catch (e) {
+          // 远程内容解析失败，使用本地数据直接覆盖
+          console.warn('远程书签数据解析失败，将直接使用本地数据保存:', e);
+        }
+      }
+
+      // 编码合并后的内容并上传
+      const content = JSON.stringify(mergedBookmarks, null, 2);
+      const encodedContent = btoa(unescape(encodeURIComponent(content)));
+
+      return fetch(apiUrl, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `token ${this.giteeConfig.token}`
         },
         body: JSON.stringify({
-          message: 'Update bookmark tree - hidden attributes',
+          message: 'Update bookmark tree - merge hidden attributes',
           content: encodedContent,
           sha: sha
         })
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.content) {
-        } else {
-        }
-      })
-      .catch(error => {
       });
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.content) {
+        console.log('书签合并保存到Gitee成功');
+      } else {
+        console.warn('书签合并保存到Gitee失败:', data);
+      }
+    })
+    .catch(error => {
+      console.error('书签合并保存到Gitee出错:', error);
     });
   }
 
@@ -2404,6 +2505,363 @@ class BookmarkManager {
       alert(t('manager.duplicateDeleteFailed'));
       // 重新执行检测刷新状态
       this.runDuplicateDetection();
+    }
+  }
+
+  // ========== 失效链接检测 ==========
+
+  /**
+   * 打开失效链接检测对话框
+   */
+  showLinkCheckModal() {
+    document.getElementById('linkCheckModal').style.display = 'flex';
+    // 重置状态
+    this.linkCheckResults = [];
+    this.linkCheckRunning = false;
+    this.linkCheckCurrentFilter = 'all';
+    document.getElementById('linkCheckFilter').value = 'all';
+    document.getElementById('linkCheckProgress').style.display = 'none';
+    document.getElementById('linkCheckStats').style.display = 'none';
+    document.getElementById('linkCheckControls').style.display = 'none';
+    document.getElementById('linkCheckResults').innerHTML = '';
+    document.getElementById('deleteBrokenLinksBtn').style.display = 'none';
+    document.getElementById('linkCheckStartBtn').style.display = '';
+    document.getElementById('linkCheckStopBtn').style.display = 'none';
+    document.getElementById('linkCheckStartBtn').disabled = false;
+  }
+
+  /**
+   * 关闭失效链接检测对话框
+   */
+  hideLinkCheckModal() {
+    this.stopLinkCheck();
+    document.getElementById('linkCheckModal').style.display = 'none';
+  }
+
+  /**
+   * 停止链接检测
+   */
+  stopLinkCheck() {
+    this.linkCheckRunning = false;
+    document.getElementById('linkCheckStartBtn').style.display = '';
+    document.getElementById('linkCheckStopBtn').style.display = 'none';
+    document.getElementById('linkCheckStartBtn').disabled = false;
+  }
+
+  /**
+   * 向 background.ts 发送单个链接检测请求
+   */
+  checkSingleLink(url) {
+    return new Promise((resolve) => {
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+        chrome.runtime.sendMessage({ type: 'checkLink', url }, (response) => {
+          if (chrome.runtime.lastError) {
+            resolve({ status: 'error', statusCode: 0, url, message: chrome.runtime.lastError.message });
+          } else {
+            resolve(response || { status: 'error', statusCode: 0, url, message: 'No response' });
+          }
+        });
+      } else {
+        // 非扩展环境下的回退方案：直接 fetch（可能受 CORS 影响）
+        this.checkLinkFallback(url).then(resolve);
+      }
+    });
+  }
+
+  /**
+   * 非扩展环境下的 fetch 回退方案
+   */
+  async checkLinkFallback(url) {
+    if (!/^https?:\/\//i.test(url)) {
+      return { status: 'ok', statusCode: 0, url, message: 'Skipped' };
+    }
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 15000);
+      const response = await fetch(url, {
+        method: 'HEAD',
+        signal: controller.signal,
+        mode: 'no-cors',
+      });
+      clearTimeout(timer);
+      // no-cors 模式下 status 为 0（opaque response），只能判定为 ok
+      return { status: 'ok', statusCode: response.status || 0, url };
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        return { status: 'warning', statusCode: 0, url, message: 'Timeout' };
+      }
+      return { status: 'error', statusCode: 0, url, message: err.message || 'Network error' };
+    }
+  }
+
+  /**
+   * 开始链接检测
+   */
+  async startLinkCheck() {
+    if (this.linkCheckRunning) return;
+
+    this.linkCheckRunning = true;
+    this.linkCheckResults = [];
+    this.linkCheckCurrentFilter = 'all';
+    document.getElementById('linkCheckFilter').value = 'all';
+
+    // 切换按钮状态
+    document.getElementById('linkCheckStartBtn').style.display = 'none';
+    document.getElementById('linkCheckStopBtn').style.display = '';
+    document.getElementById('linkCheckProgress').style.display = 'block';
+    document.getElementById('linkCheckStats').style.display = 'none';
+    document.getElementById('linkCheckControls').style.display = 'none';
+    document.getElementById('deleteBrokenLinksBtn').style.display = 'none';
+    document.getElementById('linkCheckResults').innerHTML = '';
+
+    // 展平书签树，只取带 URL 的书签
+    const flatBookmarks = this.flattenBookmarks(this.bookmarks);
+    const total = flatBookmarks.length;
+
+    if (total === 0) {
+      this.stopLinkCheck();
+      document.getElementById('linkCheckProgress').style.display = 'none';
+      document.getElementById('linkCheckResults').innerHTML = `
+        <div style="text-align:center;padding:40px 20px;color:#666;">
+          <div style="font-size:40px;margin-bottom:12px;">📭</div>
+          <div style="font-size:16px;">没有需要检测的书签</div>
+        </div>
+      `;
+      return;
+    }
+
+    const concurrency = parseInt(document.getElementById('linkCheckConcurrency').value, 10) || 8;
+    let completed = 0;
+
+    // 更新进度
+    const updateProgress = () => {
+      const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+      document.getElementById('linkCheckProgressFill').style.width = `${percent}%`;
+      document.getElementById('linkCheckProgressText').textContent =
+        t('manager.linkCheckProgress', String(completed), String(total));
+      document.getElementById('linkCheckProgressPercent').textContent = `${percent}%`;
+    };
+    updateProgress();
+
+    // 并发控制：使用 worker 池模式
+    let index = 0;
+    const worker = async () => {
+      while (index < total && this.linkCheckRunning) {
+        const i = index++;
+        const bookmark = flatBookmarks[i];
+        const result = await this.checkSingleLink(bookmark.url);
+        if (!this.linkCheckRunning) break;
+
+        this.linkCheckResults.push({
+          ...bookmark,
+          checkStatus: result.status,
+          statusCode: result.statusCode,
+          checkMessage: result.message || '',
+        });
+
+        completed++;
+        updateProgress();
+
+        // 每检测完一个就实时更新结果列表（节流：每 5 个或最后一个时刷新）
+        if (completed % 5 === 0 || completed === total) {
+          this.renderLinkCheckResults();
+        }
+      }
+    };
+
+    const workers = [];
+    for (let w = 0; w < Math.min(concurrency, total); w++) {
+      workers.push(worker());
+    }
+
+    await Promise.all(workers);
+
+    // 检测完成
+    this.linkCheckRunning = false;
+    document.getElementById('linkCheckStartBtn').style.display = '';
+    document.getElementById('linkCheckStopBtn').style.display = 'none';
+    document.getElementById('linkCheckStartBtn').disabled = false;
+
+    // 最终渲染
+    this.renderLinkCheckResults();
+  }
+
+  /**
+   * 渲染链接检测结果
+   */
+  renderLinkCheckResults() {
+    const results = this.linkCheckResults;
+    const statsEl = document.getElementById('linkCheckStats');
+    const resultsEl = document.getElementById('linkCheckResults');
+    const controlsEl = document.getElementById('linkCheckControls');
+    const deleteBtn = document.getElementById('deleteBrokenLinksBtn');
+
+    if (results.length === 0) return;
+
+    // 统计
+    const okCount = results.filter(r => r.checkStatus === 'ok').length;
+    const warningCount = results.filter(r => r.checkStatus === 'warning').length;
+    const errorCount = results.filter(r => r.checkStatus === 'error').length;
+
+    statsEl.style.display = 'flex';
+    statsEl.innerHTML = `
+      <span>${t('manager.linkCheckTotal', String(results.length))}</span>
+      <span class="linkcheck-stat-ok">${t('manager.linkCheckOkCount', String(okCount))}</span>
+      <span class="linkcheck-stat-warning">${t('manager.linkCheckWarningCount', String(warningCount))}</span>
+      <span class="linkcheck-stat-error">${t('manager.linkCheckErrorCount', String(errorCount))}</span>
+    `;
+
+    // 筛选
+    const filter = this.linkCheckCurrentFilter;
+    let filtered = results;
+    if (filter === 'error') {
+      filtered = results.filter(r => r.checkStatus === 'error');
+    } else if (filter === 'warning') {
+      filtered = results.filter(r => r.checkStatus === 'warning');
+    } else if (filter === 'ok') {
+      filtered = results.filter(r => r.checkStatus === 'ok');
+    }
+
+    const hasBroken = errorCount > 0 || warningCount > 0;
+
+    if (!hasBroken && !this.linkCheckRunning) {
+      controlsEl.style.display = 'none';
+      deleteBtn.style.display = 'none';
+      resultsEl.innerHTML = `
+        <div style="text-align:center;padding:40px 20px;color:#666;">
+          <div style="font-size:40px;margin-bottom:12px;">✅</div>
+          <div style="font-size:16px;margin-bottom:8px;">${t('manager.linkCheckNoBroken')}</div>
+          <div style="font-size:13px;">${t('manager.linkCheckNoBrokenDesc')}</div>
+        </div>
+      `;
+      return;
+    }
+
+    if (hasBroken) {
+      controlsEl.style.display = '';
+      deleteBtn.style.display = '';
+    }
+
+    // 构建结果 HTML
+    let html = '';
+    filtered.forEach((item) => {
+      const statusLabel = item.checkStatus === 'ok'
+        ? t('manager.linkCheckOk')
+        : item.checkStatus === 'warning'
+          ? t('manager.linkCheckWarning')
+          : t('manager.linkCheckError');
+
+      const statusClass = `linkcheck-status-${item.checkStatus}`;
+      const showCheckbox = item.checkStatus !== 'ok';
+      const checked = item.checkStatus === 'error' ? '' : '';
+
+      let detail = '';
+      if (item.statusCode && item.statusCode > 0) {
+        detail = `HTTP ${item.statusCode}`;
+      }
+      if (item.checkMessage) {
+        detail = detail ? `${detail} · ${item.checkMessage}` : item.checkMessage;
+      }
+
+      html += `
+        <div class="linkcheck-item">
+          ${showCheckbox
+            ? `<input type="checkbox" class="linkcheck-checkbox" data-bookmark-id="${item.id}" ${checked}>`
+            : `<div style="width:17px;flex-shrink:0;"></div>`
+          }
+          <div class="linkcheck-item-info">
+            <div class="linkcheck-item-title">${this.escapeHtml(item.title)}</div>
+            <div class="linkcheck-item-url" title="${this.escapeHtml(item.url)}">${this.escapeHtml(item.url)}</div>
+            <div class="linkcheck-item-path">${t('manager.duplicatePath', this.escapeHtml(item.path))}</div>
+            ${detail ? `<div class="linkcheck-status-detail">${this.escapeHtml(detail)}</div>` : ''}
+          </div>
+          <span class="linkcheck-item-status ${statusClass}">${statusLabel}</span>
+        </div>
+      `;
+    });
+
+    resultsEl.innerHTML = html;
+
+    // 绑定 checkbox 变更事件
+    this.updateLinkCheckSelectedCount();
+    resultsEl.querySelectorAll('.linkcheck-checkbox').forEach(cb => {
+      cb.addEventListener('change', () => {
+        this.updateLinkCheckSelectedCount();
+      });
+    });
+  }
+
+  /**
+   * 更新删除按钮上的选中计数
+   */
+  updateLinkCheckSelectedCount() {
+    const checkboxes = document.querySelectorAll('#linkCheckResults .linkcheck-checkbox:checked');
+    const count = checkboxes.length;
+    const deleteBtn = document.getElementById('deleteBrokenLinksBtn');
+    deleteBtn.textContent = t('manager.linkCheckDeleteSelected', String(count));
+    deleteBtn.disabled = count === 0;
+  }
+
+  /**
+   * 全选/取消全选
+   * mode: 'broken' = 选中所有失效和警告, 'none' = 取消全选
+   */
+  toggleLinkCheckCheckboxes(mode) {
+    const checkboxes = document.querySelectorAll('#linkCheckResults .linkcheck-checkbox');
+    checkboxes.forEach(cb => {
+      cb.checked = mode === 'broken';
+    });
+    this.updateLinkCheckSelectedCount();
+  }
+
+  /**
+   * 批量删除选中的失效书签
+   */
+  async deleteSelectedBrokenLinks() {
+    const checkboxes = document.querySelectorAll('#linkCheckResults .linkcheck-checkbox:checked');
+    const ids = Array.from(checkboxes).map(cb => cb.getAttribute('data-bookmark-id'));
+
+    if (ids.length === 0) return;
+
+    if (!confirm(t('confirm.deleteBrokenLinks', String(ids.length)))) {
+      return;
+    }
+
+    const deleteBtn = document.getElementById('deleteBrokenLinksBtn');
+    deleteBtn.textContent = t('manager.linkCheckDeleting');
+    deleteBtn.disabled = true;
+
+    try {
+      if (typeof chrome !== 'undefined' && chrome.bookmarks) {
+        for (const id of ids) {
+          await new Promise((resolve, reject) => {
+            chrome.bookmarks.remove(id, () => {
+              if (chrome.runtime.lastError) {
+                reject(chrome.runtime.lastError);
+              } else {
+                resolve();
+              }
+            });
+          });
+        }
+      }
+
+      // 从检测结果中移除已删除的书签
+      const deletedIds = new Set(ids);
+      this.linkCheckResults = this.linkCheckResults.filter(r => !deletedIds.has(r.id));
+
+      // 刷新书签数据和 UI
+      await this.loadBookmarks();
+      this.renderFolderTree();
+      this.renderBookmarks();
+      this.updateStats();
+
+      // 重新渲染检测结果
+      this.renderLinkCheckResults();
+      alert(t('manager.linkCheckDeleteSuccess', String(ids.length)));
+    } catch (error) {
+      console.error('Delete broken links failed:', error);
+      alert(t('manager.linkCheckDeleteFailed'));
     }
   }
 

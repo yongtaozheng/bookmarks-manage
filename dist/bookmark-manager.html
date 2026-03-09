@@ -782,6 +782,154 @@
       margin-bottom: 12px;
     }
 
+    /* 失效链接检测样式 */
+    .linkcheck-toolbar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .linkcheck-toolbar select {
+      padding: 6px 10px;
+      border: 1px solid #d0d0d0;
+      border-radius: 4px;
+      font-size: 13px;
+      background: white;
+      cursor: pointer;
+    }
+
+    .linkcheck-progress {
+      margin-bottom: 16px;
+    }
+
+    .linkcheck-progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+
+    .linkcheck-progress-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s ease;
+      background: linear-gradient(90deg, #4285f4, #34a853);
+    }
+
+    .linkcheck-progress-text {
+      font-size: 13px;
+      color: #666;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .linkcheck-stats {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+      padding: 10px 14px;
+      background: #f0f7ff;
+      border: 1px solid #b3d4fc;
+      border-radius: 6px;
+      font-size: 13px;
+      flex-wrap: wrap;
+    }
+
+    .linkcheck-stat-ok { color: #2e7d32; }
+    .linkcheck-stat-warning { color: #e65100; }
+    .linkcheck-stat-error { color: #c62828; }
+
+    .linkcheck-controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .linkcheck-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 16px;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 13px;
+      line-height: 1.5;
+      transition: background-color 0.15s;
+    }
+
+    .linkcheck-item:last-child {
+      border-bottom: none;
+    }
+
+    .linkcheck-item:hover {
+      background-color: #f8f9fa;
+    }
+
+    .linkcheck-item input[type="checkbox"] {
+      margin-top: 3px;
+      accent-color: #4285f4;
+      flex-shrink: 0;
+    }
+
+    .linkcheck-item-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .linkcheck-item-title {
+      color: #333;
+      font-weight: 400;
+      word-break: break-word;
+    }
+
+    .linkcheck-item-url {
+      color: #666;
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 600px;
+    }
+
+    .linkcheck-item-path {
+      color: #999;
+      font-size: 12px;
+    }
+
+    .linkcheck-item-status {
+      flex-shrink: 0;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .linkcheck-status-ok {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .linkcheck-status-warning {
+      background: #fff3e0;
+      color: #e65100;
+    }
+
+    .linkcheck-status-error {
+      background: #ffebee;
+      color: #c62828;
+    }
+
+    .linkcheck-status-detail {
+      font-size: 11px;
+      color: #999;
+      margin-top: 2px;
+    }
+
     .loading {
       text-align: center;
       padding: 40px;
@@ -922,6 +1070,7 @@
       <button class="btn" id="exportBtn" data-i18n="btn.export">📤 导出</button>
       <button class="btn" id="importBtn" data-i18n="btn.import">📥 导入</button>
       <button class="btn" id="detectDuplicatesBtn" data-i18n="manager.detectDuplicates">🔍 检测重复</button>
+      <button class="btn" id="linkCheckBtn" data-i18n="manager.linkCheck">🔗 检测失效链接</button>
       <input type="file" id="importFileInput" accept=".json" style="display: none;">
     </div>
 
@@ -1087,6 +1236,62 @@
         <div class="form-actions">
           <button class="btn btn-danger" id="deleteDuplicatesBtn" style="display: none;" data-i18n="manager.duplicateDeleteSelected">删除选中 (0)</button>
           <button class="btn" id="cancelDuplicateBtn" data-i18n="btn.cancel">取消</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 失效链接检测对话框 -->
+  <div id="linkCheckModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 900px;">
+      <div class="modal-header">
+        <h3 data-i18n="manager.linkCheckTitle">失效链接检测</h3>
+        <span class="close" id="closeLinkCheckModal">&times;</span>
+      </div>
+      <div class="modal-body">
+        <!-- 工具栏：开始/停止 + 并发数 + 筛选 -->
+        <div class="linkcheck-toolbar">
+          <button class="btn btn-primary" id="linkCheckStartBtn" data-i18n="manager.linkCheckStart">开始检测</button>
+          <button class="btn" id="linkCheckStopBtn" style="display:none;" data-i18n="manager.linkCheckStop">停止检测</button>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
+            <span data-i18n="manager.linkCheckConcurrency">并发数</span>
+            <select id="linkCheckConcurrency">
+              <option value="3">3</option>
+              <option value="5">5</option>
+              <option value="8" selected>8</option>
+              <option value="10">10</option>
+            </select>
+          </label>
+          <select id="linkCheckFilter" style="margin-left:auto;">
+            <option value="all" data-i18n="manager.linkCheckFilterAll">全部</option>
+            <option value="error" data-i18n="manager.linkCheckFilterBroken">仅失效</option>
+            <option value="warning" data-i18n="manager.linkCheckFilterWarning">仅警告</option>
+            <option value="ok" data-i18n="manager.linkCheckFilterOk">仅可用</option>
+          </select>
+        </div>
+        <!-- 进度条 -->
+        <div class="linkcheck-progress" id="linkCheckProgress" style="display:none;">
+          <div class="linkcheck-progress-bar">
+            <div class="linkcheck-progress-fill" id="linkCheckProgressFill" style="width:0%;"></div>
+          </div>
+          <div class="linkcheck-progress-text">
+            <span id="linkCheckProgressText"></span>
+            <span id="linkCheckProgressPercent"></span>
+          </div>
+        </div>
+        <!-- 统计信息 -->
+        <div class="linkcheck-stats" id="linkCheckStats" style="display:none;"></div>
+        <!-- 全选/取消全选 -->
+        <div class="linkcheck-controls" id="linkCheckControls" style="display:none;">
+          <button class="btn" id="linkCheckSelectAllBrokenBtn" data-i18n="manager.linkCheckSelectAllBroken">选中所有失效</button>
+          <button class="btn" id="linkCheckDeselectAllBtn" data-i18n="manager.linkCheckDeselectAll">取消全选</button>
+        </div>
+        <!-- 结果列表 -->
+        <div id="linkCheckResults" style="max-height: 400px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 6px;"></div>
+        <!-- 操作按钮 -->
+        <div class="form-actions">
+          <button class="btn btn-danger" id="deleteBrokenLinksBtn" style="display:none;" data-i18n="manager.linkCheckDeleteSelected">删除选中 (0)</button>
+          <button class="btn" id="cancelLinkCheckBtn" data-i18n="btn.cancel">取消</button>
         </div>
       </div>
     </div>
