@@ -293,6 +293,8 @@ bookmarks-manage/
 
 <img src="http://jyeontu.xyz:3003/viewImage/qrcode.png" width="200" alt="微信交流群" />
 
+![http://jyeontu.xyz:3003/viewImage/qrcode.png](http://jyeontu.xyz:3003/viewImage/qrcode.png)
+
 ## 许可证
 
 本项目基于 [MIT License](./LICENSE) 开源。
