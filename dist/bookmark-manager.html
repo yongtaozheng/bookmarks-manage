@@ -5,6 +5,194 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>我的书签管理器</title>
   <style>
+    :root {
+      --color-bg-primary: #ffffff;
+      --color-bg-secondary: #f5f5f5;
+      --color-bg-tertiary: #fafafa;
+      --color-bg-card: #f8f9fa;
+      --color-bg-hover: #f8f9fa;
+      --color-bg-hover-strong: #e9ecef;
+      --color-bg-active: #e3f2fd;
+      --color-bg-overlay: rgba(0, 0, 0, 0.5);
+      --color-text-primary: #333;
+      --color-text-secondary: #666;
+      --color-text-muted: #999;
+      --color-text-dim: #6c757d;
+      --color-border-primary: #e0e0e0;
+      --color-border-secondary: #d0d0d0;
+      --color-border-light: #f0f0f0;
+      --color-border-hover: #b0b0b0;
+      --color-accent-blue: #4285f4;
+      --color-accent-blue-hover: #3367d6;
+      --color-accent-red: #ea4335;
+      --color-accent-red-hover: #d33b2c;
+      --color-accent-green: #34a853;
+      --color-accent-green-text: #2e7d32;
+      --color-accent-orange-text: #e65100;
+      --color-accent-red-text: #c62828;
+      --color-focus-ring: rgba(66, 133, 244, 0.2);
+      --color-shadow: rgba(0, 0, 0, 0.1);
+      --color-shadow-heavy: rgba(0, 0, 0, 0.3);
+      --color-input-bg: white;
+      --color-mark-bg: #ffeb3b;
+      --color-mark-text: #333;
+      --color-status-ok-bg: #e8f5e9;
+      --color-status-ok-text: #2e7d32;
+      --color-status-warn-bg: #fff3e0;
+      --color-status-warn-text: #e65100;
+      --color-status-error-bg: #ffebee;
+      --color-status-error-text: #c62828;
+      --color-info-bg: #f0f7ff;
+      --color-info-border: #b3d4fc;
+      --color-edit-hover-bg: #fff3cd;
+      --color-edit-hover-border: #ffc107;
+      --color-delete-hover-bg: #f8d7da;
+      --color-delete-hover-border: #dc3545;
+      --color-delete-hover-text: #721c24;
+      --color-hide-hover-bg: #d1ecf1;
+      --color-hide-hover-border: #17a2b8;
+      --color-hide-hover-text: #0c5460;
+      --color-hidden-tag-bg: #fff3e0;
+      --color-hidden-tag-border: #ffcc80;
+      --color-hidden-tag-text: #e65100;
+      --color-duplicate-keep-bg: #e8f5e9;
+      --color-duplicate-keep-text: #2e7d32;
+      --color-progress-bg: #e0e0e0;
+      --color-toggle-hover: #d0d0d0;
+      --color-accent-control: #4285f4;
+    }
+
+    [data-theme="dark"] {
+      --color-bg-primary: #1e1e2e;
+      --color-bg-secondary: #181825;
+      --color-bg-tertiary: #1e1e2e;
+      --color-bg-card: #313244;
+      --color-bg-hover: #313244;
+      --color-bg-hover-strong: #45475a;
+      --color-bg-active: #1a3a6e;
+      --color-bg-overlay: rgba(0, 0, 0, 0.7);
+      --color-text-primary: #cdd6f4;
+      --color-text-secondary: #a6adc8;
+      --color-text-muted: #6c7086;
+      --color-text-dim: #7f849c;
+      --color-border-primary: #313244;
+      --color-border-secondary: #45475a;
+      --color-border-light: #313244;
+      --color-border-hover: #585b70;
+      --color-accent-blue: #89b4fa;
+      --color-accent-blue-hover: #74c7ec;
+      --color-accent-red: #f38ba8;
+      --color-accent-red-hover: #eba0ac;
+      --color-accent-green: #a6e3a1;
+      --color-accent-green-text: #a6e3a1;
+      --color-accent-orange-text: #fab387;
+      --color-accent-red-text: #f38ba8;
+      --color-focus-ring: rgba(137, 180, 250, 0.3);
+      --color-shadow: rgba(0, 0, 0, 0.3);
+      --color-shadow-heavy: rgba(0, 0, 0, 0.5);
+      --color-input-bg: #313244;
+      --color-mark-bg: #665e00;
+      --color-mark-text: #ffeb3b;
+      --color-status-ok-bg: #1a3a2a;
+      --color-status-ok-text: #a6e3a1;
+      --color-status-warn-bg: #3a2a1a;
+      --color-status-warn-text: #fab387;
+      --color-status-error-bg: #3a1a1a;
+      --color-status-error-text: #f38ba8;
+      --color-info-bg: #1a2a3e;
+      --color-info-border: #2a4a6e;
+      --color-edit-hover-bg: #3a3420;
+      --color-edit-hover-border: #f9e2af;
+      --color-delete-hover-bg: #3a2020;
+      --color-delete-hover-border: #f38ba8;
+      --color-delete-hover-text: #f38ba8;
+      --color-hide-hover-bg: #1a3a3e;
+      --color-hide-hover-border: #94e2d5;
+      --color-hide-hover-text: #94e2d5;
+      --color-hidden-tag-bg: #3a2a1a;
+      --color-hidden-tag-border: #fab387;
+      --color-hidden-tag-text: #fab387;
+      --color-duplicate-keep-bg: #1a3a2a;
+      --color-duplicate-keep-text: #a6e3a1;
+      --color-progress-bg: #45475a;
+      --color-toggle-hover: #585b70;
+      --color-accent-control: #89b4fa;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --color-bg-primary: #1e1e2e;
+        --color-bg-secondary: #181825;
+        --color-bg-tertiary: #1e1e2e;
+        --color-bg-card: #313244;
+        --color-bg-hover: #313244;
+        --color-bg-hover-strong: #45475a;
+        --color-bg-active: #1a3a6e;
+        --color-bg-overlay: rgba(0, 0, 0, 0.7);
+        --color-text-primary: #cdd6f4;
+        --color-text-secondary: #a6adc8;
+        --color-text-muted: #6c7086;
+        --color-text-dim: #7f849c;
+        --color-border-primary: #313244;
+        --color-border-secondary: #45475a;
+        --color-border-light: #313244;
+        --color-border-hover: #585b70;
+        --color-accent-blue: #89b4fa;
+        --color-accent-blue-hover: #74c7ec;
+        --color-accent-red: #f38ba8;
+        --color-accent-red-hover: #eba0ac;
+        --color-accent-green: #a6e3a1;
+        --color-accent-green-text: #a6e3a1;
+        --color-accent-orange-text: #fab387;
+        --color-accent-red-text: #f38ba8;
+        --color-focus-ring: rgba(137, 180, 250, 0.3);
+        --color-shadow: rgba(0, 0, 0, 0.3);
+        --color-shadow-heavy: rgba(0, 0, 0, 0.5);
+        --color-input-bg: #313244;
+        --color-mark-bg: #665e00;
+        --color-mark-text: #ffeb3b;
+        --color-status-ok-bg: #1a3a2a;
+        --color-status-ok-text: #a6e3a1;
+        --color-status-warn-bg: #3a2a1a;
+        --color-status-warn-text: #fab387;
+        --color-status-error-bg: #3a1a1a;
+        --color-status-error-text: #f38ba8;
+        --color-info-bg: #1a2a3e;
+        --color-info-border: #2a4a6e;
+        --color-edit-hover-bg: #3a3420;
+        --color-edit-hover-border: #f9e2af;
+        --color-delete-hover-bg: #3a2020;
+        --color-delete-hover-border: #f38ba8;
+        --color-delete-hover-text: #f38ba8;
+        --color-hide-hover-bg: #1a3a3e;
+        --color-hide-hover-border: #94e2d5;
+        --color-hide-hover-text: #94e2d5;
+        --color-hidden-tag-bg: #3a2a1a;
+        --color-hidden-tag-border: #fab387;
+        --color-hidden-tag-text: #fab387;
+        --color-duplicate-keep-bg: #1a3a2a;
+        --color-duplicate-keep-text: #a6e3a1;
+        --color-progress-bg: #45475a;
+        --color-toggle-hover: #585b70;
+        --color-accent-control: #89b4fa;
+      }
+    }
+
+    [data-theme="dark"] {
+      color-scheme: dark;
+    }
+    [data-theme="dark"] ::-webkit-scrollbar {
+      width: 8px;
+      background: var(--color-bg-secondary);
+    }
+    [data-theme="dark"] ::-webkit-scrollbar-thumb {
+      background: var(--color-border-secondary);
+      border-radius: 4px;
+    }
+    [data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+      background: var(--color-border-hover);
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -13,10 +201,10 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background: #f5f5f5;
+      background: var(--color-bg-secondary);
       margin: 0;
       padding: 0;
-      color: #333;
+      color: var(--color-text-primary);
       font-size: 14px;
       line-height: 1.4;
     }
@@ -24,7 +212,7 @@
     .container {
       max-width: 100%;
       margin: 0;
-      background: white;
+      background: var(--color-bg-primary);
       height: 100vh;
       display: flex;
       flex-direction: column;
@@ -32,8 +220,8 @@
     }
 
     .header {
-      background: #fff;
-      border-bottom: 1px solid #e0e0e0;
+      background: var(--color-bg-primary);
+      border-bottom: 1px solid var(--color-border-primary);
       padding: 16px 24px;
       display: flex;
       align-items: center;
@@ -48,7 +236,7 @@
       font-size: 20px;
       font-weight: 500;
       margin: 0;
-      color: #333;
+      color: var(--color-text-primary);
     }
 
     .header-actions {
@@ -58,8 +246,8 @@
 
     .toolbar {
       padding: 16px 24px;
-      background: #fafafa;
-      border-bottom: 1px solid #e0e0e0;
+      background: var(--color-bg-tertiary);
+      border-bottom: 1px solid var(--color-border-primary);
       display: flex;
       gap: 12px;
       align-items: center;
@@ -74,25 +262,27 @@
       flex: 1;
       min-width: 300px;
       padding: 8px 12px;
-      border: 1px solid #d0d0d0;
+      border: 1px solid var(--color-border-secondary);
       border-radius: 4px;
       font-size: 14px;
-      background: white;
+      background: var(--color-input-bg);
+      color: var(--color-text-primary);
       transition: border-color 0.2s;
     }
 
     .search-box:focus {
       outline: none;
-      border-color: #4285f4;
-      box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+      border-color: var(--color-accent-blue);
+      box-shadow: 0 0 0 2px var(--color-focus-ring);
     }
 
     .filter-select {
       padding: 8px 12px;
-      border: 1px solid #d0d0d0;
+      border: 1px solid var(--color-border-secondary);
       border-radius: 4px;
       font-size: 14px;
-      background: white;
+      background: var(--color-input-bg);
+      color: var(--color-text-primary);
       cursor: pointer;
       transition: border-color 0.2s;
       min-width: 120px;
@@ -100,13 +290,13 @@
 
     .filter-select:focus {
       outline: none;
-      border-color: #4285f4;
-      box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+      border-color: var(--color-accent-blue);
+      box-shadow: 0 0 0 2px var(--color-focus-ring);
     }
 
     .btn {
       padding: 8px 16px;
-      border: 1px solid #d0d0d0;
+      border: 1px solid var(--color-border-secondary);
       border-radius: 4px;
       cursor: pointer;
       font-size: 14px;
@@ -116,35 +306,35 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      background: white;
-      color: #333;
+      background: var(--color-bg-primary);
+      color: var(--color-text-primary);
     }
 
     .btn:hover {
-      background: #f8f9fa;
-      border-color: #b0b0b0;
+      background: var(--color-bg-hover);
+      border-color: var(--color-border-hover);
     }
 
     .btn-primary {
-      background: #4285f4;
+      background: var(--color-accent-blue);
       color: white;
-      border-color: #4285f4;
+      border-color: var(--color-accent-blue);
     }
 
     .btn-primary:hover {
-      background: #3367d6;
-      border-color: #3367d6;
+      background: var(--color-accent-blue-hover);
+      border-color: var(--color-accent-blue-hover);
     }
 
     .btn-danger {
-      background: #ea4335;
+      background: var(--color-accent-red);
       color: white;
-      border-color: #ea4335;
+      border-color: var(--color-accent-red);
     }
 
     .btn-danger:hover {
-      background: #d33b2c;
-      border-color: #d33b2c;
+      background: var(--color-accent-red-hover);
+      border-color: var(--color-accent-red-hover);
     }
 
     .content {
@@ -159,8 +349,8 @@
       display: flex;
       gap: 24px;
       padding: 16px 24px;
-      background: #f8f9fa;
-      border-bottom: 1px solid #e0e0e0;
+      background: var(--color-bg-card);
+      border-bottom: 1px solid var(--color-border-primary);
       flex-shrink: 0;
     }
 
@@ -173,12 +363,12 @@
     .stat-number {
       font-size: 16px;
       font-weight: 500;
-      color: #4285f4;
+      color: var(--color-accent-blue);
     }
 
     .stat-label {
       font-size: 14px;
-      color: #666;
+      color: var(--color-text-secondary);
     }
 
     .main-content {
@@ -189,8 +379,8 @@
 
     .sidebar {
       width: 300px;
-      background: #f8f9fa;
-      border-right: 1px solid #e0e0e0;
+      background: var(--color-bg-card);
+      border-right: 1px solid var(--color-border-primary);
       overflow-y: auto;
       flex-shrink: 0;
     }
@@ -209,12 +399,12 @@
     }
 
     .folder-item:hover {
-      background-color: #e9ecef;
+      background-color: var(--color-bg-hover-strong);
     }
 
     .folder-item.active {
-      background-color: #e3f2fd;
-      border-left-color: #4285f4;
+      background-color: var(--color-bg-active);
+      border-left-color: var(--color-accent-blue);
     }
 
     .folder-toggle {
@@ -228,11 +418,11 @@
       border-radius: 2px;
       transition: background-color 0.2s;
       font-size: 12px;
-      color: #666;
+      color: var(--color-text-secondary);
     }
 
     .folder-toggle:hover {
-      background-color: #d0d0d0;
+      background-color: var(--color-toggle-hover);
     }
 
     .folder-icon {
@@ -243,7 +433,7 @@
     .folder-name {
       flex: 1;
       font-size: 14px;
-      color: #333;
+      color: var(--color-text-primary);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -262,8 +452,8 @@
 
     .panel-header {
       padding: 16px 24px;
-      background: #fff;
-      border-bottom: 1px solid #e0e0e0;
+      background: var(--color-bg-primary);
+      border-bottom: 1px solid var(--color-border-primary);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -278,7 +468,7 @@
     .panel-title {
       font-size: 16px;
       font-weight: 500;
-      color: #333;
+      color: var(--color-text-primary);
       margin: 0;
     }
 
@@ -289,7 +479,7 @@
 
     .bookmark-tree {
       flex: 1;
-      background: white;
+      background: var(--color-bg-primary);
       overflow-y: auto;
       overflow-x: hidden;
       min-height: 0;
@@ -299,13 +489,13 @@
       display: flex;
       align-items: center;
       padding: 8px 24px;
-      border-bottom: 1px solid #f0f0f0;
+      border-bottom: 1px solid var(--color-border-light);
       transition: background-color 0.1s;
       min-height: 40px;
     }
 
     .bookmark-item:hover {
-      background-color: #f8f9fa;
+      background-color: var(--color-bg-hover);
     }
 
     .bookmark-item:last-child {
@@ -326,13 +516,13 @@
     }
 
     .bookmark-item.drag-over {
-      border-top: 3px solid #4285f4;
-      background-color: #e3f2fd;
+      border-top: 3px solid var(--color-accent-blue);
+      background-color: var(--color-bg-active);
     }
 
     .bookmark-item.drag-over-bottom {
-      border-bottom: 3px solid #4285f4;
-      background-color: #e3f2fd;
+      border-bottom: 3px solid var(--color-accent-blue);
+      background-color: var(--color-bg-active);
     }
 
     .drag-handle {
@@ -346,7 +536,7 @@
       align-items: center;
       justify-content: center;
       font-size: 12px;
-      color: #666;
+      color: var(--color-text-secondary);
     }
 
     .bookmark-item:hover .drag-handle {
@@ -359,11 +549,11 @@
 
     .bookmark-item.folder-item {
       cursor: move;
-      background-color: #f8f9fa;
+      background-color: var(--color-bg-card);
     }
 
     .bookmark-item.folder-item:hover {
-      background-color: #e9ecef;
+      background-color: var(--color-bg-hover-strong);
     }
 
     .bookmark-item.folder-item .bookmark-content {
@@ -371,8 +561,8 @@
     }
 
     .bookmark-item.folder-item.active {
-      background-color: #e3f2fd;
-      border-left: 3px solid #4285f4;
+      background-color: var(--color-bg-active);
+      border-left: 3px solid var(--color-accent-blue);
     }
 
     .bookmark-icon {
@@ -393,7 +583,7 @@
 
     .bookmark-title {
       font-weight: 400;
-      color: #333;
+      color: var(--color-text-primary);
       text-decoration: none;
       flex: 1;
       min-width: 0;
@@ -404,11 +594,11 @@
     }
 
     .bookmark-title:hover {
-      color: #4285f4;
+      color: var(--color-accent-blue);
     }
 
     .bookmark-url {
-      color: #666;
+      color: var(--color-text-secondary);
       font-size: 13px;
       max-width: 200px;
       overflow: hidden;
@@ -428,10 +618,10 @@
       right: 0;
       top: 50%;
       transform: translateY(-50%);
-      background: white;
+      background: var(--color-bg-primary);
       padding: 6px;
       border-radius: 4px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 2px 8px var(--color-shadow);
     }
 
     .bookmark-item:hover .bookmark-actions {
@@ -440,59 +630,59 @@
 
     .action-btn {
       padding: 4px 8px;
-      border: 1px solid #d0d0d0;
+      border: 1px solid var(--color-border-secondary);
       border-radius: 3px;
       cursor: pointer;
       font-size: 12px;
       transition: all 0.2s;
-      background: white;
-      color: #333;
+      background: var(--color-bg-primary);
+      color: var(--color-text-primary);
     }
 
     .action-btn:hover {
-      background: #f8f9fa;
-      border-color: #b0b0b0;
+      background: var(--color-bg-hover);
+      border-color: var(--color-border-hover);
     }
 
     .action-btn-edit:hover {
-      background: #fff3cd;
-      border-color: #ffc107;
+      background: var(--color-edit-hover-bg);
+      border-color: var(--color-edit-hover-border);
     }
 
     .action-btn-delete:hover {
-      background: #f8d7da;
-      border-color: #dc3545;
-      color: #721c24;
+      background: var(--color-delete-hover-bg);
+      border-color: var(--color-delete-hover-border);
+      color: var(--color-delete-hover-text);
     }
 
     .action-btn-hide:hover {
-      background: #d1ecf1;
-      border-color: #17a2b8;
-      color: #0c5460;
+      background: var(--color-hide-hover-bg);
+      border-color: var(--color-hide-hover-border);
+      color: var(--color-hide-hover-text);
     }
 
     .hidden-bookmark {
       opacity: 0.6;
-      background-color: #f8f9fa;
+      background-color: var(--color-bg-card);
     }
 
     .hidden-bookmark .bookmark-title {
-      color: #6c757d;
+      color: var(--color-text-dim);
     }
 
     .hidden-folder {
       opacity: 0.6;
-      background-color: #f8f9fa;
+      background-color: var(--color-bg-card);
     }
 
     .hidden-folder .folder-name {
-      color: #6c757d;
+      color: var(--color-text-dim);
     }
 
     /* 搜索高亮样式 */
     mark {
-      background-color: #ffeb3b;
-      color: #333;
+      background-color: var(--color-mark-bg);
+      color: var(--color-mark-text);
       padding: 1px 2px;
       border-radius: 2px;
     }
@@ -505,23 +695,23 @@
       top: 0;
       width: 100%;
       height: 100%;
-      background-color: rgba(0, 0, 0, 0.5);
+      background-color: var(--color-bg-overlay);
       display: flex;
       align-items: center;
       justify-content: center;
     }
 
     .modal-content {
-      background: white;
+      background: var(--color-bg-primary);
       border-radius: 8px;
       width: 90%;
       max-width: 500px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 4px 20px var(--color-shadow-heavy);
     }
 
     .modal-header {
       padding: 20px 24px;
-      border-bottom: 1px solid #e0e0e0;
+      border-bottom: 1px solid var(--color-border-primary);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -537,11 +727,11 @@
       font-size: 24px;
       font-weight: bold;
       cursor: pointer;
-      color: #666;
+      color: var(--color-text-secondary);
     }
 
     .close:hover {
-      color: #333;
+      color: var(--color-text-primary);
     }
 
     .modal-body {
@@ -556,32 +746,36 @@
       display: block;
       margin-bottom: 8px;
       font-weight: 500;
-      color: #333;
+      color: var(--color-text-primary);
     }
 
     .form-group input {
       width: 100%;
       padding: 10px 12px;
-      border: 1px solid #d0d0d0;
+      border: 1px solid var(--color-border-secondary);
       border-radius: 4px;
       font-size: 14px;
+      background: var(--color-input-bg);
+      color: var(--color-text-primary);
       transition: border-color 0.2s;
     }
 
     .form-group input:focus,
     .form-group textarea:focus {
       outline: none;
-      border-color: #4285f4;
-      box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+      border-color: var(--color-accent-blue);
+      box-shadow: 0 0 0 2px var(--color-focus-ring);
     }
 
     .form-group textarea {
       width: 100%;
       padding: 10px 12px;
-      border: 1px solid #d0d0d0;
+      border: 1px solid var(--color-border-secondary);
       border-radius: 4px;
       font-size: 14px;
       font-family: inherit;
+      background: var(--color-input-bg);
+      color: var(--color-text-primary);
       transition: border-color 0.2s;
       resize: vertical;
     }
@@ -590,11 +784,11 @@
     .import-info {
       margin-bottom: 16px;
       padding: 12px 16px;
-      background: #f0f7ff;
-      border: 1px solid #b3d4fc;
+      background: var(--color-info-bg);
+      border: 1px solid var(--color-info-border);
       border-radius: 6px;
       font-size: 13px;
-      color: #333;
+      color: var(--color-text-primary);
       line-height: 1.6;
     }
 
@@ -614,11 +808,11 @@
       align-items: center;
       gap: 4px;
       padding: 2px 8px;
-      background: #fff3e0;
-      border: 1px solid #ffcc80;
+      background: var(--color-hidden-tag-bg);
+      border: 1px solid var(--color-hidden-tag-border);
       border-radius: 4px;
       font-size: 12px;
-      color: #e65100;
+      color: var(--color-hidden-tag-text);
     }
 
     .import-options {
@@ -630,7 +824,7 @@
       align-items: center;
       gap: 8px;
       padding: 10px 12px;
-      border: 1px solid #e0e0e0;
+      border: 1px solid var(--color-border-primary);
       border-radius: 6px;
       margin-bottom: 8px;
       cursor: pointer;
@@ -639,13 +833,13 @@
     }
 
     .import-option:hover {
-      background: #f8f9fa;
-      border-color: #b0b0b0;
+      background: var(--color-bg-hover);
+      border-color: var(--color-border-hover);
     }
 
     .import-option input[type="radio"] {
       margin: 0;
-      accent-color: #4285f4;
+      accent-color: var(--color-accent-control);
     }
 
     .form-actions {
@@ -666,21 +860,21 @@
       border-radius: 2px;
       transition: background-color 0.2s;
       font-size: 12px;
-      color: #666;
+      color: var(--color-text-secondary);
     }
 
     .folder-toggle:hover {
-      background-color: #e9ecef;
+      background-color: var(--color-bg-hover-strong);
     }
 
     .folder-children {
       margin-left: 16px;
-      border-left: 1px solid #e0e0e0;
+      border-left: 1px solid var(--color-border-primary);
     }
 
     /* 重复检测结果样式 */
     .duplicate-group {
-      border-bottom: 1px solid #e0e0e0;
+      border-bottom: 1px solid var(--color-border-primary);
       padding: 12px 16px;
     }
 
@@ -691,7 +885,7 @@
     .duplicate-group-header {
       font-size: 13px;
       font-weight: 500;
-      color: #4285f4;
+      color: var(--color-accent-blue);
       margin-bottom: 8px;
       display: flex;
       align-items: center;
@@ -710,7 +904,7 @@
 
     .duplicate-item input[type="checkbox"] {
       margin-top: 3px;
-      accent-color: #4285f4;
+      accent-color: var(--color-accent-control);
       flex-shrink: 0;
     }
 
@@ -720,13 +914,13 @@
     }
 
     .duplicate-item-title {
-      color: #333;
+      color: var(--color-text-primary);
       font-weight: 400;
       word-break: break-word;
     }
 
     .duplicate-item-url {
-      color: #666;
+      color: var(--color-text-secondary);
       font-size: 12px;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -735,15 +929,15 @@
     }
 
     .duplicate-item-path {
-      color: #999;
+      color: var(--color-text-muted);
       font-size: 12px;
     }
 
     .duplicate-keep-badge {
       display: inline-block;
       padding: 1px 6px;
-      background: #e8f5e9;
-      color: #2e7d32;
+      background: var(--color-duplicate-keep-bg);
+      color: var(--color-duplicate-keep-text);
       border-radius: 3px;
       font-size: 11px;
       margin-left: 6px;
@@ -770,8 +964,8 @@
       gap: 16px;
       margin-bottom: 16px;
       padding: 10px 14px;
-      background: #f0f7ff;
-      border: 1px solid #b3d4fc;
+      background: var(--color-info-bg);
+      border: 1px solid var(--color-info-border);
       border-radius: 6px;
       font-size: 13px;
     }
@@ -793,10 +987,11 @@
 
     .linkcheck-toolbar select {
       padding: 6px 10px;
-      border: 1px solid #d0d0d0;
+      border: 1px solid var(--color-border-secondary);
       border-radius: 4px;
       font-size: 13px;
-      background: white;
+      background: var(--color-input-bg);
+      color: var(--color-text-primary);
       cursor: pointer;
     }
 
@@ -807,7 +1002,7 @@
     .linkcheck-progress-bar {
       width: 100%;
       height: 8px;
-      background: #e0e0e0;
+      background: var(--color-progress-bg);
       border-radius: 4px;
       overflow: hidden;
       margin-bottom: 8px;
@@ -817,12 +1012,12 @@
       height: 100%;
       border-radius: 4px;
       transition: width 0.3s ease;
-      background: linear-gradient(90deg, #4285f4, #34a853);
+      background: linear-gradient(90deg, var(--color-accent-blue), var(--color-accent-green));
     }
 
     .linkcheck-progress-text {
       font-size: 13px;
-      color: #666;
+      color: var(--color-text-secondary);
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -833,16 +1028,16 @@
       gap: 16px;
       margin-bottom: 16px;
       padding: 10px 14px;
-      background: #f0f7ff;
-      border: 1px solid #b3d4fc;
+      background: var(--color-info-bg);
+      border: 1px solid var(--color-info-border);
       border-radius: 6px;
       font-size: 13px;
       flex-wrap: wrap;
     }
 
-    .linkcheck-stat-ok { color: #2e7d32; }
-    .linkcheck-stat-warning { color: #e65100; }
-    .linkcheck-stat-error { color: #c62828; }
+    .linkcheck-stat-ok { color: var(--color-status-ok-text); }
+    .linkcheck-stat-warning { color: var(--color-status-warn-text); }
+    .linkcheck-stat-error { color: var(--color-status-error-text); }
 
     .linkcheck-controls {
       display: flex;
@@ -855,7 +1050,7 @@
       align-items: flex-start;
       gap: 10px;
       padding: 10px 16px;
-      border-bottom: 1px solid #f0f0f0;
+      border-bottom: 1px solid var(--color-border-light);
       font-size: 13px;
       line-height: 1.5;
       transition: background-color 0.15s;
@@ -866,12 +1061,12 @@
     }
 
     .linkcheck-item:hover {
-      background-color: #f8f9fa;
+      background-color: var(--color-bg-hover);
     }
 
     .linkcheck-item input[type="checkbox"] {
       margin-top: 3px;
-      accent-color: #4285f4;
+      accent-color: var(--color-accent-control);
       flex-shrink: 0;
     }
 
@@ -881,13 +1076,13 @@
     }
 
     .linkcheck-item-title {
-      color: #333;
+      color: var(--color-text-primary);
       font-weight: 400;
       word-break: break-word;
     }
 
     .linkcheck-item-url {
-      color: #666;
+      color: var(--color-text-secondary);
       font-size: 12px;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -896,7 +1091,7 @@
     }
 
     .linkcheck-item-path {
-      color: #999;
+      color: var(--color-text-muted);
       font-size: 12px;
     }
 
@@ -910,42 +1105,42 @@
     }
 
     .linkcheck-status-ok {
-      background: #e8f5e9;
-      color: #2e7d32;
+      background: var(--color-status-ok-bg);
+      color: var(--color-status-ok-text);
     }
 
     .linkcheck-status-warning {
-      background: #fff3e0;
-      color: #e65100;
+      background: var(--color-status-warn-bg);
+      color: var(--color-status-warn-text);
     }
 
     .linkcheck-status-error {
-      background: #ffebee;
-      color: #c62828;
+      background: var(--color-status-error-bg);
+      color: var(--color-status-error-text);
     }
 
     .linkcheck-status-detail {
       font-size: 11px;
-      color: #999;
+      color: var(--color-text-muted);
       margin-top: 2px;
     }
 
     .loading {
       text-align: center;
       padding: 40px;
-      color: #666;
+      color: var(--color-text-secondary);
       font-size: 14px;
     }
 
     .empty-state {
       text-align: center;
       padding: 60px 20px;
-      color: #666;
+      color: var(--color-text-secondary);
     }
 
     .empty-state h3 {
       margin-bottom: 8px;
-      color: #333;
+      color: var(--color-text-primary);
       font-size: 16px;
       font-weight: 400;
     }
@@ -961,10 +1156,10 @@
       align-items: center;
       gap: 6px;
       padding: 6px 12px;
-      border: 1px solid #d0d0d0;
+      border: 1px solid var(--color-border-secondary);
       border-radius: 4px;
-      background: white;
-      color: #333;
+      background: var(--color-bg-primary);
+      color: var(--color-text-primary);
       cursor: pointer;
       font-size: 13px;
       transition: all 0.2s;
@@ -973,9 +1168,9 @@
     }
 
     .back-button:hover {
-      background: #f8f9fa;
-      border-color: #b0b0b0;
-      color: #4285f4;
+      background: var(--color-bg-hover);
+      border-color: var(--color-border-hover);
+      color: var(--color-accent-blue);
     }
 
     .back-icon {
@@ -989,12 +1184,12 @@
 
     /* 文件夹样式 */
     .bookmark-item[data-type="folder"] {
-      background: #f8f9fa;
+      background: var(--color-bg-card);
       font-weight: 500;
     }
 
     .bookmark-item[data-type="folder"]:hover {
-      background: #e9ecef;
+      background: var(--color-bg-hover-strong);
     }
 
     /* 响应式设计 */
@@ -1037,17 +1232,17 @@
     }
   </style>
   <script type="module" crossorigin src="/bookmark-manager.js"></script>
-  <link rel="modulepreload" crossorigin href="/index.js">
+  <link rel="modulepreload" crossorigin href="/theme.js">
 </head>
 <body>
   <!-- 密码锁定遮罩 -->
-  <div id="passwordLockOverlay" style="display:none;position:fixed;z-index:10000;left:0;top:0;width:100%;height:100%;background:#f5f5f5;justify-content:center;align-items:center;flex-direction:column;">
+  <div id="passwordLockOverlay" style="display:none;position:fixed;z-index:10000;left:0;top:0;width:100%;height:100%;background:var(--color-bg-secondary);justify-content:center;align-items:center;flex-direction:column;">
     <div style="text-align:center;padding:2em;">
-      <h2 style="color:#4285f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;margin-bottom:0.3em;" data-i18n="password.lock.title">🔒 密码保护</h2>
-      <p style="color:#666;font-size:14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;margin-bottom:1.2em;" data-i18n="password.lock.desc">书签管理器已启用密码保护，请输入密码以继续访问。</p>
-      <input type="password" id="lockPasswordInput" placeholder="请输入密码" data-i18n-placeholder="password.lock.placeholder" style="width:260px;padding:0.5em 0.8em;border:1px solid #ccc;border-radius:6px;font-size:14px;text-align:center;margin-bottom:0.5em;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;" />
-      <div id="lockPasswordError" style="color:#f44336;font-size:13px;min-height:1.5em;margin-bottom:0.5em;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;"></div>
-      <button type="button" id="lockPasswordSubmit" style="width:260px;padding:0.5em 0;background:#4285f4;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;transition:background 0.2s;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;" data-i18n="password.lock.submit">解锁</button>
+      <h2 style="color:var(--color-accent-blue);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;margin-bottom:0.3em;" data-i18n="password.lock.title">🔒 密码保护</h2>
+      <p style="color:var(--color-text-secondary);font-size:14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;margin-bottom:1.2em;" data-i18n="password.lock.desc">书签管理器已启用密码保护，请输入密码以继续访问。</p>
+      <input type="password" id="lockPasswordInput" placeholder="请输入密码" data-i18n-placeholder="password.lock.placeholder" style="width:260px;padding:0.5em 0.8em;border:1px solid var(--color-border-secondary);border-radius:6px;font-size:14px;text-align:center;margin-bottom:0.5em;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background:var(--color-input-bg);color:var(--color-text-primary);" />
+      <div id="lockPasswordError" style="color:var(--color-accent-red);font-size:13px;min-height:1.5em;margin-bottom:0.5em;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;"></div>
+      <button type="button" id="lockPasswordSubmit" style="width:260px;padding:0.5em 0;background:var(--color-accent-blue);color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;transition:background 0.2s;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;" data-i18n="password.lock.submit">解锁</button>
     </div>
   </div>
   <!-- 主内容（默认隐藏，密码验证通过后显示） -->
@@ -1055,6 +1250,9 @@
     <div class="header">
       <h1 data-i18n="manager.header">书签管理器</h1>
       <div class="header-actions">
+        <button class="btn" id="themeToggle" title="切换主题" data-i18n-title="theme.toggle">
+          <span id="themeIcon">🖥️</span>
+        </button>
         <button class="btn" id="configBtn" data-i18n="manager.config">⚙️ 配置</button>
         <button class="btn" id="refreshBtn" data-i18n="btn.refresh">🔄 刷新</button>
       </div>
@@ -1231,7 +1429,7 @@
           <button class="btn" id="duplicateDeselectAllBtn" data-i18n="manager.duplicateDeselectAll">取消全选</button>
         </div>
         <!-- 结果列表 -->
-        <div id="duplicateResults" style="max-height: 400px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 6px;"></div>
+        <div id="duplicateResults" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--color-border-primary); border-radius: 6px;"></div>
         <!-- 操作按钮 -->
         <div class="form-actions">
           <button class="btn btn-danger" id="deleteDuplicatesBtn" style="display: none;" data-i18n="manager.duplicateDeleteSelected">删除选中 (0)</button>
@@ -1287,7 +1485,7 @@
           <button class="btn" id="linkCheckDeselectAllBtn" data-i18n="manager.linkCheckDeselectAll">取消全选</button>
         </div>
         <!-- 结果列表 -->
-        <div id="linkCheckResults" style="max-height: 400px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 6px;"></div>
+        <div id="linkCheckResults" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--color-border-primary); border-radius: 6px;"></div>
         <!-- 操作按钮 -->
         <div class="form-actions">
           <button class="btn btn-danger" id="deleteBrokenLinksBtn" style="display:none;" data-i18n="manager.linkCheckDeleteSelected">删除选中 (0)</button>

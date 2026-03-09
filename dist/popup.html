@@ -15,7 +15,7 @@
         font-display: swap;
       }
 
-      /* 字体尺寸变量 */
+      /* 字体尺寸变量 + 颜色变量 */
       :root {
         /* 字体尺寸变量 */
         --font-size-xs: 0.85em;      /* 超小字体 */
@@ -26,10 +26,76 @@
         --font-size-xl: 1.2em;       /* 超大字体 */
         --font-size-2xl: 1.4em;      /* 2倍大字体 */
         --font-size-3xl: 1.8em;      /* 3倍大字体 */
-        
+
         /* 字体族变量 */
         --font-family-primary: 'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif;
         --font-family-fallback: system-ui, Avenir, Helvetica, Arial, sans-serif;
+
+        /* 颜色变量 (Light) */
+        --color-bg-primary: #ffffff;
+        --color-bg-secondary: #f6fafc;
+        --color-bg-hover: #e9ecef;
+        --color-text-primary: #333;
+        --color-text-secondary: #666;
+        --color-text-muted: #888;
+        --color-border: #ccc;
+        --color-border-light: #e0e0e0;
+        --color-accent-blue: #1976d2;
+        --color-accent-blue-hover: #1565c0;
+        --color-accent-blue-dark: #1256a2;
+        --color-accent-green: #42b983;
+        --color-accent-green-hover: #369870;
+        --color-accent-red: #f44336;
+        --color-input-bg: #fff;
+        --color-shadow: rgba(60,60,60,0.12);
+        --color-overlay: rgba(0,0,0,0.18);
+        --color-modal-bg: #fff;
+      }
+
+      /* Dark theme overrides (Catppuccin Mocha inspired) */
+      [data-theme="dark"] {
+        --color-bg-primary: #1e1e2e;
+        --color-bg-secondary: #181825;
+        --color-bg-hover: #313244;
+        --color-text-primary: #cdd6f4;
+        --color-text-secondary: #a6adc8;
+        --color-text-muted: #7f849c;
+        --color-border: #45475a;
+        --color-border-light: #313244;
+        --color-accent-blue: #89b4fa;
+        --color-accent-blue-hover: #74c7ec;
+        --color-accent-blue-dark: #6c9ef7;
+        --color-accent-green: #a6e3a1;
+        --color-accent-green-hover: #94e2d5;
+        --color-accent-red: #f38ba8;
+        --color-input-bg: #313244;
+        --color-shadow: rgba(0,0,0,0.4);
+        --color-overlay: rgba(0,0,0,0.5);
+        --color-modal-bg: #1e1e2e;
+      }
+
+      /* System fallback: prevent flash of wrong theme before JS loads */
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --color-bg-primary: #1e1e2e;
+          --color-bg-secondary: #181825;
+          --color-bg-hover: #313244;
+          --color-text-primary: #cdd6f4;
+          --color-text-secondary: #a6adc8;
+          --color-text-muted: #7f849c;
+          --color-border: #45475a;
+          --color-border-light: #313244;
+          --color-accent-blue: #89b4fa;
+          --color-accent-blue-hover: #74c7ec;
+          --color-accent-blue-dark: #6c9ef7;
+          --color-accent-green: #a6e3a1;
+          --color-accent-green-hover: #94e2d5;
+          --color-accent-red: #f38ba8;
+          --color-input-bg: #313244;
+          --color-shadow: rgba(0,0,0,0.4);
+          --color-overlay: rgba(0,0,0,0.5);
+          --color-modal-bg: #1e1e2e;
+        }
       }
 
       /* 我的字体字体类 */
@@ -38,7 +104,7 @@
       }
 
       html, body { width: 600px !important; min-width: 600px !important; max-width: 600px !important; }
-      body { margin: 0; padding: 0; font-family: var(--font-family-primary); background: #f6fafc; }
+      body { margin: 0; padding: 0; font-family: var(--font-family-primary); background: var(--color-bg-secondary); color: var(--color-text-primary); }
       .open-tab-btn {
         display: block;
         width: 580px;
@@ -46,7 +112,7 @@
         max-width: 580px;
         margin: 1em auto 0.5em auto;
         padding: 0.5em 0;
-        background: #42b983;
+        background: var(--color-accent-green);
         color: #fff;
         border: none;
         border-radius: 6px;
@@ -55,8 +121,8 @@
         cursor: pointer;
         transition: background 0.2s;
       }
-      .open-tab-btn:hover { background: #369870; }
-      
+      .open-tab-btn:hover { background: var(--color-accent-green-hover); }
+
       /* 书签管理器按钮容器 */
       .bookmark-manager-buttons {
         display: flex;
@@ -65,12 +131,12 @@
         width: 580px;
         justify-content: space-between;
       }
-      
+
       /* 系统书签管理器按钮 */
       .system-bookmark-btn {
         flex: 1;
         padding: 0.5em 0;
-        background: #1976d2;
+        background: var(--color-accent-blue);
         color: #fff;
         border: none;
         border-radius: 6px;
@@ -79,15 +145,15 @@
         cursor: pointer;
         transition: background 0.2s;
       }
-      .system-bookmark-btn:hover { 
-        background: #1565c0; 
+      .system-bookmark-btn:hover {
+        background: var(--color-accent-blue-hover);
       }
-      
+
       /* 我的书签管理器按钮 */
       .my-bookmark-btn {
         flex: 1;
         padding: 0.5em 0;
-        background: #42b983;
+        background: var(--color-accent-green);
         color: #fff;
         border: none;
         border-radius: 6px;
@@ -96,38 +162,40 @@
         cursor: pointer;
         transition: background 0.2s;
       }
-      .my-bookmark-btn:hover { 
-        background: #369870; 
+      .my-bookmark-btn:hover {
+        background: var(--color-accent-green-hover);
       }
       .gitee-form {
         width: 580px;
         min-width: 580px;
         max-width: 580px;
         margin: 0.5em auto;
-        background: #f6fafc;
+        background: var(--color-bg-secondary);
         border-radius: 8px;
         padding: 1em 1em 0.5em 1em;
         box-sizing: border-box;
-        border: 1px solid #e0e0e0;
+        border: 1px solid var(--color-border-light);
       }
       .gitee-form label {
         display: block;
         margin-bottom: 0.2em;
         font-size: var(--font-size-md);
         font-family: var(--font-family-primary);
-        color: #1976d2;
+        color: var(--color-accent-blue);
       }
       .gitee-form input {
         width: 98%;
         margin-bottom: 0.7em;
         padding: 0.3em 0.6em;
-        border: 1px solid #ccc;
+        border: 1px solid var(--color-border);
         border-radius: 4px;
         font-size: var(--font-size-md);
         font-family: var(--font-family-primary);
+        background: var(--color-input-bg);
+        color: var(--color-text-primary);
       }
       .gitee-form .msg {
-        color: #42b983;
+        color: var(--color-accent-green);
         font-size: var(--font-size-base);
         font-family: var(--font-family-primary);
         margin-bottom: 0.5em;
@@ -145,7 +213,7 @@
         min-width: 120px;
         max-width: 260px;
         padding: 0.5em 0;
-        background: #1976d2;
+        background: var(--color-accent-blue);
         color: #fff;
         border: none;
         border-radius: 6px;
@@ -154,41 +222,43 @@
         cursor: pointer;
         transition: background 0.2s;
       }
-      .sync-btns button:hover { background: #1256a2; }
+      .sync-btns button:hover { background: var(--color-accent-blue-dark); }
       /* 快捷键设置 */
       .shortcut-form {
         width: 580px;
         min-width: 580px;
         max-width: 580px;
         margin: 0.5em auto;
-        background: #f6fafc;
+        background: var(--color-bg-secondary);
         border-radius: 8px;
         padding: 1em 1em 0.5em 1em;
         box-sizing: border-box;
-        border: 1px solid #e0e0e0;
+        border: 1px solid var(--color-border-light);
       }
       .shortcut-form h3 {
         margin: 0 0 0.5em 0;
         font-size: var(--font-size-xl);
         font-family: var(--font-family-primary);
-        color: #1976d2;
+        color: var(--color-accent-blue);
       }
       .shortcut-form label {
         display: block;
         margin-bottom: 0.2em;
         font-size: var(--font-size-md);
         font-family: var(--font-family-primary);
-        color: #1976d2;
+        color: var(--color-accent-blue);
       }
       .shortcut-form select,
       .shortcut-form input[type="text"] {
         width: 98%;
         margin-bottom: 0.7em;
         padding: 0.3em 0.6em;
-        border: 1px solid #ccc;
+        border: 1px solid var(--color-border);
         border-radius: 4px;
         font-size: var(--font-size-md);
         font-family: var(--font-family-primary);
+        background: var(--color-input-bg);
+        color: var(--color-text-primary);
       }
       .shortcut-form .shortcut-row {
         display: flex;
@@ -216,10 +286,10 @@
       }
       .shortcut-toggle label {
         margin-bottom: 0 !important;
-        color: #333 !important;
+        color: var(--color-text-primary) !important;
       }
       .shortcut-msg {
-        color: #42b983;
+        color: var(--color-accent-green);
         font-size: var(--font-size-base);
         font-family: var(--font-family-primary);
         margin-bottom: 0.5em;
@@ -233,7 +303,7 @@
         position: relative;
       }
       .help-btn {
-        background: #1976d2;
+        background: var(--color-accent-blue);
         color: #fff;
         border: none;
         border-radius: 50%;
@@ -243,11 +313,11 @@
         font-family: 'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif;
         cursor: pointer;
         margin: 10px 10px 0 0;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        box-shadow: 0 1px 4px var(--color-shadow);
         transition: background 0.2s;
       }
       .help-btn:hover {
-        background: #1256a2;
+        background: var(--color-accent-blue-dark);
       }
       .help-modal {
         display: flex;
@@ -259,13 +329,13 @@
         top: 0;
         width: 100vw;
         height: 100vh;
-        background: rgba(0,0,0,0.18);
+        background: var(--color-overlay);
       }
       .help-modal-content {
-        background: #fff;
+        background: var(--color-modal-bg);
         border-radius: 10px;
         padding: 1.5em 2em;
-        box-shadow: 0 2px 16px 0 rgba(60,60,60,0.12);
+        box-shadow: 0 2px 16px 0 var(--color-shadow);
         min-width: 260px;
         max-width: 90vw;
         max-height: 80vh;
@@ -277,17 +347,17 @@
         right: 12px;
         top: 8px;
         font-size: 22px;
-        color: #888;
+        color: var(--color-text-muted);
         cursor: pointer;
       }
       .help-close:hover {
-        color: #f44336;
+        color: var(--color-accent-red);
       }
       .help-modal-content h3 {
         margin-top: 0;
         font-size: 1.2em;
         font-family: 'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif;
-        color: #1976d2;
+        color: var(--color-accent-blue);
       }
       .help-modal-content ul {
         padding-left: 1.2em;
@@ -297,30 +367,34 @@
         margin-bottom: 0.5em;
         font-size: 1em;
         font-family: 'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif;
+        color: var(--color-text-primary);
       }
     </style>
     <script type="module" crossorigin src="/popup.js"></script>
-    <link rel="modulepreload" crossorigin href="/index.js">
+    <link rel="modulepreload" crossorigin href="/theme.js">
   </head>
   <body>
     <!-- 密码锁定遮罩 -->
-    <div id="passwordLockOverlay" style="display:none;position:fixed;z-index:10000;left:0;top:0;width:100%;height:100%;background:#f6fafc;justify-content:center;align-items:center;flex-direction:column;">
+    <div id="passwordLockOverlay" style="display:none;position:fixed;z-index:10000;left:0;top:0;width:100%;height:100%;background:var(--color-bg-secondary);justify-content:center;align-items:center;flex-direction:column;">
       <div style="text-align:center;padding:2em;">
-        <h2 style="color:#1976d2;font-family:var(--font-family-primary);margin-bottom:0.3em;" data-i18n="password.lock.title">🔒 密码保护</h2>
-        <p style="color:#666;font-size:var(--font-size-base);font-family:var(--font-family-primary);margin-bottom:1.2em;" data-i18n="password.lock.desc">书签管理器已启用密码保护，请输入密码以继续访问。</p>
-        <input type="password" id="lockPasswordInput" placeholder="请输入密码" data-i18n-placeholder="password.lock.placeholder" style="width:260px;padding:0.5em 0.8em;border:1px solid #ccc;border-radius:6px;font-size:var(--font-size-md);font-family:var(--font-family-primary);text-align:center;margin-bottom:0.5em;" />
-        <div id="lockPasswordError" style="color:#f44336;font-size:var(--font-size-sm);font-family:var(--font-family-primary);min-height:1.5em;margin-bottom:0.5em;"></div>
-        <button type="button" id="lockPasswordSubmit" style="width:260px;padding:0.5em 0;background:#1976d2;color:#fff;border:none;border-radius:6px;font-size:var(--font-size-md);font-family:var(--font-family-primary);cursor:pointer;transition:background 0.2s;" data-i18n="password.lock.submit">解锁</button>
+        <h2 style="color:var(--color-accent-blue);font-family:var(--font-family-primary);margin-bottom:0.3em;" data-i18n="password.lock.title">🔒 密码保护</h2>
+        <p style="color:var(--color-text-secondary);font-size:var(--font-size-base);font-family:var(--font-family-primary);margin-bottom:1.2em;" data-i18n="password.lock.desc">书签管理器已启用密码保护，请输入密码以继续访问。</p>
+        <input type="password" id="lockPasswordInput" placeholder="请输入密码" data-i18n-placeholder="password.lock.placeholder" style="width:260px;padding:0.5em 0.8em;border:1px solid var(--color-border);border-radius:6px;font-size:var(--font-size-md);font-family:var(--font-family-primary);text-align:center;margin-bottom:0.5em;background:var(--color-input-bg);color:var(--color-text-primary);" />
+        <div id="lockPasswordError" style="color:var(--color-accent-red);font-size:var(--font-size-sm);font-family:var(--font-family-primary);min-height:1.5em;margin-bottom:0.5em;"></div>
+        <button type="button" id="lockPasswordSubmit" style="width:260px;padding:0.5em 0;background:var(--color-accent-blue);color:#fff;border:none;border-radius:6px;font-size:var(--font-size-md);font-family:var(--font-family-primary);cursor:pointer;transition:background 0.2s;" data-i18n="password.lock.submit">解锁</button>
       </div>
     </div>
     <!-- 主内容（默认隐藏，密码检查完成后显示） -->
     <div id="popupContent" style="display:none;">
-    <select id="langSelect" class="font-yunfeng" style="position:absolute;top:12px;right:50px;z-index:1000;padding:2px 6px;border:1px solid #ccc;border-radius:4px;font-size:var(--font-size-base);background:#fff;cursor:pointer;">
+    <button id="themeToggle" style="position:absolute;top:10px;right:130px;z-index:1000;background:var(--color-accent-blue);color:#fff;border:none;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;box-shadow:0 1px 4px var(--color-shadow);transition:background 0.2s;" title="切换主题" data-i18n-title="theme.toggle">
+      <span id="themeIcon">🖥️</span>
+    </button>
+    <select id="langSelect" class="font-yunfeng" style="position:absolute;top:12px;right:50px;z-index:1000;padding:2px 6px;border:1px solid var(--color-border);border-radius:4px;font-size:var(--font-size-base);background:var(--color-input-bg);color:var(--color-text-primary);cursor:pointer;">
       <option value="zh-CN" data-i18n="lang.zh">中文</option>
       <option value="en" data-i18n="lang.en">English</option>
     </select>
     <button class="help-btn" id="helpBtn" title="帮助" data-i18n-title="btn.help" style="position:absolute;top:10px;right:10px;z-index:1000;">?</button>
-    <h1 style="margin:0;padding:1em 0 0.5em 0;text-align:center;font-size:var(--font-size-2xl);color:#1976d2;" class="font-yunfeng" data-i18n="app.name">JYeontu书签管理器</h1>
+    <h1 style="margin:0;padding:1em 0 0.5em 0;text-align:center;font-size:var(--font-size-2xl);color:var(--color-accent-blue);" class="font-yunfeng" data-i18n="app.name">JYeontu书签管理器</h1>
     <div class="popup-header">
     </div>
     <div class="bookmark-manager-buttons">
@@ -332,7 +406,7 @@
       <label><span data-i18n="gitee.token">Gitee Token</span>
         <div style="display:flex;align-items:center;gap:0.5em;">
           <input type="password" id="giteeToken" required placeholder="个人访问Token" data-i18n-placeholder="gitee.tokenPlaceholder" style="flex:1;" />
-          <a href="https://gitee.com/oauth/authorize?client_id=8ac7a94ff19ddb4b9d267d525c048e2845f589cf3b1e8d09ef2568ca63f74603&redirect_uri=https%3A%2F%2Fgitee.com%2Fapi%2Fv5%2Fswagger&response_type=code" target="_blank" style="color:#1976d2;font-size:0.9em;text-decoration:none;white-space:nowrap;" data-i18n="gitee.getToken">获取Token →</a>
+          <a href="https://gitee.com/oauth/authorize?client_id=8ac7a94ff19ddb4b9d267d525c048e2845f589cf3b1e8d09ef2568ca63f74603&redirect_uri=https%3A%2F%2Fgitee.com%2Fapi%2Fv5%2Fswagger&response_type=code" target="_blank" style="color:var(--color-accent-blue);font-size:0.9em;text-decoration:none;white-space:nowrap;" data-i18n="gitee.getToken">获取Token →</a>
         </div>
       </label>
       <label><span data-i18n="gitee.owner">仓库所有者（owner）</span>
@@ -345,16 +419,16 @@
         <input type="text" id="giteeBranch" value="master" required placeholder="如: master" data-i18n-placeholder="gitee.branchPlaceholder" />
       </label>
       <label><span data-i18n="gitee.bookmarkDir">书签目录（bookmarkDir）</span>
-        <input type="text" id="bookmarkDir" required placeholder="如: bookmarks" data-i18n-placeholder="gitee.bookmarkDirPlaceholder" value="bookmarks" style="width:98%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid #ccc;border-radius:4px;font-size:1em;" />
+        <input type="text" id="bookmarkDir" required placeholder="如: bookmarks" data-i18n-placeholder="gitee.bookmarkDirPlaceholder" value="bookmarks" style="width:98%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid var(--color-border);border-radius:4px;font-size:1em;" />
       </label>
       <label><span data-i18n="gitee.bookmarkFile">书签文件</span>
-        <select id="giteeFilePath" required style="width:100%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid #ccc;border-radius:4px;font-size:var(--font-size-md);font-family:var(--font-family-primary);"></select>
+        <select id="giteeFilePath" required style="width:100%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid var(--color-border);border-radius:4px;font-size:var(--font-size-md);font-family:var(--font-family-primary);background:var(--color-input-bg);color:var(--color-text-primary);"></select>
       </label>
               <div style="display:flex;gap:0.5em;margin-bottom:0.7em;">
-          <button type="button" id="addBookmarkFile" style="flex:1;padding:0.3em 0.6em;background:#42b983;color:#fff;border:none;border-radius:4px;font-size:var(--font-size-base);font-family:var(--font-family-primary);cursor:pointer;" data-i18n="gitee.addFile">新增书签文件</button>
-          <button type="button" id="deleteBookmarkFile" style="flex:1;padding:0.3em 0.6em;background:#f44336;color:#fff;border:none;border-radius:4px;font-size:var(--font-size-base);font-family:var(--font-family-primary);cursor:pointer;" data-i18n="gitee.deleteFile">删除书签文件</button>
+          <button type="button" id="addBookmarkFile" style="flex:1;padding:0.3em 0.6em;background:var(--color-accent-green);color:#fff;border:none;border-radius:4px;font-size:var(--font-size-base);font-family:var(--font-family-primary);cursor:pointer;" data-i18n="gitee.addFile">新增书签文件</button>
+          <button type="button" id="deleteBookmarkFile" style="flex:1;padding:0.3em 0.6em;background:var(--color-accent-red);color:#fff;border:none;border-radius:4px;font-size:var(--font-size-base);font-family:var(--font-family-primary);cursor:pointer;" data-i18n="gitee.deleteFile">删除书签文件</button>
         </div>
-              <button type="button" id="openGiteeRepo" style="width:100%;padding:0.3em 0.6em;background:#1976d2;color:#fff;border:none;border-radius:4px;font-size:var(--font-size-base);font-family:var(--font-family-primary);cursor:pointer;margin-bottom:0.7em;" data-i18n="gitee.openRepo">打开Gitee仓库</button>
+              <button type="button" id="openGiteeRepo" style="width:100%;padding:0.3em 0.6em;background:var(--color-accent-blue);color:#fff;border:none;border-radius:4px;font-size:var(--font-size-base);font-family:var(--font-family-primary);cursor:pointer;margin-bottom:0.7em;" data-i18n="gitee.openRepo">打开Gitee仓库</button>
     </form>
     <div class="sync-btns">
       <button id="btnSaveOverwrite" type="button" data-i18n="sync.overwriteSave">覆盖保存</button>
@@ -366,7 +440,7 @@
       <h3 data-i18n="shortcut.title">⌨️ 快捷键设置</h3>
       <div class="shortcut-msg" id="shortcutMsg"></div>
       <!-- 全局搜索 -->
-      <div style="border-bottom: 1px solid #e0e0e0; padding-bottom: 0.7em; margin-bottom: 0.7em;">
+      <div style="border-bottom: 1px solid var(--color-border-light); padding-bottom: 0.7em; margin-bottom: 0.7em;">
         <div class="shortcut-toggle">
           <input type="checkbox" id="searchEnabled" checked />
           <label for="searchEnabled" data-i18n="shortcut.enableSearch">启用全局书签搜索</label>
@@ -426,12 +500,12 @@
       </div>
       <div id="passwordFields">
         <label><span data-i18n="password.label">密码</span>
-          <input type="password" id="passwordInput" placeholder="请输入密码" data-i18n-placeholder="password.placeholder" style="width:98%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid #ccc;border-radius:4px;font-size:var(--font-size-md);font-family:var(--font-family-primary);" />
+          <input type="password" id="passwordInput" placeholder="请输入密码" data-i18n-placeholder="password.placeholder" style="width:98%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid var(--color-border);border-radius:4px;font-size:var(--font-size-md);font-family:var(--font-family-primary);background:var(--color-input-bg);color:var(--color-text-primary);" />
         </label>
         <label><span data-i18n="password.confirmLabel">确认密码</span>
-          <input type="password" id="passwordConfirm" placeholder="请再次输入密码" data-i18n-placeholder="password.confirmPlaceholder" style="width:98%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid #ccc;border-radius:4px;font-size:var(--font-size-md);font-family:var(--font-family-primary);" />
+          <input type="password" id="passwordConfirm" placeholder="请再次输入密码" data-i18n-placeholder="password.confirmPlaceholder" style="width:98%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid var(--color-border);border-radius:4px;font-size:var(--font-size-md);font-family:var(--font-family-primary);background:var(--color-input-bg);color:var(--color-text-primary);" />
         </label>
-        <button type="button" id="savePasswordBtn" style="width:100%;padding:0.5em 0;background:#1976d2;color:#fff;border:none;border-radius:6px;font-size:var(--font-size-md);font-family:var(--font-family-primary);cursor:pointer;transition:background 0.2s;" data-i18n="password.save">保存密码设置</button>
+        <button type="button" id="savePasswordBtn" style="width:100%;padding:0.5em 0;background:var(--color-accent-blue);color:#fff;border:none;border-radius:6px;font-size:var(--font-size-md);font-family:var(--font-family-primary);cursor:pointer;transition:background 0.2s;" data-i18n="password.save">保存密码设置</button>
       </div>
     </div>
     <div id="app"></div>
@@ -445,7 +519,7 @@
           <li><b data-i18n="help.overwriteGet">覆盖获取：</b><span data-i18n="help.overwriteGetDesc">使用Gitee上的书签数据来替换本地的书签数据</span></li>
           <li><b data-i18n="help.mergeGet">合并获取：</b><span data-i18n="help.mergeGetDesc">获取Gitee上的书签数据并与本地书签数据合并后替换本地的书签数据</span></li>
         </ul>
-        <h3><span data-i18n="help.shortcutTitle">快捷键</span> <span style="font-size:0.75em;color:#888;font-weight:normal;" data-i18n="help.shortcutCustomizable">（可在「快捷键设置」中自定义）</span></h3>
+        <h3><span data-i18n="help.shortcutTitle">快捷键</span> <span style="font-size:0.75em;color:var(--color-text-muted);font-weight:normal;" data-i18n="help.shortcutCustomizable">（可在「快捷键设置」中自定义）</span></h3>
         <ul>
           <li><b data-i18n="help.shortcutCloseTab">修饰键+字母键：</b><span data-i18n="help.shortcutCloseTabDesc">关闭当前标签页（默认 Alt+W）</span></li>
           <li><b data-i18n="help.shortcutSearch">连续按修饰键：</b><span data-i18n="help.shortcutSearchDesc">呼出全局书签搜索（默认连续三次 Cmd/Ctrl/Alt）</span></li>
@@ -470,11 +544,11 @@
         <h3 data-i18n="help.contactTitle">联系作者</h3>
         <ul>
           <li><b data-i18n="help.wechat">微信公众号：</b><span data-i18n="help.wechatName">前端也能这么有趣</span></li>
-          <li><b data-i18n="help.github">GitHub：</b><a href="https://github.com/yongtaozheng/bookmarks-manage" target="_blank" style="color:#1976d2;" data-i18n="help.projectLink">项目地址</a></li>
-          <li><b data-i18n="help.gitee">Gitee：</b><a href="https://gitee.com/zheng_yongtao/bookmarks-manage" target="_blank" style="color:#1976d2;" data-i18n="help.projectLink">项目地址</a></li>
+          <li><b data-i18n="help.github">GitHub：</b><a href="https://github.com/yongtaozheng/bookmarks-manage" target="_blank" style="color:var(--color-accent-blue);" data-i18n="help.projectLink">项目地址</a></li>
+          <li><b data-i18n="help.gitee">Gitee：</b><a href="https://gitee.com/zheng_yongtao/bookmarks-manage" target="_blank" style="color:var(--color-accent-blue);" data-i18n="help.projectLink">项目地址</a></li>
         </ul>
       </div>
     </div>
     </div><!-- /popupContent -->
   </body>
-</html> 
+</html>

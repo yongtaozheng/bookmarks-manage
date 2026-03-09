@@ -274,9 +274,60 @@ if (window.location.href.includes('gitee.com/api/v5/swagger')) {
   setTimeout(extractToken, 1000);
 }
 
+// 获取当前生效的主题（内容脚本无法使用 CSS 变量，需自带配色）
+function getContentThemeColors(): { isDark: boolean; bg: string; border: string; text: string; textMuted: string; selectedBg: string; selectedText: string; shadow: string; } {
+  // 先从 storage 读取用户偏好
+  let isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  // 同步读取缓存的主题（异步更新见下方 listener）
+  if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+    try {
+      chrome.storage.local.get(['app_theme'], (result: any) => {
+        if (result.app_theme === 'dark') contentIsDark = true;
+        else if (result.app_theme === 'light') contentIsDark = false;
+        else contentIsDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      });
+    } catch {}
+  }
+  if (contentIsDark !== undefined) isDark = contentIsDark;
+  return isDark ? {
+    isDark: true,
+    bg: '#1e1e2e',
+    border: '#89b4fa',
+    text: '#cdd6f4',
+    textMuted: '#a6adc8',
+    selectedBg: '#1a3a6e',
+    selectedText: '#89b4fa',
+    shadow: 'rgba(0,0,0,0.5)',
+  } : {
+    isDark: false,
+    bg: '#fff',
+    border: '#42b983',
+    text: '#333',
+    textMuted: '#666',
+    selectedBg: '#e3eefa',
+    selectedText: '#1976d2',
+    shadow: 'rgba(60,60,60,0.18)',
+  };
+}
+
+let contentIsDark: boolean | undefined = undefined;
+
+// 监听主题变更
+if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
+  chrome.storage.onChanged.addListener((changes: any, areaName: string) => {
+    if (areaName === 'local' && changes.app_theme) {
+      const mode = changes.app_theme.newValue;
+      if (mode === 'dark') contentIsDark = true;
+      else if (mode === 'light') contentIsDark = false;
+      else contentIsDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+  });
+}
+
 function showSearchBox() {
   if (searchBox) return;
-  
+  const themeColors = getContentThemeColors();
+
   searchBox = document.createElement('div');
   searchBox.style.position = 'fixed';
   searchBox.style.top = '0';
@@ -296,18 +347,19 @@ function showSearchBox() {
   inputEl.style.fontSize = '1.4em';
   inputEl.style.fontFamily = "'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif";
   inputEl.style.padding = '0.5em 1em';
-  inputEl.style.border = '1.5px solid #42b983';
+  inputEl.style.border = `1.5px solid ${themeColors.border}`;
   inputEl.style.borderRadius = '6px';
   inputEl.style.outline = 'none';
   inputEl.style.marginTop = '1.5em';
-  inputEl.style.background = '#fff';
+  inputEl.style.background = themeColors.bg;
+  inputEl.style.color = themeColors.text;
   inputEl.style.width = '50%';
   inputEl.style.maxWidth = '90vw';
   inputEl.style.height = '3em';
   inputEl.style.lineHeight = '3em';
-  inputEl.style.boxShadow = '0 2px 16px 0 rgba(60,60,60,0.18)';
+  inputEl.style.boxShadow = `0 2px 16px 0 ${themeColors.shadow}`;
   inputEl.style.pointerEvents = 'auto';
-  
+
   resultList = document.createElement('ul');
   resultList.style.position = 'absolute';
   resultList.style.top = '6em';
@@ -321,9 +373,9 @@ function showSearchBox() {
   resultList.style.maxHeight = '260px';
   resultList.style.overflowY = 'auto';
   resultList.style.overflowX = 'hidden'; // 禁止横向滚动
-  resultList.style.background = '#fff';
+  resultList.style.background = themeColors.bg;
   resultList.style.borderRadius = '6px';
-  resultList.style.boxShadow = '0 1px 8px 0 rgba(60,60,60,0.08)';
+  resultList.style.boxShadow = `0 1px 8px 0 ${themeColors.shadow}`;
   resultList.style.pointerEvents = 'auto';
   
   searchBox.appendChild(inputEl);
@@ -480,6 +532,7 @@ function fuzzyScore(q: string, title: string, url: string) {
 
 function renderResults(list: any[], folderTitle?: string) {
   if (!resultList) return;
+  const colors = getContentThemeColors();
   resultList.innerHTML = '';
   // 显示所有匹配项
   list.forEach((item, idx) => {
@@ -487,8 +540,8 @@ function renderResults(list: any[], folderTitle?: string) {
     li.textContent = item.title + (item.url ? ` (${item.url})` : '');
     li.style.padding = '0.4em 0.8em';
     li.style.cursor = 'pointer';
-    li.style.background = idx === selectedIdx ? '#e3eefa' : '#fff';
-    li.style.color = idx === selectedIdx ? '#1976d2' : '#333';
+    li.style.background = idx === selectedIdx ? colors.selectedBg : colors.bg;
+    li.style.color = idx === selectedIdx ? colors.selectedText : colors.text;
     li.style.fontSize = '1.1em';
     li.style.fontFamily = "'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif";
     li.style.overflow = 'hidden';

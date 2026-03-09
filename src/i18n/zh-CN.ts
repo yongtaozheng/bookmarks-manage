@@ -317,6 +317,12 @@ export default {
   'password.lock.error': '密码错误，请重试',
   'password.lock.noConfig': 'Gitee配置不完整，无法验证密码',
 
+  // === 主题设置 ===
+  'theme.toggle': '切换主题',
+  'theme.system': '跟随系统',
+  'theme.light': '浅色',
+  'theme.dark': '深色',
+
   // === 语言 ===
   'lang.zh': '中文',
   'lang.en': 'English',

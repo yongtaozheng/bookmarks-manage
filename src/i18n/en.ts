@@ -317,6 +317,12 @@ export default {
   'password.lock.error': 'Incorrect password, please try again',
   'password.lock.noConfig': 'Gitee configuration is incomplete, cannot verify password',
 
+  // === Theme Settings ===
+  'theme.toggle': 'Toggle Theme',
+  'theme.system': 'System',
+  'theme.light': 'Light',
+  'theme.dark': 'Dark',
+
   // === Language ===
   'lang.zh': '中文',
   'lang.en': 'English',

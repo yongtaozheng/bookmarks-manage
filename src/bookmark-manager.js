@@ -820,7 +820,7 @@ class BookmarkManager {
                     const result = ${script};
                     document.getElementById('result').innerHTML = '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
                   } catch (error) {
-                    document.getElementById('result').innerHTML = '<p style="color: red;">${t('manager.executionError')}' + error.message + '</p>';
+                    document.getElementById('result').innerHTML = '<p style="color: #f44336;">${t('manager.executionError')}' + error.message + '</p>';
                   }
                 </script>
               </body>
@@ -2359,7 +2359,7 @@ class BookmarkManager {
       statsEl.style.display = 'none';
       controlsEl.style.display = 'none';
       resultsEl.innerHTML = `
-        <div style="text-align: center; padding: 40px 20px; color: #666;">
+        <div style="text-align: center; padding: 40px 20px; color: var(--color-text-secondary);">
           <div style="font-size: 40px; margin-bottom: 12px;">✅</div>
           <div style="font-size: 16px; margin-bottom: 8px;">${t('manager.duplicateNone')}</div>
           <div style="font-size: 13px;">${t('manager.duplicateNoneDesc')}</div>
@@ -2390,7 +2390,7 @@ class BookmarkManager {
         const displayUrl = group.items[0].url.length > 80
           ? group.items[0].url.substring(0, 80) + '...'
           : group.items[0].url;
-        html += `<span style="color: #999; font-weight: 400; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${this.escapeHtml(displayUrl)}</span>`;
+        html += `<span style="color: var(--color-text-muted); font-weight: 400; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${this.escapeHtml(displayUrl)}</span>`;
       }
       html += `</div>`;
 
@@ -2622,7 +2622,7 @@ class BookmarkManager {
       this.stopLinkCheck();
       document.getElementById('linkCheckProgress').style.display = 'none';
       document.getElementById('linkCheckResults').innerHTML = `
-        <div style="text-align:center;padding:40px 20px;color:#666;">
+        <div style="text-align:center;padding:40px 20px;color:var(--color-text-secondary);">
           <div style="font-size:40px;margin-bottom:12px;">📭</div>
           <div style="font-size:16px;">没有需要检测的书签</div>
         </div>
@@ -2728,7 +2728,7 @@ class BookmarkManager {
       controlsEl.style.display = 'none';
       deleteBtn.style.display = 'none';
       resultsEl.innerHTML = `
-        <div style="text-align:center;padding:40px 20px;color:#666;">
+        <div style="text-align:center;padding:40px 20px;color:var(--color-text-secondary);">
           <div style="font-size:40px;margin-bottom:12px;">✅</div>
           <div style="font-size:16px;margin-bottom:8px;">${t('manager.linkCheckNoBroken')}</div>
           <div style="font-size:13px;">${t('manager.linkCheckNoBrokenDesc')}</div>

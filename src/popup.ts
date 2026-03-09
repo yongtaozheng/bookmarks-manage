@@ -1,5 +1,6 @@
 import { initLocale, t, setLocale, getLocale, translateDOM } from './i18n/index';
 import type { Locale } from './i18n/index';
+import { initTheme, setupThemeToggle } from './theme';
 
 declare const chrome: any;
 
@@ -468,12 +469,16 @@ function showMsg(text: string, isError = false) {
   const msg = document.getElementById('giteeMsg');
   if (msg) {
     msg.textContent = text;
-    (msg as HTMLElement).style.color = isError ? '#f44336' : '#42b983';
+    (msg as HTMLElement).style.color = isError ? 'var(--color-accent-red)' : 'var(--color-accent-green)';
     setTimeout(() => { if (msg) msg.textContent = ''; }, 2000);
   }
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // 初始化主题
+  await initTheme();
+  setupThemeToggle();
+
   // 初始化语言
   await initLocale();
   translateDOM();
@@ -1167,7 +1172,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function showPasswordMsg(text: string, isError = false) {
     if (passwordMsg) {
       passwordMsg.textContent = text;
-      (passwordMsg as HTMLElement).style.color = isError ? '#f44336' : '#42b983';
+      (passwordMsg as HTMLElement).style.color = isError ? 'var(--color-accent-red)' : 'var(--color-accent-green)';
       setTimeout(() => { if (passwordMsg) passwordMsg.textContent = ''; }, 3000);
     }
   }
