@@ -397,6 +397,37 @@ function filterHiddenBookmarks(bookmarks: any[]): any[] {
   return filterBookmarks(bookmarks);
 }
 
+// == 过滤可见书签（移除隐藏书签）==
+function filterVisibleBookmarks(bookmarks: any[]): any[] {
+  if (!Array.isArray(bookmarks)) {
+    return [];
+  }
+
+  return bookmarks.filter(bookmark => {
+    if (!bookmark) {
+      return false;
+    }
+
+    // 如果书签被隐藏，则过滤掉
+    if (bookmark.hidden === true) {
+      return false;
+    }
+
+    // 如果有子项，递归过滤
+    if (bookmark.children && Array.isArray(bookmark.children)) {
+      const filteredChildren = filterVisibleBookmarks(bookmark.children);
+      if (filteredChildren.length > 0) {
+        bookmark.children = filteredChildren;
+      } else {
+        // 如果所有子项都被隐藏，则隐藏整个文件夹
+        return false;
+      }
+    }
+
+    return true;
+  });
+}
+
 // == 合并去重 ==
 function mergeBookmarks(arr1: any[], arr2: any[]): any[] {
   // 递归合并两个书签树数组
@@ -797,8 +828,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
 
+      // 过滤掉隐藏的书签，不在系统书签栏显示
+      const visibleBookmarks = filterVisibleBookmarks(bookmarksToCreate);
+
       await removeAllBookmarks();
-      await createBookmarks(bookmarksToCreate, '1'); // 只写入书签栏
+      await createBookmarks(visibleBookmarks, '1'); // 只写入书签栏（仅可见书签）
       showMsg(t('msg.overwriteGetSuccess'));
     } catch (e: any) {
       showMsg(t('msg.overwriteGetFailed', e.message), true);
@@ -832,9 +866,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       const localBookmarksChildren = localBookmarks?.children || [];
       
       const merged = mergeBookmarks(localBookmarksChildren, remoteBookmarks);
-      
+
+      // 过滤掉隐藏的书签，不在系统书签栏显示
+      const visibleMerged = filterVisibleBookmarks(merged);
+
       await removeAllBookmarks();
-      await createBookmarks(merged, '1'); // 只写入书签栏
+      await createBookmarks(visibleMerged, '1'); // 只写入书签栏（仅可见书签）
       showMsg(t('msg.mergeGetSuccess'));
     } catch (e: any) {
       showMsg(t('msg.mergeGetFailed', e.message), true);
