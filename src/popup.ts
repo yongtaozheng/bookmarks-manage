@@ -80,9 +80,11 @@ function encodeFilePath(filePath: string): string {
 // 从Gitee读取密码配置
 async function getPasswordConfig(token: string, owner: string, repo: string, branch: string, bookmarkDir: string): Promise<{enabled: boolean, password: string} | null> {
   const filePath = getPasswordFilePath(bookmarkDir);
-  const apiUrl = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeFilePath(filePath)}?ref=${branch}&access_token=${token}`;
+  const apiUrl = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeFilePath(filePath)}?ref=${branch}`;
   try {
-    const response = await fetch(apiUrl);
+    const response = await fetch(apiUrl, {
+      headers: { 'Authorization': `token ${token}` }
+    });
     if (!response.ok) {
       // 文件不存在，返回null
       return null;
@@ -111,8 +113,10 @@ async function savePasswordConfig(token: string, owner: string, repo: string, br
 
   try {
     // 先尝试获取文件（获取SHA用于更新）
-    const getUrl = `${apiUrl}?ref=${branch}&access_token=${token}`;
-    const getResponse = await fetch(getUrl);
+    const getUrl = `${apiUrl}?ref=${branch}`;
+    const getResponse = await fetch(getUrl, {
+      headers: { 'Authorization': `token ${token}` }
+    });
     let sha = '';
 
     if (getResponse.ok) {
@@ -651,15 +655,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     // dir 为空时获取根目录，否则获取指定目录下文件
     let url = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents`;
     if (dir) url += `/${encodeURIComponent(dir)}`;
-    url += `?ref=${branch}&access_token=${token}`;
-    const res = await fetch(url);
+    url += `?ref=${branch}`;
+    const res = await fetch(url, {
+      headers: { 'Authorization': `token ${token}` }
+    });
     if (!res.ok) throw new Error(t('select.getFileFailed'));
     const data = await res.json();
     return Array.isArray(data) ? data.filter((f: any) => f.type === 'file').map((f: any) => f.path) : [];
   }
   async function fetchGiteeBranches(token: string, owner: string, repo: string): Promise<string[]> {
-    const url = `https://gitee.com/api/v5/repos/${owner}/${repo}/branches?access_token=${token}`;
-    const res = await fetch(url);
+    const url = `https://gitee.com/api/v5/repos/${owner}/${repo}/branches`;
+    const res = await fetch(url, {
+      headers: { 'Authorization': `token ${token}` }
+    });
     if (!res.ok) throw new Error(t('select.getBranchFailed'));
     const data = await res.json();
     return data.map((b: any) => b.name);
@@ -902,10 +910,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       const content = JSON.stringify([], null, 2); // 空的书签数组
       const encodedContent = btoa(unescape(encodeURIComponent(content)));
 
-      const url = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeURIComponent(filePath)}?ref=${branch}&access_token=${token}`;
+      const url = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeURIComponent(filePath)}`;
       const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `token ${token}`
+        },
         body: JSON.stringify({
           access_token: token,
           content: encodedContent,
@@ -949,8 +960,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
       // 先获取文件信息（需要 sha）
-      const getUrl = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeURIComponent(selectedFile)}?ref=${branch}&access_token=${token}`;
-      const getResponse = await fetch(getUrl);
+      const getUrl = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeURIComponent(selectedFile)}?ref=${branch}`;
+      const getResponse = await fetch(getUrl, {
+        headers: { 'Authorization': `token ${token}` }
+      });
       if (!getResponse.ok) {
         showMsg(t('msg.fileInfoFailed'), true);
         return;
@@ -958,10 +971,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       const fileInfo = await getResponse.json();
 
       // 删除文件
-      const deleteUrl = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeURIComponent(selectedFile)}?ref=${branch}&access_token=${token}`;
+      const deleteUrl = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeURIComponent(selectedFile)}`;
       const deleteResponse = await fetch(deleteUrl, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `token ${token}`
+        },
         body: JSON.stringify({
           access_token: token,
           message: `删除书签文件：${selectedFile.split('/').pop()}`,
