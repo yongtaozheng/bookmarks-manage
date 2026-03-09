@@ -21,6 +21,7 @@ class BookmarkManager {
     this.currentFilter = 'all'; // 当前筛选状态：all, visible, hidden
     this.draggedElement = null; // 当前被拖动的元素
     this.dragOverElement = null; // 当前拖拽悬停的元素
+    this.pendingImportData = null; // 待导入的书签数据
     this.giteeConfig = {
       owner: '',
       repo: '',
@@ -229,15 +230,32 @@ class BookmarkManager {
       });
     });
 
-    document.getElementById('addBookmarkBtn').addEventListener('click', () => {
-      this.addBookmark();
-    });
-
     document.getElementById('exportBtn').addEventListener('click', () => {
       this.exportBookmarks();
     });
 
+    // 导入按钮事件
+    document.getElementById('importBtn').addEventListener('click', () => {
+      this.triggerImport();
+    });
 
+    // 导入文件选择事件
+    document.getElementById('importFileInput').addEventListener('change', (e) => {
+      this.handleImportFile(e);
+    });
+
+    // 导入对话框事件
+    document.getElementById('closeImportModal').addEventListener('click', () => {
+      this.hideImportModal();
+    });
+
+    document.getElementById('cancelImportBtn').addEventListener('click', () => {
+      this.hideImportModal();
+    });
+
+    document.getElementById('confirmImportBtn').addEventListener('click', () => {
+      this.confirmImport();
+    });
 
     // 配置对话框事件
     document.getElementById('configBtn').addEventListener('click', () => {
@@ -254,6 +272,32 @@ class BookmarkManager {
 
     document.getElementById('saveConfigBtn').addEventListener('click', () => {
       this.saveConfig();
+    });
+
+    // 编辑对话框事件
+    document.getElementById('closeEditModal').addEventListener('click', () => {
+      this.hideEditModal();
+    });
+
+    document.getElementById('cancelEditBtn').addEventListener('click', () => {
+      this.hideEditModal();
+    });
+
+    document.getElementById('saveEditBtn').addEventListener('click', () => {
+      this.saveEditBookmark();
+    });
+
+    // 编辑对话框中按Enter键保存
+    document.getElementById('editBookmarkTitle').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        this.saveEditBookmark();
+      }
+    });
+
+    document.getElementById('editBookmarkUrl').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        this.saveEditBookmark();
+      }
     });
 
     // 返回按钮事件监听
@@ -1156,40 +1200,105 @@ class BookmarkManager {
     return { totalBookmarks, totalFolders, recentBookmarks };
   }
 
-  addBookmark() {
-    const title = prompt(t('prompt.bookmarkTitle'));
-    if (!title) return;
+  editBookmark(id) {
+    // 查找书签数据
+    const bookmark = this.findBookmarkById(id);
+    if (!bookmark) {
+      alert(t('manager.editNotFound'));
+      return;
+    }
 
-    const url = prompt(t('prompt.bookmarkUrl'));
-    if (!url) return;
+    // 判断是文件夹还是书签
+    const isFolder = !!bookmark.children;
+
+    // 设置对话框标题
+    const modalTitle = document.getElementById('editModalTitle');
+    modalTitle.textContent = isFolder ? t('manager.editFolder') : t('manager.editBookmark');
+
+    // 填充当前数据
+    document.getElementById('editBookmarkId').value = id;
+    document.getElementById('editBookmarkTitle').value = bookmark.title || '';
+    document.getElementById('editBookmarkUrl').value = bookmark.url || '';
+
+    // 文件夹不显示URL输入框
+    const urlGroup = document.getElementById('editUrlGroup');
+    urlGroup.style.display = isFolder ? 'none' : 'block';
+
+    // 显示对话框
+    document.getElementById('editModal').style.display = 'flex';
+
+    // 聚焦到标题输入框
+    setTimeout(() => {
+      document.getElementById('editBookmarkTitle').focus();
+    }, 100);
+  }
+
+  hideEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+  }
+
+  saveEditBookmark() {
+    const id = document.getElementById('editBookmarkId').value;
+    const newTitle = document.getElementById('editBookmarkTitle').value.trim();
+    // 清除textarea中可能存在的换行符
+    const newUrl = document.getElementById('editBookmarkUrl').value.trim().replace(/[\r\n]/g, '');
+
+    if (!newTitle) {
+      alert(t('manager.editTitleRequired'));
+      return;
+    }
+
+    // 查找书签数据
+    const bookmark = this.findBookmarkById(id);
+    if (!bookmark) {
+      alert(t('manager.editNotFound'));
+      return;
+    }
+
+    const isFolder = !!bookmark.children;
+
+    const updateLocalData = () => {
+      // 更新本地数据
+      bookmark.title = newTitle;
+      if (!isFolder && newUrl) {
+        bookmark.url = newUrl;
+      }
+
+      // 保存到storage
+      this.saveBookmarksToStorage();
+
+      // 同步到Gitee
+      this.saveBookmarkTreeToGitee(this.bookmarks);
+
+      // 更新系统书签栏
+      this.updateSystemBookmarks();
+
+      // 关闭对话框
+      this.hideEditModal();
+
+      // 重新渲染
+      this.renderFolderTree();
+      this.renderBookmarks();
+      this.updateStats();
+    };
 
     try {
       if (typeof chrome !== 'undefined' && chrome.bookmarks) {
-        chrome.bookmarks.create({
-          title: title,
-          url: url
-        }, () => {
-          // 重新加载所有书签数据
-          this.loadBookmarks().then(() => {
-            // 重新渲染文件夹树
-            this.renderFolderTree();
-            // 重新渲染当前文件夹内容
-            this.renderBookmarks();
-            // 更新统计信息
-            this.updateStats();
-          });
+        const updateData = { title: newTitle };
+        if (!isFolder && newUrl) {
+          updateData.url = newUrl;
+        }
+
+        chrome.bookmarks.update(id, updateData, () => {
+          updateLocalData();
         });
       } else {
-        alert(t('manager.addBookmarkNeedExtension'));
+        // 没有Chrome API时（如Gitee数据），直接更新本地数据
+        updateLocalData();
       }
     } catch (error) {
-      alert(t('manager.addBookmarkFailed'));
+      alert(t('manager.editFailed'));
     }
-  }
-
-  editBookmark(id) {
-    // 实现编辑书签功能
-    alert(t('manager.editTodo'));
   }
 
   deleteBookmark(id) {
@@ -1217,7 +1326,21 @@ class BookmarkManager {
   }
 
   exportBookmarks() {
-    const dataStr = JSON.stringify(this.bookmarks, null, 2);
+    // 导出书签时确保所有书签节点都有明确的 hidden 标记
+    const markHiddenState = (bookmarks) => {
+      return bookmarks.map(bookmark => {
+        const node = { ...bookmark };
+        // 确保每个节点都有明确的 hidden 字段，未设置的默认为 false
+        node.hidden = !!node.hidden;
+        if (node.children && node.children.length > 0) {
+          node.children = markHiddenState(node.children);
+        }
+        return node;
+      });
+    };
+
+    const exportData = markHiddenState(this.bookmarks);
+    const dataStr = JSON.stringify(exportData, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
@@ -1225,6 +1348,220 @@ class BookmarkManager {
     link.download = 'bookmarks.json';
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  // 导入书签 - 触发文件选择
+  triggerImport() {
+    const fileInput = document.getElementById('importFileInput');
+    fileInput.value = ''; // 重置，允许再次选择相同文件
+    fileInput.click();
+  }
+
+  // 处理导入文件选择
+  handleImportFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (!Array.isArray(data) || data.length === 0) {
+          alert(t('manager.importInvalidFormat'));
+          return;
+        }
+
+        // 验证数据基本结构
+        if (!this.validateImportData(data)) {
+          alert(t('manager.importInvalidFormat'));
+          return;
+        }
+
+        // 统计导入数据信息
+        const stats = this.analyzeImportData(data);
+        this.pendingImportData = data;
+
+        // 显示导入确认对话框
+        this.showImportModal(stats);
+      } catch (error) {
+        alert(t('manager.importInvalidFormat'));
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // 验证导入数据结构
+  validateImportData(data) {
+    const validate = (items) => {
+      for (const item of items) {
+        // 每个项必须有 title 字段
+        if (typeof item.title !== 'string') {
+          return false;
+        }
+        // 如果有 children，必须是数组且递归验证
+        if (item.children !== undefined) {
+          if (!Array.isArray(item.children)) {
+            return false;
+          }
+          if (!validate(item.children)) {
+            return false;
+          }
+        }
+      }
+      return true;
+    };
+    return validate(data);
+  }
+
+  // 分析导入数据统计信息
+  analyzeImportData(data) {
+    let totalBookmarks = 0;
+    let totalFolders = 0;
+    let hiddenBookmarks = 0;
+    let hiddenFolders = 0;
+
+    const analyze = (items) => {
+      for (const item of items) {
+        if (item.children) {
+          totalFolders++;
+          if (item.hidden) hiddenFolders++;
+          analyze(item.children);
+        } else {
+          totalBookmarks++;
+          if (item.hidden) hiddenBookmarks++;
+        }
+      }
+    };
+    analyze(data);
+
+    return { totalBookmarks, totalFolders, hiddenBookmarks, hiddenFolders };
+  }
+
+  // 显示导入确认对话框
+  showImportModal(stats) {
+    const importInfo = document.getElementById('importInfo');
+    let html = `<div style="margin-bottom: 8px; font-weight: 500;">${t('manager.importSummary')}</div>`;
+    html += `<div class="import-stat">📑 ${t('manager.importTotalBookmarks', stats.totalBookmarks)}</div>`;
+    html += `<div class="import-stat">📁 ${t('manager.importTotalFolders', stats.totalFolders)}</div>`;
+
+    if (stats.hiddenBookmarks > 0 || stats.hiddenFolders > 0) {
+      html += `<div class="import-stat"><span class="hidden-tag">👁️‍🗨️ ${t('manager.importHiddenBookmarks', stats.hiddenBookmarks)}</span></div>`;
+      html += `<div class="import-stat"><span class="hidden-tag">👁️‍🗨️ ${t('manager.importHiddenFolders', stats.hiddenFolders)}</span></div>`;
+    }
+
+    importInfo.innerHTML = html;
+    document.getElementById('importModal').style.display = 'flex';
+  }
+
+  // 隐藏导入对话框
+  hideImportModal() {
+    document.getElementById('importModal').style.display = 'none';
+    this.pendingImportData = null;
+  }
+
+  // 确认导入书签
+  confirmImport() {
+    if (!this.pendingImportData) return;
+
+    const importMode = document.querySelector('input[name="importMode"]:checked').value;
+
+    try {
+      if (importMode === 'overwrite') {
+        // 覆盖模式：直接替换
+        this.bookmarks = this.processImportedBookmarks(this.pendingImportData);
+      } else {
+        // 合并模式：将导入数据合并到当前书签
+        this.bookmarks = this.mergeImportedBookmarks(this.bookmarks, this.pendingImportData);
+      }
+
+      // 保存到storage
+      this.saveBookmarksToStorage();
+
+      // 保存到Gitee仓库
+      this.saveBookmarkTreeToGitee(this.bookmarks);
+
+      // 更新系统书签（过滤掉隐藏的书签）
+      this.updateSystemBookmarks();
+
+      // 重新渲染
+      this.renderFolderTree();
+      this.renderBookmarks();
+      this.updateStats();
+
+      // 关闭对话框
+      this.hideImportModal();
+
+      alert(t('manager.importSuccess'));
+    } catch (error) {
+      alert(t('manager.importFailed'));
+    }
+  }
+
+  // 处理导入的书签数据，确保 hidden 字段被正确识别
+  processImportedBookmarks(data) {
+    const process = (items) => {
+      return items.map(item => {
+        const node = { ...item };
+        // 正确识别隐藏状态：hidden 为 true 则标记为隐藏
+        if (node.hidden === true) {
+          node.hidden = true;
+        } else {
+          node.hidden = false;
+        }
+        if (node.children && Array.isArray(node.children)) {
+          node.children = process(node.children);
+        }
+        return node;
+      });
+    };
+    return process(data);
+  }
+
+  // 合并导入的书签到当前书签
+  mergeImportedBookmarks(currentBookmarks, importedBookmarks) {
+    // 合并策略：按标题和URL去重，保留已有的 hidden 状态
+    const mergeNodes = (current, imported) => {
+      // 创建当前节点的映射（按 title + url 或 title 对于文件夹）
+      const currentMap = new Map();
+      current.forEach(item => {
+        const key = item.children ? `folder:${item.title}` : `bookmark:${item.title}:${item.url || ''}`;
+        currentMap.set(key, item);
+      });
+
+      // 遍历导入的数据
+      imported.forEach(item => {
+        const key = item.children ? `folder:${item.title}` : `bookmark:${item.title}:${item.url || ''}`;
+
+        if (currentMap.has(key)) {
+          // 已存在的项：如果是文件夹，递归合并 children
+          const existing = currentMap.get(key);
+          if (existing.children && item.children) {
+            existing.children = mergeNodes(existing.children, item.children);
+          }
+          // 保留导入数据中的 hidden 状态（如果导入数据有隐藏标记，优先保留）
+          if (item.hidden === true) {
+            existing.hidden = true;
+          }
+        } else {
+          // 新增的项：处理 hidden 状态后添加
+          const newItem = { ...item };
+          if (newItem.hidden === true) {
+            newItem.hidden = true;
+          } else {
+            newItem.hidden = false;
+          }
+          if (newItem.children && Array.isArray(newItem.children)) {
+            newItem.children = this.processImportedBookmarks(newItem.children);
+          }
+          current.push(newItem);
+        }
+      });
+
+      return current;
+    };
+
+    // 对顶层节点进行合并
+    return mergeNodes([...currentBookmarks], importedBookmarks);
   }
 
   findBookmarkById(bookmarkId) {

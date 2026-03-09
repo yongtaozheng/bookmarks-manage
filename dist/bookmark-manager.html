@@ -568,10 +568,84 @@
       transition: border-color 0.2s;
     }
 
-    .form-group input:focus {
+    .form-group input:focus,
+    .form-group textarea:focus {
       outline: none;
       border-color: #4285f4;
       box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+    }
+
+    .form-group textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d0d0d0;
+      border-radius: 4px;
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color 0.2s;
+      resize: vertical;
+    }
+
+    /* 导入书签样式 */
+    .import-info {
+      margin-bottom: 16px;
+      padding: 12px 16px;
+      background: #f0f7ff;
+      border: 1px solid #b3d4fc;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .import-info .import-stat {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .import-info .import-stat:last-child {
+      margin-bottom: 0;
+    }
+
+    .import-info .import-stat .hidden-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      background: #fff3e0;
+      border: 1px solid #ffcc80;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #e65100;
+    }
+
+    .import-options {
+      margin-bottom: 8px;
+    }
+
+    .import-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 13px;
+    }
+
+    .import-option:hover {
+      background: #f8f9fa;
+      border-color: #b0b0b0;
+    }
+
+    .import-option input[type="radio"] {
+      margin: 0;
+      accent-color: #4285f4;
     }
 
     .form-actions {
@@ -721,7 +795,6 @@
       <div class="header-actions">
         <button class="btn" id="configBtn" data-i18n="manager.config">⚙️ 配置</button>
         <button class="btn" id="refreshBtn" data-i18n="btn.refresh">🔄 刷新</button>
-        <button class="btn btn-primary" id="addBookmarkBtn" data-i18n="manager.addBookmark">+ 添加书签</button>
       </div>
     </div>
 
@@ -733,6 +806,8 @@
         <option value="hidden" data-i18n="manager.filterHidden">只显示隐藏</option>
       </select>
       <button class="btn" id="exportBtn" data-i18n="btn.export">📤 导出</button>
+      <button class="btn" id="importBtn" data-i18n="btn.import">📥 导入</button>
+      <input type="file" id="importFileInput" accept=".json" style="display: none;">
     </div>
 
     <div class="content">
@@ -768,7 +843,6 @@
               <h3 class="panel-title" id="panelTitle" data-i18n="manager.selectFolder">选择文件夹</h3>
             </div>
             <div class="panel-actions">
-              <button class="btn" id="addBookmarkToFolderBtn" data-i18n="manager.addBookmark">+ 添加书签</button>
             </div>
           </div>
           <div class="bookmark-tree" id="bookmarkTree">
@@ -805,6 +879,58 @@
         <div class="form-actions">
           <button class="btn btn-primary" id="saveConfigBtn" data-i18n="btn.save">保存配置</button>
           <button class="btn" id="cancelConfigBtn" data-i18n="btn.cancel">取消</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 编辑书签对话框 -->
+  <div id="editModal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="editModalTitle" data-i18n="manager.editBookmark">编辑书签</h3>
+        <span class="close" id="closeEditModal">&times;</span>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editBookmarkId">
+        <div class="form-group">
+          <label for="editBookmarkTitle" data-i18n="manager.editTitle">标题:</label>
+          <input type="text" id="editBookmarkTitle" placeholder="输入书签标题" data-i18n-placeholder="manager.editTitlePlaceholder">
+        </div>
+        <div class="form-group" id="editUrlGroup">
+          <label for="editBookmarkUrl" data-i18n="manager.editUrl">URL:</label>
+          <textarea id="editBookmarkUrl" placeholder="输入书签URL" data-i18n-placeholder="manager.editUrlPlaceholder" rows="3"></textarea>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" id="saveEditBtn" data-i18n="btn.save">保存配置</button>
+          <button class="btn" id="cancelEditBtn" data-i18n="btn.cancel">取消</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 导入书签对话框 -->
+  <div id="importModal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 data-i18n="manager.importBookmarks">导入书签</h3>
+        <span class="close" id="closeImportModal">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="import-info" id="importInfo"></div>
+        <div class="import-options">
+          <label class="import-option">
+            <input type="radio" name="importMode" value="overwrite" checked>
+            <span data-i18n="manager.importOverwrite">覆盖导入 - 用导入数据完全替换当前书签</span>
+          </label>
+          <label class="import-option">
+            <input type="radio" name="importMode" value="merge">
+            <span data-i18n="manager.importMerge">合并导入 - 将导入数据与当前书签合并</span>
+          </label>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" id="confirmImportBtn" data-i18n="manager.importConfirm">确认导入</button>
+          <button class="btn" id="cancelImportBtn" data-i18n="btn.cancel">取消</button>
         </div>
       </div>
     </div>
