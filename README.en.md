@@ -274,7 +274,7 @@ Join our WeChat group to discuss tips and feature suggestions!
 
 <img src="http://jyeontu.xyz:3003/viewImage/qrcode.png" width="200" alt="WeChat Group" />
 
-![http://jyeontu.xyz:3003/viewImage/qrcode.png](http://jyeontu.xyz:3003/viewImage/qrcode.png)
+[http://jyeontu.xyz:3003/viewImage/qrcode.png](http://jyeontu.xyz:3003/viewImage/qrcode.png)
 
 ## License
 
