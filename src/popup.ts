@@ -64,6 +64,98 @@ function setConfigToDB(config: Record<string, string>) {
     });
   });
 }
+// == 密码文件工具 ==
+const PASSWORD_FILE_NAME = '密码.json';
+
+// 获取密码文件路径（原始路径）
+function getPasswordFilePath(bookmarkDir: string): string {
+  return bookmarkDir ? `${bookmarkDir}/${PASSWORD_FILE_NAME}` : PASSWORD_FILE_NAME;
+}
+
+// 对路径逐段编码，保留 / 分隔符
+function encodeFilePath(filePath: string): string {
+  return filePath.split('/').map(encodeURIComponent).join('/');
+}
+
+// 从Gitee读取密码配置
+async function getPasswordConfig(token: string, owner: string, repo: string, branch: string, bookmarkDir: string): Promise<{enabled: boolean, password: string} | null> {
+  const filePath = getPasswordFilePath(bookmarkDir);
+  const apiUrl = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeFilePath(filePath)}?ref=${branch}&access_token=${token}`;
+  try {
+    const response = await fetch(apiUrl);
+    if (!response.ok) {
+      // 文件不存在，返回null
+      return null;
+    }
+    const fileData = await response.json();
+    const decodedContent = atob(fileData.content);
+    const decoder = new TextDecoder();
+    const decodedData = decoder.decode(
+      new Uint8Array([...decodedContent].map((char) => char.charCodeAt(0)))
+    );
+    return JSON.parse(decodedData);
+  } catch (error) {
+    return null;
+  }
+}
+
+// 保存密码配置到Gitee（创建或更新密码.json）
+async function savePasswordConfig(token: string, owner: string, repo: string, branch: string, bookmarkDir: string, config: {enabled: boolean, password: string}): Promise<boolean> {
+  const filePath = getPasswordFilePath(bookmarkDir);
+  const content = JSON.stringify(config, null, 2);
+  const encoder = new TextEncoder();
+  const data = encoder.encode(content);
+  const encodedContent = safeBtoa(data);
+
+  const apiUrl = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeFilePath(filePath)}`;
+
+  try {
+    // 先尝试获取文件（获取SHA用于更新）
+    const getUrl = `${apiUrl}?ref=${branch}&access_token=${token}`;
+    const getResponse = await fetch(getUrl);
+    let sha = '';
+
+    if (getResponse.ok) {
+      const fileInfo = await getResponse.json();
+      // 确保返回的是文件对象（有sha），而非目录列表（数组）
+      if (fileInfo && !Array.isArray(fileInfo) && fileInfo.sha) {
+        sha = fileInfo.sha;
+      }
+    }
+
+    if (sha) {
+      // 文件已存在且获取到SHA，更新文件
+      const putResponse = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          access_token: token,
+          content: encodedContent,
+          message: '更新密码配置',
+          sha: sha,
+          branch: branch
+        })
+      });
+      return putResponse.ok;
+    } else {
+      // 文件不存在或无法获取SHA，创建文件
+      const postResponse = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          access_token: token,
+          content: encodedContent,
+          message: '新增密码配置文件',
+          branch: branch
+        })
+      });
+      return postResponse.ok;
+    }
+  } catch (error) {
+    return false;
+  }
+}
+
 // == 快捷键配置工具 ==
 const DEFAULT_SHORTCUT_CONFIG = {
   search: {
@@ -365,7 +457,65 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!isChromeExtensionContext()) {
     return;
   }
-  
+
+  // == 密码锁定检查 ==
+  const popupContent = document.getElementById('popupContent') as HTMLDivElement;
+  const lockOverlay = document.getElementById('passwordLockOverlay') as HTMLDivElement;
+  const lockInput = document.getElementById('lockPasswordInput') as HTMLInputElement;
+  const lockSubmit = document.getElementById('lockPasswordSubmit') as HTMLButtonElement;
+  const lockError = document.getElementById('lockPasswordError') as HTMLDivElement;
+
+  try {
+    const configData = await getConfigFromDB(['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath']);
+    const pToken = configData.giteeToken || '';
+    const pOwner = configData.giteeOwner || '';
+    const pRepo = configData.giteeRepo || '';
+    const pBranch = configData.giteeBranch || 'master';
+    const pFilePath = configData.giteeFilePath || '';
+    const pDir = pFilePath.includes('/') ? pFilePath.substring(0, pFilePath.lastIndexOf('/')) : '';
+
+    let needLock = false;
+    if (pToken && pOwner && pRepo && pBranch && pDir) {
+      const pwdConfig = await getPasswordConfig(pToken, pOwner, pRepo, pBranch, pDir);
+      if (pwdConfig && pwdConfig.enabled && pwdConfig.password) {
+        needLock = true;
+        // 显示密码锁定遮罩
+        document.body.style.minHeight = '360px';
+        lockOverlay.style.display = 'flex';
+
+        const doUnlock = () => {
+          const inputVal = lockInput.value;
+          if (!inputVal) {
+            lockError.textContent = t('password.msg.empty');
+            return;
+          }
+          if (inputVal === pwdConfig.password) {
+            lockOverlay.style.display = 'none';
+            popupContent.style.display = '';
+            document.body.style.minHeight = '';
+          } else {
+            lockError.textContent = t('password.lock.error');
+            lockInput.value = '';
+            lockInput.focus();
+          }
+        };
+
+        lockSubmit.addEventListener('click', doUnlock);
+        lockInput.addEventListener('keydown', (e: KeyboardEvent) => {
+          if (e.key === 'Enter') doUnlock();
+        });
+        setTimeout(() => lockInput.focus(), 50);
+      }
+    }
+    // 无需密码，直接显示主内容
+    if (!needLock) {
+      popupContent.style.display = '';
+    }
+  } catch (e) {
+    // 密码检查失败，不锁定，显示主内容
+    popupContent.style.display = '';
+  }
+
   // Gitee 配置表单逻辑
   // const form = document.getElementById('giteeForm');
   const msg = document.getElementById('giteeMsg');
@@ -949,4 +1099,118 @@ document.addEventListener('DOMContentLoaded', async () => {
       saveShortcuts();
     });
   }
-}); 
+
+  // == 密码设置逻辑 ==
+  const passwordEnabledEl = document.getElementById('passwordEnabled') as HTMLInputElement;
+  const passwordInputEl = document.getElementById('passwordInput') as HTMLInputElement;
+  const passwordConfirmEl = document.getElementById('passwordConfirm') as HTMLInputElement;
+  const passwordFieldsEl = document.getElementById('passwordFields') as HTMLDivElement;
+  const savePasswordBtnEl = document.getElementById('savePasswordBtn') as HTMLButtonElement;
+  const passwordMsg = document.getElementById('passwordMsg');
+
+  function showPasswordMsg(text: string, isError = false) {
+    if (passwordMsg) {
+      passwordMsg.textContent = text;
+      (passwordMsg as HTMLElement).style.color = isError ? '#f44336' : '#42b983';
+      setTimeout(() => { if (passwordMsg) passwordMsg.textContent = ''; }, 3000);
+    }
+  }
+
+  function updatePasswordFieldsState() {
+    if (passwordFieldsEl) {
+      const disabled = !passwordEnabledEl.checked;
+      passwordInputEl.disabled = disabled;
+      passwordConfirmEl.disabled = disabled;
+      // 保存按钮始终可用，取消勾选后也需要能保存"关闭密码"状态
+      passwordInputEl.style.opacity = disabled ? '0.5' : '1';
+      passwordConfirmEl.style.opacity = disabled ? '0.5' : '1';
+    }
+  }
+
+  if (passwordEnabledEl && passwordInputEl && passwordConfirmEl && savePasswordBtnEl) {
+    // 初始化：从Gitee加载密码配置
+    async function loadPasswordConfig() {
+      const token = tokenEl.value.trim();
+      const owner = ownerEl.value.trim();
+      const repo = repoEl.value.trim();
+      const branch = branchSel.value;
+      const dir = bookmarkDirInput.value.trim();
+
+      if (!token || !owner || !repo || !branch || !dir) {
+        updatePasswordFieldsState();
+        return;
+      }
+
+      try {
+        const config = await getPasswordConfig(token, owner, repo, branch, dir);
+        if (config) {
+          passwordEnabledEl.checked = config.enabled;
+          passwordInputEl.value = config.password;
+          passwordConfirmEl.value = config.password;
+        } else {
+          // 密码.json不存在，说明没有配置密码
+          passwordEnabledEl.checked = false;
+          passwordInputEl.value = '';
+          passwordConfirmEl.value = '';
+        }
+      } catch (error) {
+        passwordEnabledEl.checked = false;
+      }
+      updatePasswordFieldsState();
+    }
+
+    // 页面加载时读取密码配置
+    setTimeout(() => {
+      loadPasswordConfig();
+    }, 500);
+
+    // 启用/禁用密码保护
+    passwordEnabledEl.addEventListener('change', () => {
+      updatePasswordFieldsState();
+    });
+
+    // 保存密码设置
+    savePasswordBtnEl.addEventListener('click', async () => {
+      const token = tokenEl.value.trim();
+      const owner = ownerEl.value.trim();
+      const repo = repoEl.value.trim();
+      const branch = branchSel.value;
+      const dir = bookmarkDirInput.value.trim();
+
+      if (!token || !owner || !repo || !branch || !dir) {
+        showPasswordMsg(t('password.msg.configFirst'), true);
+        return;
+      }
+
+      const enabled = passwordEnabledEl.checked;
+      const password = passwordInputEl.value;
+      const confirm = passwordConfirmEl.value;
+
+      if (enabled) {
+        if (!password) {
+          showPasswordMsg(t('password.msg.empty'), true);
+          return;
+        }
+        if (password !== confirm) {
+          showPasswordMsg(t('password.msg.mismatch'), true);
+          return;
+        }
+      }
+
+      const config = {
+        enabled: enabled,
+        password: enabled ? password : ''
+      };
+
+      const success = await savePasswordConfig(token, owner, repo, branch, dir, config);
+      if (success) {
+        showPasswordMsg(t('password.msg.saved'));
+      } else {
+        showPasswordMsg(t('password.msg.saveFailed'), true);
+      }
+    });
+
+    // 初始化密码字段状态
+    updatePasswordFieldsState();
+  }
+});

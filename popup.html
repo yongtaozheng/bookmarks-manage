@@ -301,6 +301,18 @@
     </style>
   </head>
   <body>
+    <!-- 密码锁定遮罩 -->
+    <div id="passwordLockOverlay" style="display:none;position:fixed;z-index:10000;left:0;top:0;width:100%;height:100%;background:#f6fafc;justify-content:center;align-items:center;flex-direction:column;">
+      <div style="text-align:center;padding:2em;">
+        <h2 style="color:#1976d2;font-family:var(--font-family-primary);margin-bottom:0.3em;" data-i18n="password.lock.title">🔒 密码保护</h2>
+        <p style="color:#666;font-size:var(--font-size-base);font-family:var(--font-family-primary);margin-bottom:1.2em;" data-i18n="password.lock.desc">书签管理器已启用密码保护，请输入密码以继续访问。</p>
+        <input type="password" id="lockPasswordInput" placeholder="请输入密码" data-i18n-placeholder="password.lock.placeholder" style="width:260px;padding:0.5em 0.8em;border:1px solid #ccc;border-radius:6px;font-size:var(--font-size-md);font-family:var(--font-family-primary);text-align:center;margin-bottom:0.5em;" />
+        <div id="lockPasswordError" style="color:#f44336;font-size:var(--font-size-sm);font-family:var(--font-family-primary);min-height:1.5em;margin-bottom:0.5em;"></div>
+        <button type="button" id="lockPasswordSubmit" style="width:260px;padding:0.5em 0;background:#1976d2;color:#fff;border:none;border-radius:6px;font-size:var(--font-size-md);font-family:var(--font-family-primary);cursor:pointer;transition:background 0.2s;" data-i18n="password.lock.submit">解锁</button>
+      </div>
+    </div>
+    <!-- 主内容（默认隐藏，密码检查完成后显示） -->
+    <div id="popupContent" style="display:none;">
     <select id="langSelect" class="font-yunfeng" style="position:absolute;top:12px;right:50px;z-index:1000;padding:2px 6px;border:1px solid #ccc;border-radius:4px;font-size:var(--font-size-base);background:#fff;cursor:pointer;">
       <option value="zh-CN" data-i18n="lang.zh">中文</option>
       <option value="en" data-i18n="lang.en">English</option>
@@ -403,6 +415,23 @@
         </div>
       </div>
     </div>
+    <div class="shortcut-form" id="passwordForm">
+      <h3 data-i18n="password.title">🔒 密码设置</h3>
+      <div class="shortcut-msg" id="passwordMsg"></div>
+      <div class="shortcut-toggle">
+        <input type="checkbox" id="passwordEnabled" />
+        <label for="passwordEnabled" data-i18n="password.enable">启用密码保护</label>
+      </div>
+      <div id="passwordFields">
+        <label><span data-i18n="password.label">密码</span>
+          <input type="password" id="passwordInput" placeholder="请输入密码" data-i18n-placeholder="password.placeholder" style="width:98%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid #ccc;border-radius:4px;font-size:var(--font-size-md);font-family:var(--font-family-primary);" />
+        </label>
+        <label><span data-i18n="password.confirmLabel">确认密码</span>
+          <input type="password" id="passwordConfirm" placeholder="请再次输入密码" data-i18n-placeholder="password.confirmPlaceholder" style="width:98%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid #ccc;border-radius:4px;font-size:var(--font-size-md);font-family:var(--font-family-primary);" />
+        </label>
+        <button type="button" id="savePasswordBtn" style="width:100%;padding:0.5em 0;background:#1976d2;color:#fff;border:none;border-radius:6px;font-size:var(--font-size-md);font-family:var(--font-family-primary);cursor:pointer;transition:background 0.2s;" data-i18n="password.save">保存密码设置</button>
+      </div>
+    </div>
     <div id="app"></div>
     <div id="helpModal" class="help-modal" style="display:none;">
       <div class="help-modal-content">
@@ -444,6 +473,7 @@
         </ul>
       </div>
     </div>
+    </div><!-- /popupContent -->
     <script type="module" src="src/popup.ts"></script>
   </body>
 </html> 

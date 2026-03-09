@@ -25,7 +25,7 @@
   <img src="https://img.shields.io/badge/Manifest-V3-orange" alt="Chrome Manifest V3" />
 </p>
 
-A modern Chrome bookmarks manager extension (Manifest V3) built with Vue 3 + TypeScript + Vite. Features local bookmark tree management, Gitee cloud sync, global smart search, customizable keyboard shortcuts, and more.
+A modern Chrome bookmarks manager extension (Manifest V3) built with Vue 3 + TypeScript + Vite. Features local bookmark tree management, Gitee cloud sync, global smart search, customizable keyboard shortcuts, password protection, and more.
 
 ## Features
 
@@ -34,6 +34,7 @@ A modern Chrome bookmarks manager extension (Manifest V3) built with Vue 3 + Typ
 - **Gitee Cloud Sync**: Sync local bookmarks to a Gitee repository with four modes — overwrite save, merge save, overwrite fetch, and merge fetch — with recursive deduplication on merge.
 - **Customizable Shortcuts**: Configure the global search trigger key, press count, time window, and close-tab shortcut in the Popup panel. Changes take effect immediately across all open tabs.
 - **Bookmark Hiding**: Hide specific bookmarks with persistent state stored in IndexedDB. Hidden bookmarks can optionally be preserved during cloud sync.
+- **Password Protection**: Protect the extension popup with a password lock. When enabled, a password is required each time the popup opens. Password configuration is stored in the Gitee repository for automatic multi-device sync.
 - **Data Security**: Gitee configuration stored in browser IndexedDB; shortcut settings and bookmark usage data stored in chrome.storage.local.
 
 ## Getting Started
@@ -88,7 +89,7 @@ bookmarks-manage/
 │   │   └── BookmarkTree.vue # Recursive bookmark tree component
 │   ├── App.vue              # New tab page main UI
 │   ├── main.ts              # Vue app entry point
-│   ├── popup.ts             # Popup panel logic (Gitee sync, shortcut settings)
+│   ├── popup.ts             # Popup panel logic (Gitee sync, shortcut settings, password protection)
 │   ├── content-search.ts    # Content script (global search, shortcut handling)
 │   ├── background.ts        # Service Worker (message relay, tab management)
 │   ├── bookmark-manager.js  # Bookmark manager page logic
@@ -113,6 +114,7 @@ Click the extension icon to open. Includes:
 - Four sync action buttons (overwrite save / merge save / overwrite fetch / merge fetch)
 - Bookmark file management (create / delete remote bookmark files)
 - Keyboard shortcut settings panel
+- Password protection settings
 - Help documentation
 
 ### Gitee Cloud Sync
@@ -149,6 +151,24 @@ Customizable in the Popup panel under "Shortcut Settings":
 - Close tab: modifier key, letter key, enable/disable toggle
 
 Changes apply immediately to all open tabs without page refresh.
+
+### Password Protection
+
+Add a password lock to the extension popup to prevent unauthorized access to your bookmark data.
+
+**Enable Password Protection:**
+
+1. Ensure Gitee cloud sync is properly configured (Token, repo, branch, bookmark directory)
+2. Scroll to the "🔒 Password Settings" section at the bottom of the Popup panel
+3. Check "Enable password protection"
+4. Enter and confirm your password
+5. Click "Save Password Settings"
+
+**How It Works:**
+
+- When enabled, a password lock screen is displayed each time the popup opens — correct password required to unlock
+- Password configuration is stored as a `密码.json` file in the bookmark directory of your Gitee repository, automatically synced across devices
+- To disable, simply uncheck "Enable password protection" and save
 
 ### Bookmark Manager
 

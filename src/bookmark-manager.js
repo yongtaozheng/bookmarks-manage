@@ -28,7 +28,7 @@ class BookmarkManager {
       branch: 'master',
       filePath: 'hidden-bookmarks.json'
     };
-    
+
     this.init();
   }
 
