@@ -1,1 +1,32 @@
-function a(){return typeof chrome<"u"&&chrome.runtime&&chrome.runtime.onMessage&&chrome.bookmarks}a()&&chrome.runtime.onMessage.addListener((t,o,r)=>{if(t&&t.type==="getAllBookmarks")return chrome.bookmarks.getTree(e=>{r({tree:e})}),!0;if(t&&t.type==="getBookmarkManagerData")return chrome.storage.local.get(["bookmarkManagerData"],e=>{r({bookmarks:e.bookmarkManagerData||[]})}),!0;t&&t.type==="closeCurrentTab"&&o&&o.tab&&o.tab.id&&chrome.tabs.remove(o.tab.id),t.type==="updateToken"&&t.token&&chrome.storage.local.set({latestToken:t.token},()=>{}),r({success:!0})});
+(() => {
+  // src/background.ts
+  function isChromeExtensionContext() {
+    return typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.onMessage && chrome.bookmarks;
+  }
+  if (isChromeExtensionContext()) {
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message && message.type === "getAllBookmarks") {
+        chrome.bookmarks.getTree((tree) => {
+          sendResponse({ tree });
+        });
+        return true;
+      }
+      if (message && message.type === "getBookmarkManagerData") {
+        chrome.storage.local.get(["bookmarkManagerData"], (result) => {
+          sendResponse({ bookmarks: result.bookmarkManagerData || [] });
+        });
+        return true;
+      }
+      if (message && message.type === "closeCurrentTab") {
+        if (sender && sender.tab && sender.tab.id) {
+          chrome.tabs.remove(sender.tab.id);
+        }
+      }
+      if (message.type === "updateToken" && message.token) {
+        chrome.storage.local.set({ "latestToken": message.token }, () => {
+        });
+      }
+      sendResponse({ success: true });
+    });
+  }
+})();

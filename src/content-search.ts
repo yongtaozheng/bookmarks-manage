@@ -109,6 +109,9 @@ let selectedIdx = -1;
 let allBookmarks: any[] = [];
 let isComposing = false;
 let keyboardPriority = false; // 键盘优先标记
+// 修饰键追踪状态（用于可靠检测修饰键连按）
+const heldModifierKeys = new Set<string>();
+let modifierUsedInCombo = false;
 
 async function fetchAllBookmarks() {
   if (!isChromeExtensionContext()) {
@@ -129,11 +132,42 @@ async function fetchAllBookmarks() {
   });
 }
 
+// 通过 keydown 追踪修饰键状态，可靠区分"单独按修饰键"和"组合键"
+// 这比在 keyup 中检查 e.ctrlKey/e.metaKey/e.altKey 更可靠（不同浏览器/OS 行为不一致）
+window.addEventListener('keydown', (e) => {
+  try {
+    const isModifierKey = e.key === 'Meta' || e.key === 'OS' || e.key === 'Control' || e.key === 'Alt';
+    if (isModifierKey && !e.repeat) {
+      heldModifierKeys.add(e.key);
+      if (heldModifierKeys.size === 1) {
+        // 只有一个修饰键被按下，暂时标记为非组合
+        modifierUsedInCombo = false;
+      } else {
+        // 多个修饰键同时按下（如 Ctrl+Alt），视为组合键
+        modifierUsedInCombo = true;
+      }
+    } else if (!isModifierKey && heldModifierKeys.size > 0) {
+      // 修饰键按住期间按下了其他键（如 Ctrl+C）→ 组合键
+      modifierUsedInCombo = true;
+    }
+  } catch {}
+}, true);
+
+// 窗口失焦时重置修饰键追踪状态，防止键状态"粘滞"
+window.addEventListener('blur', () => {
+  heldModifierKeys.clear();
+  modifierUsedInCombo = false;
+}, true);
+
 // 监听 command 连续按下（兼容 Mac/Win，capture: true）
 window.addEventListener('keyup', (e) => {
   try {
-    // 检查是否为单独的修饰键（不与其他键组合）
     const isModifierKey = e.key === 'Meta' || e.key === 'OS' || e.key === 'Control' || e.key === 'Alt';
+
+    // 更新修饰键追踪状态
+    if (isModifierKey) {
+      heldModifierKeys.delete(e.key);
+    }
 
     if (isModifierKey && shortcutConfig.search.enabled) {
       // 判断按下的修饰键是否匹配配置的触发键
@@ -146,25 +180,26 @@ window.addEventListener('keyup', (e) => {
         matchesTrigger = normalizedKey === shortcutConfig.search.triggerKey;
       }
 
-      if (matchesTrigger) {
-        // 检查是否有其他修饰键被按下，如果有则不计数
-        const hasOtherModifiers = e.ctrlKey || e.metaKey || e.altKey || e.shiftKey;
-
-        // 只有在当前修饰键被释放且没有其他修饰键被按下时才计数
-        if (!hasOtherModifiers) {
-          const now = Date.now();
-          if (now - lastCmdTime < shortcutConfig.search.timeWindow) {
-            cmdCount++;
-          } else {
-            cmdCount = 1;
-          }
-          lastCmdTime = now;
-          if (cmdCount === shortcutConfig.search.pressCount) {
-            e.preventDefault();
-            showSearchBox();
-            cmdCount = 0;
-          }
+      // 只有"干净"的修饰键按下释放才计数：
+      // 1. 未与其他键组合使用（modifierUsedInCombo = false）
+      // 2. 没有其他修饰键仍处于按下状态（heldModifierKeys.size === 0）
+      if (matchesTrigger && !modifierUsedInCombo && heldModifierKeys.size === 0) {
+        const now = Date.now();
+        if (now - lastCmdTime < shortcutConfig.search.timeWindow) {
+          cmdCount++;
+        } else {
+          cmdCount = 1;
         }
+        lastCmdTime = now;
+        if (cmdCount === shortcutConfig.search.pressCount) {
+          e.preventDefault();
+          showSearchBox();
+          cmdCount = 0;
+        }
+      } else if (modifierUsedInCombo) {
+        // 修饰键被用作组合键（如 Ctrl+C），重置连按计数
+        cmdCount = 0;
+        lastCmdTime = 0;
       }
     } else if (e.key === 'Escape' && searchBox) {
       removeSearchBox();
@@ -183,13 +218,9 @@ window.addEventListener('keyup', (e) => {
         try {
           chrome.runtime.sendMessage({ type: 'closeCurrentTab' });
         } catch {}
-      } else {
-        cmdCount = 0;
-        lastCmdTime = 0;
       }
-    } else {
-      cmdCount = 0;
-      lastCmdTime = 0;
+      // 注意：非修饰键的 keyup 不再重置 cmdCount，
+      // 修饰键连按计数仅由时间窗口超时自然失效
     }
   } catch (error) {
     // 静默处理错误
