@@ -2,6 +2,7 @@
   "name": "bookmarks-manage",
   "private": true,
   "version": "0.0.0",
+  "license": "MIT",
   "description": "现代浏览器书签管理器插件，基于 Vue 3 + TypeScript + Vite，支持本地书签树管理、Gitee 云同步、智能搜索、批量操作等功能。",
   "author": "JYeontu <jyeontu@163.com>",
   "repository": {
