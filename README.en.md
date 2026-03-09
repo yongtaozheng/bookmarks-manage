@@ -202,3 +202,7 @@ PRs and issues are welcome!
 
 - GitHub: [yongtaozheng/bookmarks-manage](https://github.com/yongtaozheng/bookmarks-manage)
 - Gitee: [zheng_yongtao/bookmarks-manage](https://gitee.com/zheng_yongtao/bookmarks-manage)
+
+## License
+
+This project is licensed under the [MIT License](./LICENSE).

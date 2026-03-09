@@ -220,3 +220,7 @@ bookmarks-manage/
 
 - GitHub：[yongtaozheng/bookmarks-manage](https://github.com/yongtaozheng/bookmarks-manage)
 - Gitee：[zheng_yongtao/bookmarks-manage](https://gitee.com/zheng_yongtao/bookmarks-manage)
+
+## 许可证
+
+本项目基于 [MIT License](./LICENSE) 开源。
