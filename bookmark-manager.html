@@ -678,6 +678,110 @@
       border-left: 1px solid #e0e0e0;
     }
 
+    /* 重复检测结果样式 */
+    .duplicate-group {
+      border-bottom: 1px solid #e0e0e0;
+      padding: 12px 16px;
+    }
+
+    .duplicate-group:last-child {
+      border-bottom: none;
+    }
+
+    .duplicate-group-header {
+      font-size: 13px;
+      font-weight: 500;
+      color: #4285f4;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow: hidden;
+    }
+
+    .duplicate-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 6px 0;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .duplicate-item input[type="checkbox"] {
+      margin-top: 3px;
+      accent-color: #4285f4;
+      flex-shrink: 0;
+    }
+
+    .duplicate-item-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .duplicate-item-title {
+      color: #333;
+      font-weight: 400;
+      word-break: break-word;
+    }
+
+    .duplicate-item-url {
+      color: #666;
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 600px;
+    }
+
+    .duplicate-item-path {
+      color: #999;
+      font-size: 12px;
+    }
+
+    .duplicate-keep-badge {
+      display: inline-block;
+      padding: 1px 6px;
+      background: #e8f5e9;
+      color: #2e7d32;
+      border-radius: 3px;
+      font-size: 11px;
+      margin-left: 6px;
+    }
+
+    .duplicate-mode-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .duplicate-mode-bar label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .duplicate-stats {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+      padding: 10px 14px;
+      background: #f0f7ff;
+      border: 1px solid #b3d4fc;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    .duplicate-controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
     .loading {
       text-align: center;
       padding: 40px;
@@ -815,6 +919,7 @@
       </select>
       <button class="btn" id="exportBtn" data-i18n="btn.export">📤 导出</button>
       <button class="btn" id="importBtn" data-i18n="btn.import">📥 导入</button>
+      <button class="btn" id="detectDuplicatesBtn" data-i18n="manager.detectDuplicates">🔍 检测重复</button>
       <input type="file" id="importFileInput" accept=".json" style="display: none;">
     </div>
 
@@ -939,6 +1044,47 @@
         <div class="form-actions">
           <button class="btn btn-primary" id="confirmImportBtn" data-i18n="manager.importConfirm">确认导入</button>
           <button class="btn" id="cancelImportBtn" data-i18n="btn.cancel">取消</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 重复书签检测对话框 -->
+  <div id="duplicateModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 800px;">
+      <div class="modal-header">
+        <h3 data-i18n="manager.duplicateTitle">重复书签检测</h3>
+        <span class="close" id="closeDuplicateModal">&times;</span>
+      </div>
+      <div class="modal-body">
+        <!-- 模式切换 -->
+        <div class="duplicate-mode-bar">
+          <label>
+            <input type="radio" name="duplicateMode" value="url" checked>
+            <span data-i18n="manager.duplicateUrlMode">URL 精确匹配</span>
+          </label>
+          <label>
+            <input type="radio" name="duplicateMode" value="title">
+            <span data-i18n="manager.duplicateTitleMode">标题模糊匹配</span>
+          </label>
+          <label id="stripQueryLabel" style="margin-left: 16px;">
+            <input type="checkbox" id="stripQueryParam">
+            <span data-i18n="manager.duplicateStripQuery">忽略查询参数</span>
+          </label>
+        </div>
+        <!-- 统计信息 -->
+        <div class="duplicate-stats" id="duplicateStats" style="display: none;"></div>
+        <!-- 全选/取消全选 -->
+        <div class="duplicate-controls" id="duplicateControls" style="display: none;">
+          <button class="btn" id="duplicateSelectAllBtn" data-i18n="manager.duplicateSelectAll">全选</button>
+          <button class="btn" id="duplicateDeselectAllBtn" data-i18n="manager.duplicateDeselectAll">取消全选</button>
+        </div>
+        <!-- 结果列表 -->
+        <div id="duplicateResults" style="max-height: 400px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 6px;"></div>
+        <!-- 操作按钮 -->
+        <div class="form-actions">
+          <button class="btn btn-danger" id="deleteDuplicatesBtn" style="display: none;" data-i18n="manager.duplicateDeleteSelected">删除选中 (0)</button>
+          <button class="btn" id="cancelDuplicateBtn" data-i18n="btn.cancel">取消</button>
         </div>
       </div>
     </div>

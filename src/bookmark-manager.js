@@ -22,6 +22,7 @@ class BookmarkManager {
     this.draggedElement = null; // 当前被拖动的元素
     this.dragOverElement = null; // 当前拖拽悬停的元素
     this.pendingImportData = null; // 待导入的书签数据
+    this.currentDuplicateGroups = []; // 当前重复检测结果
     this.giteeConfig = {
       owner: '',
       repo: '',
@@ -255,6 +256,42 @@ class BookmarkManager {
 
     document.getElementById('confirmImportBtn').addEventListener('click', () => {
       this.confirmImport();
+    });
+
+    // 重复检测对话框事件
+    document.getElementById('detectDuplicatesBtn').addEventListener('click', () => {
+      this.showDuplicateModal();
+    });
+
+    document.getElementById('closeDuplicateModal').addEventListener('click', () => {
+      this.hideDuplicateModal();
+    });
+
+    document.getElementById('cancelDuplicateBtn').addEventListener('click', () => {
+      this.hideDuplicateModal();
+    });
+
+    document.getElementById('deleteDuplicatesBtn').addEventListener('click', () => {
+      this.deleteSelectedDuplicates();
+    });
+
+    document.getElementById('duplicateSelectAllBtn').addEventListener('click', () => {
+      this.toggleAllDuplicateCheckboxes(true);
+    });
+
+    document.getElementById('duplicateDeselectAllBtn').addEventListener('click', () => {
+      this.toggleAllDuplicateCheckboxes(false);
+    });
+
+    // 检测模式切换
+    document.querySelectorAll('input[name="duplicateMode"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        this.runDuplicateDetection();
+      });
+    });
+
+    document.getElementById('stripQueryParam').addEventListener('change', () => {
+      this.runDuplicateDetection();
     });
 
     // 配置对话框事件
@@ -2033,6 +2070,342 @@ class BookmarkManager {
     alert(t('manager.configSaved'));
   }
 
+  // ========== 重复书签检测 ==========
+
+  /**
+   * 递归展平书签树为平面数组，每项携带文件夹路径
+   */
+  flattenBookmarks(bookmarks, parentPath = '') {
+    const result = [];
+    for (const item of bookmarks) {
+      const currentPath = parentPath ? `${parentPath} > ${item.title}` : item.title;
+      if (item.url) {
+        result.push({
+          id: item.id,
+          title: item.title || '',
+          url: item.url,
+          path: parentPath || '(root)',
+          dateAdded: item.dateAdded || 0,
+        });
+      }
+      if (item.children) {
+        result.push(...this.flattenBookmarks(item.children, currentPath));
+      }
+    }
+    return result;
+  }
+
+  /**
+   * URL 标准化：小写 + 去协议 + 去尾斜杠 + 可选去查询参数
+   */
+  normalizeUrl(url, stripQuery = false) {
+    try {
+      let u = url.trim().toLowerCase();
+      u = u.replace(/^https?:\/\//, '');
+      u = u.replace(/\/+$/, '');
+      if (stripQuery) {
+        u = u.replace(/[?#].*$/, '');
+      }
+      return u;
+    } catch {
+      return url;
+    }
+  }
+
+  /**
+   * 基于 bigram Dice 系数的标题相似度计算（0~1）
+   */
+  titleSimilarity(a, b) {
+    a = a.trim().toLowerCase();
+    b = b.trim().toLowerCase();
+    if (a === b) return 1.0;
+    if (a.length < 2 || b.length < 2) return 0;
+
+    const bigramsA = new Map();
+    for (let i = 0; i < a.length - 1; i++) {
+      const bigram = a.substring(i, i + 2);
+      bigramsA.set(bigram, (bigramsA.get(bigram) || 0) + 1);
+    }
+
+    let intersection = 0;
+    for (let i = 0; i < b.length - 1; i++) {
+      const bigram = b.substring(i, i + 2);
+      const count = bigramsA.get(bigram) || 0;
+      if (count > 0) {
+        bigramsA.set(bigram, count - 1);
+        intersection++;
+      }
+    }
+
+    return (2 * intersection) / ((a.length - 1) + (b.length - 1));
+  }
+
+  /**
+   * 按 URL 精确匹配检测重复
+   */
+  detectDuplicatesByUrl(flatBookmarks, stripQuery = false) {
+    const groups = new Map();
+
+    for (const bookmark of flatBookmarks) {
+      if (!bookmark.url) continue;
+      const key = this.normalizeUrl(bookmark.url, stripQuery);
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
+      groups.get(key).push(bookmark);
+    }
+
+    const duplicates = [];
+    for (const [key, items] of groups) {
+      if (items.length > 1) {
+        duplicates.push({ key, items });
+      }
+    }
+
+    return duplicates;
+  }
+
+  /**
+   * 按标题模糊匹配检测重复（Dice 系数 >= 0.6）
+   */
+  detectDuplicatesByTitle(flatBookmarks) {
+    const threshold = 0.6;
+    const visited = new Set();
+    const groups = [];
+
+    for (let i = 0; i < flatBookmarks.length; i++) {
+      if (visited.has(i)) continue;
+      const group = [flatBookmarks[i]];
+
+      for (let j = i + 1; j < flatBookmarks.length; j++) {
+        if (visited.has(j)) continue;
+        const similarity = this.titleSimilarity(
+          flatBookmarks[i].title,
+          flatBookmarks[j].title
+        );
+        if (similarity >= threshold) {
+          group.push(flatBookmarks[j]);
+          visited.add(j);
+        }
+      }
+
+      if (group.length > 1) {
+        visited.add(i);
+        groups.push({
+          key: flatBookmarks[i].title,
+          items: group,
+        });
+      }
+    }
+
+    return groups;
+  }
+
+  /**
+   * 打开重复检测对话框
+   */
+  showDuplicateModal() {
+    document.getElementById('duplicateModal').style.display = 'flex';
+    // 重置为 URL 模式
+    document.querySelector('input[name="duplicateMode"][value="url"]').checked = true;
+    document.getElementById('stripQueryParam').checked = false;
+    document.getElementById('stripQueryLabel').style.display = '';
+    this.runDuplicateDetection();
+  }
+
+  /**
+   * 关闭重复检测对话框
+   */
+  hideDuplicateModal() {
+    document.getElementById('duplicateModal').style.display = 'none';
+  }
+
+  /**
+   * 根据当前模式执行重复检测
+   */
+  runDuplicateDetection() {
+    const mode = document.querySelector('input[name="duplicateMode"]:checked').value;
+    const stripQuery = document.getElementById('stripQueryParam').checked;
+
+    // URL 模式才显示「忽略查询参数」
+    document.getElementById('stripQueryLabel').style.display = mode === 'url' ? '' : 'none';
+
+    // 展平书签树
+    const flatBookmarks = this.flattenBookmarks(this.bookmarks);
+
+    // 执行检测
+    let duplicateGroups;
+    if (mode === 'url') {
+      duplicateGroups = this.detectDuplicatesByUrl(flatBookmarks, stripQuery);
+    } else {
+      duplicateGroups = this.detectDuplicatesByTitle(flatBookmarks);
+    }
+
+    this.currentDuplicateGroups = duplicateGroups;
+    this.renderDuplicateResults(duplicateGroups);
+  }
+
+  /**
+   * 渲染重复检测结果
+   */
+  renderDuplicateResults(groups) {
+    const statsEl = document.getElementById('duplicateStats');
+    const resultsEl = document.getElementById('duplicateResults');
+    const deleteBtn = document.getElementById('deleteDuplicatesBtn');
+    const controlsEl = document.getElementById('duplicateControls');
+
+    if (groups.length === 0) {
+      statsEl.style.display = 'none';
+      controlsEl.style.display = 'none';
+      resultsEl.innerHTML = `
+        <div style="text-align: center; padding: 40px 20px; color: #666;">
+          <div style="font-size: 40px; margin-bottom: 12px;">✅</div>
+          <div style="font-size: 16px; margin-bottom: 8px;">${t('manager.duplicateNone')}</div>
+          <div style="font-size: 13px;">${t('manager.duplicateNoneDesc')}</div>
+        </div>
+      `;
+      deleteBtn.style.display = 'none';
+      return;
+    }
+
+    // 统计
+    const totalDuplicates = groups.reduce((sum, g) => sum + g.items.length - 1, 0);
+    statsEl.style.display = 'flex';
+    statsEl.innerHTML = `
+      <span>${t('manager.duplicateGroups', String(groups.length))}</span>
+      <span>${t('manager.duplicateTotal', String(totalDuplicates))}</span>
+    `;
+
+    controlsEl.style.display = '';
+    deleteBtn.style.display = '';
+
+    // 构建分组 HTML
+    let html = '';
+    groups.forEach((group, groupIdx) => {
+      html += `<div class="duplicate-group">`;
+      html += `<div class="duplicate-group-header">`;
+      html += `<span style="white-space: nowrap;">📑 ${group.items.length} ${t('manager.items')}</span>`;
+      if (group.items[0].url) {
+        const displayUrl = group.items[0].url.length > 80
+          ? group.items[0].url.substring(0, 80) + '...'
+          : group.items[0].url;
+        html += `<span style="color: #999; font-weight: 400; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${this.escapeHtml(displayUrl)}</span>`;
+      }
+      html += `</div>`;
+
+      group.items.forEach((item, itemIdx) => {
+        const isFirst = itemIdx === 0;
+        const checked = isFirst ? '' : 'checked';
+
+        html += `
+          <div class="duplicate-item">
+            <input type="checkbox" class="duplicate-checkbox"
+                   data-group="${groupIdx}" data-item="${itemIdx}"
+                   data-bookmark-id="${item.id}" ${checked}>
+            <div class="duplicate-item-info">
+              <div class="duplicate-item-title">
+                ${this.escapeHtml(item.title)}
+                ${isFirst ? `<span class="duplicate-keep-badge">${t('manager.duplicateKeepHint')}</span>` : ''}
+              </div>
+              ${item.url ? `<div class="duplicate-item-url" title="${this.escapeHtml(item.url)}">${this.escapeHtml(item.url)}</div>` : ''}
+              <div class="duplicate-item-path">${t('manager.duplicatePath', this.escapeHtml(item.path))}</div>
+            </div>
+          </div>
+        `;
+      });
+
+      html += `</div>`;
+    });
+
+    resultsEl.innerHTML = html;
+
+    // 绑定 checkbox 变更事件
+    this.updateDuplicateSelectedCount();
+    resultsEl.querySelectorAll('.duplicate-checkbox').forEach(cb => {
+      cb.addEventListener('change', () => {
+        this.updateDuplicateSelectedCount();
+      });
+    });
+  }
+
+  /**
+   * HTML 转义（防 XSS）
+   */
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  /**
+   * 更新删除按钮上的选中计数
+   */
+  updateDuplicateSelectedCount() {
+    const checkboxes = document.querySelectorAll('#duplicateResults .duplicate-checkbox:checked');
+    const count = checkboxes.length;
+    const deleteBtn = document.getElementById('deleteDuplicatesBtn');
+    deleteBtn.textContent = t('manager.duplicateDeleteSelected', String(count));
+    deleteBtn.disabled = count === 0;
+  }
+
+  /**
+   * 全选 / 取消全选
+   */
+  toggleAllDuplicateCheckboxes(checked) {
+    document.querySelectorAll('#duplicateResults .duplicate-checkbox').forEach(cb => {
+      cb.checked = checked;
+    });
+    this.updateDuplicateSelectedCount();
+  }
+
+  /**
+   * 批量删除选中的重复书签
+   */
+  async deleteSelectedDuplicates() {
+    const checkboxes = document.querySelectorAll('#duplicateResults .duplicate-checkbox:checked');
+    const ids = Array.from(checkboxes).map(cb => cb.getAttribute('data-bookmark-id'));
+
+    if (ids.length === 0) return;
+
+    if (!confirm(t('confirm.deleteDuplicates', String(ids.length)))) {
+      return;
+    }
+
+    const deleteBtn = document.getElementById('deleteDuplicatesBtn');
+    deleteBtn.textContent = t('manager.duplicateDeleting');
+    deleteBtn.disabled = true;
+
+    try {
+      if (typeof chrome !== 'undefined' && chrome.bookmarks) {
+        for (const id of ids) {
+          await new Promise((resolve, reject) => {
+            chrome.bookmarks.remove(id, () => {
+              if (chrome.runtime.lastError) {
+                reject(chrome.runtime.lastError);
+              } else {
+                resolve();
+              }
+            });
+          });
+        }
+      }
+
+      // 刷新书签数据和 UI
+      await this.loadBookmarks();
+      this.renderFolderTree();
+      this.renderBookmarks();
+      this.updateStats();
+
+      // 关闭对话框并提示成功
+      this.hideDuplicateModal();
+      alert(t('manager.duplicateDeleteSuccess', String(ids.length)));
+    } catch (error) {
+      console.error('Delete duplicates failed:', error);
+      alert(t('manager.duplicateDeleteFailed'));
+      // 重新执行检测刷新状态
+      this.runDuplicateDetection();
+    }
+  }
 
 }
 
