@@ -788,7 +788,18 @@
   <link rel="modulepreload" crossorigin href="/index.js">
 </head>
 <body>
-  <div class="container">
+  <!-- 密码锁定遮罩 -->
+  <div id="passwordLockOverlay" style="display:none;position:fixed;z-index:10000;left:0;top:0;width:100%;height:100%;background:#f5f5f5;justify-content:center;align-items:center;flex-direction:column;">
+    <div style="text-align:center;padding:2em;">
+      <h2 style="color:#4285f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;margin-bottom:0.3em;" data-i18n="password.lock.title">🔒 密码保护</h2>
+      <p style="color:#666;font-size:14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;margin-bottom:1.2em;" data-i18n="password.lock.desc">书签管理器已启用密码保护，请输入密码以继续访问。</p>
+      <input type="password" id="lockPasswordInput" placeholder="请输入密码" data-i18n-placeholder="password.lock.placeholder" style="width:260px;padding:0.5em 0.8em;border:1px solid #ccc;border-radius:6px;font-size:14px;text-align:center;margin-bottom:0.5em;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;" />
+      <div id="lockPasswordError" style="color:#f44336;font-size:13px;min-height:1.5em;margin-bottom:0.5em;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;"></div>
+      <button type="button" id="lockPasswordSubmit" style="width:260px;padding:0.5em 0;background:#4285f4;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;transition:background 0.2s;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;" data-i18n="password.lock.submit">解锁</button>
+    </div>
+  </div>
+  <!-- 主内容（默认隐藏，密码验证通过后显示） -->
+  <div class="container" id="mainContent" style="display:none;">
     <div class="header">
       <h1 data-i18n="manager.header">书签管理器</h1>
       <div class="header-actions">

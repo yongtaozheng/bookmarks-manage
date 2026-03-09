@@ -2036,7 +2036,151 @@ class BookmarkManager {
 
 }
 
-// 初始化书签管理器
-document.addEventListener('DOMContentLoaded', () => {
-  window.bookmarkManager = new BookmarkManager();
+// 密码验证与初始化书签管理器
+document.addEventListener('DOMContentLoaded', async () => {
+  const mainContent = document.getElementById('mainContent');
+  const lockOverlay = document.getElementById('passwordLockOverlay');
+
+  // 初始化书签管理器（密码验证通过后调用）
+  function initManager() {
+    mainContent.style.display = '';
+    window.bookmarkManager = new BookmarkManager();
+  }
+
+  // 检查是否从 popup 页面跳转（存在有效的认证时间戳）
+  const isFromPopup = await new Promise((resolve) => {
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.get(['bmAuthTimestamp'], (result) => {
+        if (result.bmAuthTimestamp) {
+          const elapsed = Date.now() - result.bmAuthTimestamp;
+          // 消费掉认证时间戳（一次性使用）
+          chrome.storage.local.remove(['bmAuthTimestamp']);
+          // 10 秒内的跳转视为来自 popup
+          if (elapsed < 10000) {
+            resolve(true);
+            return;
+          }
+        }
+        resolve(false);
+      });
+    } else {
+      resolve(false);
+    }
+  });
+
+  // 从 popup 跳转，无需二次校验，直接初始化
+  if (isFromPopup) {
+    initManager();
+    return;
+  }
+
+  // 非 popup 跳转，需要检查密码保护
+  try {
+    // 从 IndexedDB 获取 Gitee 配置
+    const db = await new Promise((resolve, reject) => {
+      const req = indexedDB.open('bookmarks-plus', 1);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('gitee-config')) {
+          db.createObjectStore('gitee-config');
+        }
+      };
+      req.onsuccess = (e) => resolve(e.target.result);
+      req.onerror = (e) => reject(e);
+    });
+
+    const getConfig = (fields) => new Promise((resolve) => {
+      const tx = db.transaction('gitee-config', 'readonly');
+      const store = tx.objectStore('gitee-config');
+      const result = {};
+      let count = fields.length;
+      fields.forEach((f) => {
+        const req = store.get(f);
+        req.onsuccess = () => {
+          result[f] = req.result || '';
+          count--;
+          if (count === 0) resolve(result);
+        };
+        req.onerror = () => {
+          count--;
+          if (count === 0) resolve(result);
+        };
+      });
+    });
+
+    const configData = await getConfig(['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath']);
+    const pToken = configData.giteeToken || '';
+    const pOwner = configData.giteeOwner || '';
+    const pRepo = configData.giteeRepo || '';
+    const pBranch = configData.giteeBranch || 'master';
+    const pFilePath = configData.giteeFilePath || '';
+    const pDir = pFilePath.includes('/') ? pFilePath.substring(0, pFilePath.lastIndexOf('/')) : '';
+
+    let needLock = false;
+
+    if (pToken && pOwner && pRepo && pBranch && pDir) {
+      // 从 Gitee 获取密码配置
+      const passwordFileName = '密码.json';
+      const passwordFilePath = pDir ? `${pDir}/${passwordFileName}` : passwordFileName;
+      const encodedPath = passwordFilePath.split('/').map(encodeURIComponent).join('/');
+      const apiUrl = `https://gitee.com/api/v5/repos/${pOwner}/${pRepo}/contents/${encodedPath}?ref=${pBranch}`;
+
+      try {
+        const response = await fetch(apiUrl, {
+          headers: { 'Authorization': `token ${pToken}` }
+        });
+
+        if (response.ok) {
+          const fileData = await response.json();
+          const decodedContent = atob(fileData.content);
+          const decoder = new TextDecoder();
+          const decodedData = decoder.decode(
+            new Uint8Array([...decodedContent].map((char) => char.charCodeAt(0)))
+          );
+          const pwdConfig = JSON.parse(decodedData);
+
+          if (pwdConfig && pwdConfig.enabled && pwdConfig.password) {
+            needLock = true;
+            lockOverlay.style.display = 'flex';
+
+            const lockInput = document.getElementById('lockPasswordInput');
+            const lockSubmit = document.getElementById('lockPasswordSubmit');
+            const lockError = document.getElementById('lockPasswordError');
+
+            const doUnlock = () => {
+              const inputVal = lockInput.value;
+              if (!inputVal) {
+                lockError.textContent = t('password.msg.empty');
+                return;
+              }
+              if (inputVal === pwdConfig.password) {
+                lockOverlay.style.display = 'none';
+                initManager();
+              } else {
+                lockError.textContent = t('password.lock.error');
+                lockInput.value = '';
+                lockInput.focus();
+              }
+            };
+
+            lockSubmit.addEventListener('click', doUnlock);
+            lockInput.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter') doUnlock();
+            });
+            setTimeout(() => lockInput.focus(), 50);
+          }
+        }
+      } catch (error) {
+        // 密码配置获取失败，不锁定
+      }
+    }
+
+    // 无需密码保护，直接初始化
+    if (!needLock) {
+      initManager();
+    }
+  } catch (e) {
+    // 发生异常，不阻塞用户使用
+    initManager();
+  }
 });

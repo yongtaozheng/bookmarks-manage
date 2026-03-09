@@ -1040,10 +1040,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (openMyBookmarksBtn) {
     openMyBookmarksBtn.onclick = function() {
       if (chrome && chrome.tabs && chrome.tabs.create) {
-        chrome.tabs.create({ url: chrome.runtime.getURL('bookmark-manager.html') }, function() {
-          if (chrome.runtime.lastError) {
-            alert(t('msg.cannotOpenMyManager'));
-          }
+        // 设置认证时间戳，让 bookmark-manager 知道这是从 popup 跳转的，无需二次校验
+        chrome.storage.local.set({ bmAuthTimestamp: Date.now() }, function() {
+          chrome.tabs.create({ url: chrome.runtime.getURL('bookmark-manager.html') }, function() {
+            if (chrome.runtime.lastError) {
+              alert(t('msg.cannotOpenMyManager'));
+            }
+          });
         });
       } else {
         // 非扩展环境，直接打开
