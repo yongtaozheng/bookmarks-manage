@@ -2,7 +2,7 @@ import { initLocale, t, setLocale, getLocale, translateDOM } from './i18n/index'
 import type { Locale } from './i18n/index';
 import { initTheme, setupThemeToggle } from './theme';
 import { encrypt, decryptSafe } from './crypto';
-import { checkForUpdate, getCurrentVersion, getDismissedVersion, setDismissedVersion, downloadDistZip } from './version-check';
+import { checkForUpdate, getCurrentVersion, getDismissedVersion, setDismissedVersion, downloadDistZip, GITEE_RELEASES_PAGE } from './version-check';
 
 declare const chrome: any;
 
@@ -501,6 +501,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const updateBanner = document.getElementById('updateBanner');
     const updateBannerText = document.getElementById('updateBannerText');
     const updateBannerDownload = document.getElementById('updateBannerDownload') as HTMLButtonElement;
+    const updateBannerDetail = document.getElementById('updateBannerDetail') as HTMLButtonElement;
     const updateBannerDismiss = document.getElementById('updateBannerDismiss');
 
     if (!versionBar) return;
@@ -544,6 +545,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             }, 2000);
           }
         });
+
+        // 查看更新内容：跳转到 Gitee Releases 页面
+        if (updateBannerDetail) {
+          updateBannerDetail.addEventListener('click', () => {
+            if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.create) {
+              chrome.tabs.create({ url: GITEE_RELEASES_PAGE });
+            } else {
+              window.open(GITEE_RELEASES_PAGE, '_blank');
+            }
+          });
+        }
 
         // 忽略按钮
         updateBannerDismiss.addEventListener('click', async () => {

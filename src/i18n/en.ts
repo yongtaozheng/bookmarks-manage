@@ -350,6 +350,7 @@ export default {
   'version.current': 'Version: v{0}',
   'version.newAvailable': '🎉 New version v{0} available',
   'version.download': 'Download',
+  'version.viewChanges': 'Changes',
   'version.dismiss': 'Dismiss',
   'version.checking': 'Checking for updates...',
   'version.latest': 'Up to date',

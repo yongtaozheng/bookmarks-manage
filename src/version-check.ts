@@ -13,6 +13,8 @@ const GITHUB_RELEASE_API = 'https://api.github.com/repos/yongtaozheng/bookmarks-
 const GITEE_RELEASE_API = 'https://gitee.com/api/v5/repos/zheng_yongtao/bookmarks-manage/releases/latest';
 // Gitee Contents API — 用于获取 dist.zip 的 download_url
 const GITEE_DIST_ZIP_API = 'https://gitee.com/api/v5/repos/zheng_yongtao/bookmarks-manage/contents/dist.zip?ref=main';
+// Releases 页面 — 查看更新详情
+export const GITEE_RELEASES_PAGE = 'https://gitee.com/zheng_yongtao/bookmarks-manage/releases';
 
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 小时
 const REQUEST_TIMEOUT_MS = 10000; // 10 秒

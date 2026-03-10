@@ -350,6 +350,7 @@ export default {
   'version.current': '当前版本：v{0}',
   'version.newAvailable': '🎉 发现新版本 v{0}',
   'version.download': '立即下载',
+  'version.viewChanges': '查看更新',
   'version.dismiss': '忽略此版本',
   'version.checking': '正在检查更新...',
   'version.latest': '已是最新版本',

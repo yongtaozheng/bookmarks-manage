@@ -458,6 +458,15 @@
           color: #89b4fa;
         }
       }
+      .update-banner-detail {
+        background: transparent;
+        color: inherit;
+        border: 1px solid currentColor;
+        opacity: 0.75;
+      }
+      .update-banner-detail:hover {
+        opacity: 1;
+      }
       .update-banner-dismiss {
         background: none;
         border: none;
@@ -519,6 +528,7 @@
     <div class="update-banner" id="updateBanner">
       <span class="update-banner-text" id="updateBannerText"></span>
       <button class="update-banner-download" id="updateBannerDownload" data-i18n="version.download">立即下载</button>
+      <button class="update-banner-download update-banner-detail" id="updateBannerDetail" data-i18n="version.viewChanges">查看更新</button>
       <button class="update-banner-dismiss" id="updateBannerDismiss" title="忽略此版本" data-i18n-title="version.dismiss">&times;</button>
     </div>
     <div class="popup-header">
