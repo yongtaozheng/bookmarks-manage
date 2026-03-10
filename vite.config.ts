@@ -48,10 +48,6 @@ export default defineConfig({
           dest: '.'
         },
         {
-          src: 'public/我的字体.ttf',
-          dest: '.'
-        },
-        {
           src: '_locales',
           dest: '.'
         }

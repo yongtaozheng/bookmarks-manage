@@ -87,7 +87,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  font-family: 'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif;
+  font-family: var(--font-family-primary);
 }
 .nt-card {
   background: var(--main-card, #fff);
@@ -102,7 +102,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  font-family: 'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif;
+  font-family: var(--font-family-primary);
 }
 .nt-tree-container {
   width: 100%;
@@ -128,7 +128,7 @@ onMounted(() => {
   font-size: 1em;
   line-height: 1.7;
   word-break: break-all;
-  font-family: 'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif;
+  font-family: var(--font-family-primary);
 }
 .folder {
   font-weight: 600;

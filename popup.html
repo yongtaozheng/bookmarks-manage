@@ -6,15 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>书签管理器</title>
     <style>
-      /* 引入我的字体字体 */
-      @font-face {
-        font-family: 'YunFengJingLong';
-        src: url('/我的字体.ttf') format('truetype');
-        font-weight: normal;
-        font-style: normal;
-        font-display: swap;
-      }
-
       /* 字体尺寸变量 + 颜色变量 */
       :root {
         /* 字体尺寸变量 */
@@ -28,7 +19,7 @@
         --font-size-3xl: 1.8em;      /* 3倍大字体 */
 
         /* 字体族变量 */
-        --font-family-primary: 'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif;
+        --font-family-primary: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', '微软雅黑', sans-serif;
         --font-family-fallback: system-ui, Avenir, Helvetica, Arial, sans-serif;
 
         /* 颜色变量 (Light) */
@@ -96,11 +87,6 @@
           --color-overlay: rgba(0,0,0,0.5);
           --color-modal-bg: #1e1e2e;
         }
-      }
-
-      /* 我的字体字体类 */
-      .font-yunfeng {
-        font-family: var(--font-family-primary);
       }
 
       html, body { width: 600px !important; min-width: 600px !important; max-width: 600px !important; height: 600px !important; max-height: 600px !important; }
@@ -310,7 +296,7 @@
         width: 28px;
         height: 28px;
         font-size: 18px;
-        font-family: 'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif;
+        font-family: var(--font-family-primary);
         cursor: pointer;
         margin: 10px 10px 0 0;
         box-shadow: 0 1px 4px var(--color-shadow);
@@ -356,7 +342,7 @@
       .help-modal-content h3 {
         margin-top: 0;
         font-size: 1.2em;
-        font-family: 'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif;
+        font-family: var(--font-family-primary);
         color: var(--color-accent-blue);
       }
       .help-modal-content ul {
@@ -366,7 +352,7 @@
       .help-modal-content li {
         margin-bottom: 0.5em;
         font-size: 1em;
-        font-family: 'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif;
+        font-family: var(--font-family-primary);
         color: var(--color-text-primary);
       }
 
@@ -439,13 +425,13 @@
       <button id="themeToggle" style="background:var(--color-accent-blue);color:#fff;border:none;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;box-shadow:0 1px 4px var(--color-shadow);transition:background 0.2s;display:flex;align-items:center;justify-content:center;" title="切换主题" data-i18n-title="theme.toggle">
         <span id="themeIcon">🖥️</span>
       </button>
-      <select id="langSelect" class="font-yunfeng" style="padding:2px 6px;border:1px solid var(--color-border);border-radius:4px;font-size:var(--font-size-base);background:var(--color-input-bg);color:var(--color-text-primary);cursor:pointer;height:28px;">
+      <select id="langSelect" style="padding:2px 6px;border:1px solid var(--color-border);border-radius:4px;font-size:var(--font-size-base);background:var(--color-input-bg);color:var(--color-text-primary);cursor:pointer;height:28px;">
         <option value="zh-CN" data-i18n="lang.zh">中文</option>
         <option value="en" data-i18n="lang.en">English</option>
       </select>
       <button class="help-btn" id="helpBtn" title="帮助" data-i18n-title="btn.help" style="margin:0;">?</button>
     </div>
-    <h1 style="margin:0;padding:1em 0 0.5em 0;text-align:center;font-size:var(--font-size-2xl);color:var(--color-accent-blue);" class="font-yunfeng" data-i18n="app.name">JYeontu书签管理器</h1>
+    <h1 style="margin:0;padding:1em 0 0.5em 0;text-align:center;font-size:var(--font-size-2xl);color:var(--color-accent-blue);" data-i18n="app.name">JYeontu书签管理器</h1>
     <div class="popup-header">
     </div>
     <!-- Tab 导航栏 -->

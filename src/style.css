@@ -1,12 +1,3 @@
-/* 引入我的字体字体 */
-@font-face {
-  font-family: 'YunFengJingLong';
-  src: url('/我的字体.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
 /* 字体尺寸变量 */
 :root {
   /* 字体尺寸变量 */
@@ -18,15 +9,10 @@
   --font-size-xl: 1.2em;       /* 超大字体 */
   --font-size-2xl: 1.4em;      /* 2倍大字体 */
   --font-size-3xl: 1.8em;      /* 3倍大字体 */
-  
-  /* 字体族变量 */
-  --font-family-primary: 'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif;
-  --font-family-fallback: system-ui, Avenir, Helvetica, Arial, sans-serif;
-}
 
-/* 我的字体字体类 */
-.font-yunfeng {
-  font-family: var(--font-family-primary);
+  /* 字体族变量 */
+  --font-family-primary: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', '微软雅黑', sans-serif;
+  --font-family-fallback: system-ui, Avenir, Helvetica, Arial, sans-serif;
 }
 
 :root {

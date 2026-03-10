@@ -85,8 +85,7 @@ Packages `dist/` into `dist.zip` for distribution.
 ```
 bookmarks-manage/
 ├── public/                  # Public assets
-│   ├── icon.png             # Extension icon
-│   └── 我的字体.ttf          # Custom font
+│   └── icon.png             # Extension icon
 ├── src/
 │   ├── components/          # Vue components
 │   │   └── BookmarkTree.vue # Recursive bookmark tree component

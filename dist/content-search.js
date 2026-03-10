@@ -954,7 +954,7 @@
     inputEl.type = "text";
     inputEl.placeholder = t("search.placeholder");
     inputEl.style.fontSize = "1.4em";
-    inputEl.style.fontFamily = "'YunFengJingLong', 'Microsoft YaHei', '\u5FAE\u8F6F\u96C5\u9ED1', sans-serif";
+    inputEl.style.fontFamily = "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', '\u5FAE\u8F6F\u96C5\u9ED1', sans-serif";
     inputEl.style.padding = "0.5em 1em";
     inputEl.style.border = `1.5px solid ${themeColors.border}`;
     inputEl.style.borderRadius = "6px";
@@ -1131,7 +1131,7 @@
       li.style.background = idx2 === selectedIdx ? colors.selectedBg : colors.bg;
       li.style.color = idx2 === selectedIdx ? colors.selectedText : colors.text;
       li.style.fontSize = "1.1em";
-      li.style.fontFamily = "'YunFengJingLong', 'Microsoft YaHei', '\u5FAE\u8F6F\u96C5\u9ED1', sans-serif";
+      li.style.fontFamily = "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', '\u5FAE\u8F6F\u96C5\u9ED1', sans-serif";
       li.style.overflow = "hidden";
       li.style.textOverflow = "ellipsis";
       li.style.display = "-webkit-box";

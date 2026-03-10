@@ -345,7 +345,7 @@ function showSearchBox() {
   inputEl.type = 'text';
   inputEl.placeholder = t('search.placeholder');
   inputEl.style.fontSize = '1.4em';
-  inputEl.style.fontFamily = "'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif";
+  inputEl.style.fontFamily = "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', '微软雅黑', sans-serif";
   inputEl.style.padding = '0.5em 1em';
   inputEl.style.border = `1.5px solid ${themeColors.border}`;
   inputEl.style.borderRadius = '6px';
@@ -543,7 +543,7 @@ function renderResults(list: any[], folderTitle?: string) {
     li.style.background = idx === selectedIdx ? colors.selectedBg : colors.bg;
     li.style.color = idx === selectedIdx ? colors.selectedText : colors.text;
     li.style.fontSize = '1.1em';
-    li.style.fontFamily = "'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif";
+    li.style.fontFamily = "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', '微软雅黑', sans-serif";
     li.style.overflow = 'hidden';
     li.style.textOverflow = 'ellipsis';
     li.style.display = '-webkit-box';

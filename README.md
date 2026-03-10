@@ -85,8 +85,7 @@ npm run zip
 ```
 bookmarks-manage/
 ├── public/                  # 公共资源
-│   ├── icon.png             # 插件图标
-│   └── 我的字体.ttf          # 自定义字体
+│   └── icon.png             # 插件图标
 ├── src/
 │   ├── components/          # Vue 组件
 │   │   └── BookmarkTree.vue # 递归书签树组件
