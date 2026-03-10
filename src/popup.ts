@@ -2,6 +2,7 @@ import { initLocale, t, setLocale, getLocale, translateDOM } from './i18n/index'
 import type { Locale } from './i18n/index';
 import { initTheme, setupThemeToggle } from './theme';
 import { encrypt, decryptSafe } from './crypto';
+import { checkForUpdate, getCurrentVersion, getDismissedVersion, setDismissedVersion, downloadDistZip } from './version-check';
 
 declare const chrome: any;
 
@@ -494,10 +495,74 @@ document.addEventListener('DOMContentLoaded', async () => {
   await initLocale();
   translateDOM();
 
+  // ====== 版本更新检查 UI ======
+  async function initVersionCheck() {
+    const versionBar = document.getElementById('versionBar');
+    const updateBanner = document.getElementById('updateBanner');
+    const updateBannerText = document.getElementById('updateBannerText');
+    const updateBannerDownload = document.getElementById('updateBannerDownload') as HTMLButtonElement;
+    const updateBannerDismiss = document.getElementById('updateBannerDismiss');
+
+    if (!versionBar) return;
+
+    // 显示当前版本
+    const currentVersion = getCurrentVersion();
+    versionBar.textContent = t('version.current', currentVersion);
+
+    try {
+      const result = await checkForUpdate();
+
+      if (result.hasUpdate && updateBanner && updateBannerText && updateBannerDownload && updateBannerDismiss) {
+        // 检查是否已忽略此版本
+        const dismissedVersion = await getDismissedVersion();
+        if (dismissedVersion === result.latestVersion) {
+          return; // 用户已忽略此版本
+        }
+
+        // 显示更新横幅
+        updateBannerText.textContent = t('version.newAvailable', result.latestVersion);
+        updateBannerDownload.textContent = t('version.download');
+        updateBanner.classList.add('visible');
+
+        // 点击下载：调用 Gitee Contents API 直接下载文件
+        updateBannerDownload.addEventListener('click', async (e) => {
+          e.preventDefault();
+          const originalText = updateBannerDownload.textContent;
+          updateBannerDownload.textContent = t('version.downloading');
+          updateBannerDownload.style.pointerEvents = 'none';
+          updateBannerDownload.style.opacity = '0.6';
+          try {
+            await downloadDistZip();
+            updateBannerDownload.textContent = t('version.downloadSuccess');
+          } catch {
+            updateBannerDownload.textContent = t('version.downloadFailed');
+          } finally {
+            updateBannerDownload.style.pointerEvents = '';
+            updateBannerDownload.style.opacity = '';
+            setTimeout(() => {
+              updateBannerDownload.textContent = originalText;
+            }, 2000);
+          }
+        });
+
+        // 忽略按钮
+        updateBannerDismiss.addEventListener('click', async () => {
+          await setDismissedVersion(result.latestVersion);
+          updateBanner.classList.remove('visible');
+        });
+      }
+    } catch {
+      // 版本检查失败，静默忽略
+    }
+  }
+
   // ====== 初始化所有 popup UI（密码验证通过后调用）======
   function initPopupUI() {
     // 主题切换按钮（在 popupContent 内部）
     setupThemeToggle();
+
+    // == 版本更新检查 ==
+    initVersionCheck();
 
     // 语言选择器
     const langSelect = document.getElementById('langSelect') as HTMLSelectElement;

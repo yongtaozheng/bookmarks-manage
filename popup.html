@@ -393,6 +393,85 @@
         z-index: 100;
         background: var(--color-bg-secondary);
       }
+
+      /* 版本信息 & 更新通知 */
+      .version-bar {
+        text-align: center;
+        font-size: var(--font-size-xs);
+        color: var(--color-text-muted);
+        margin: -0.2em 0 0.3em 0;
+        line-height: 1.6;
+      }
+      .update-banner {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6em;
+        width: 580px;
+        margin: 0 auto 0.3em auto;
+        padding: 0.45em 0.8em;
+        background: linear-gradient(135deg, #a6e3a1 0%, #89b4fa 100%);
+        border-radius: 6px;
+        font-size: var(--font-size-sm);
+        color: #1e1e2e;
+        box-sizing: border-box;
+      }
+      [data-theme="dark"] .update-banner {
+        background: linear-gradient(135deg, #2d5a3d 0%, #2d4a7a 100%);
+        color: #cdd6f4;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) .update-banner {
+          background: linear-gradient(135deg, #2d5a3d 0%, #2d4a7a 100%);
+          color: #cdd6f4;
+        }
+      }
+      .update-banner.visible {
+        display: flex;
+      }
+      .update-banner-text {
+        font-weight: bold;
+      }
+      .update-banner-download {
+        padding: 0.2em 0.7em;
+        background: #fff;
+        color: var(--color-accent-blue);
+        border: none;
+        border-radius: 4px;
+        font-size: var(--font-size-xs);
+        font-family: var(--font-family-primary);
+        cursor: pointer;
+        text-decoration: none;
+        font-weight: bold;
+        transition: opacity 0.2s;
+      }
+      .update-banner-download:hover {
+        opacity: 0.85;
+      }
+      [data-theme="dark"] .update-banner-download {
+        background: #313244;
+        color: #89b4fa;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) .update-banner-download {
+          background: #313244;
+          color: #89b4fa;
+        }
+      }
+      .update-banner-dismiss {
+        background: none;
+        border: none;
+        color: inherit;
+        font-size: 16px;
+        cursor: pointer;
+        padding: 0 0.2em;
+        opacity: 0.6;
+        transition: opacity 0.2s;
+        line-height: 1;
+      }
+      .update-banner-dismiss:hover {
+        opacity: 1;
+      }
       .popup-tab-content {
         flex: 1;
         overflow-y: auto;
@@ -432,6 +511,14 @@
       <button class="help-btn" id="helpBtn" title="帮助" data-i18n-title="btn.help" style="margin:0;">?</button>
     </div>
     <h1 style="margin:0;padding:1em 0 0.5em 0;text-align:center;font-size:var(--font-size-2xl);color:var(--color-accent-blue);" data-i18n="app.name">JYeontu书签管理器</h1>
+    <!-- 版本信息 -->
+    <div class="version-bar" id="versionBar"></div>
+    <!-- 更新通知横幅 -->
+    <div class="update-banner" id="updateBanner">
+      <span class="update-banner-text" id="updateBannerText"></span>
+      <button class="update-banner-download" id="updateBannerDownload" data-i18n="version.download">立即下载</button>
+      <button class="update-banner-dismiss" id="updateBannerDismiss" title="忽略此版本" data-i18n-title="version.dismiss">&times;</button>
+    </div>
     <div class="popup-header">
     </div>
     <!-- Tab 导航栏 -->

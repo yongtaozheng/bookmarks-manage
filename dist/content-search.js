@@ -327,7 +327,18 @@
     "theme.dark": "\u6DF1\u8272",
     // === 语言 ===
     "lang.zh": "\u4E2D\u6587",
-    "lang.en": "English"
+    "lang.en": "English",
+    // === 版本更新 ===
+    "version.current": "\u5F53\u524D\u7248\u672C\uFF1Av{0}",
+    "version.newAvailable": "\u{1F389} \u53D1\u73B0\u65B0\u7248\u672C v{0}",
+    "version.download": "\u7ACB\u5373\u4E0B\u8F7D",
+    "version.dismiss": "\u5FFD\u7565\u6B64\u7248\u672C",
+    "version.checking": "\u6B63\u5728\u68C0\u67E5\u66F4\u65B0...",
+    "version.latest": "\u5DF2\u662F\u6700\u65B0\u7248\u672C",
+    "version.checkFailed": "\u68C0\u67E5\u66F4\u65B0\u5931\u8D25",
+    "version.downloading": "\u6B63\u5728\u4E0B\u8F7D...",
+    "version.downloadSuccess": "\u4E0B\u8F7D\u5B8C\u6210 \u2713",
+    "version.downloadFailed": "\u4E0B\u8F7D\u5931\u8D25\uFF0C\u8BF7\u91CD\u8BD5"
   };
 
   // src/i18n/en.ts
@@ -658,7 +669,18 @@
     "theme.dark": "Dark",
     // === Language ===
     "lang.zh": "\u4E2D\u6587",
-    "lang.en": "English"
+    "lang.en": "English",
+    // === Version Update ===
+    "version.current": "Version: v{0}",
+    "version.newAvailable": "\u{1F389} New version v{0} available",
+    "version.download": "Download",
+    "version.dismiss": "Dismiss",
+    "version.checking": "Checking for updates...",
+    "version.latest": "Up to date",
+    "version.checkFailed": "Update check failed",
+    "version.downloading": "Downloading...",
+    "version.downloadSuccess": "Downloaded \u2713",
+    "version.downloadFailed": "Download failed, retry"
   };
 
   // src/i18n/index.ts

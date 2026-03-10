@@ -345,4 +345,16 @@ export default {
   // === 语言 ===
   'lang.zh': '中文',
   'lang.en': 'English',
+
+  // === 版本更新 ===
+  'version.current': '当前版本：v{0}',
+  'version.newAvailable': '🎉 发现新版本 v{0}',
+  'version.download': '立即下载',
+  'version.dismiss': '忽略此版本',
+  'version.checking': '正在检查更新...',
+  'version.latest': '已是最新版本',
+  'version.checkFailed': '检查更新失败',
+  'version.downloading': '正在下载...',
+  'version.downloadSuccess': '下载完成 ✓',
+  'version.downloadFailed': '下载失败，请重试',
 } as Record<string, string>;

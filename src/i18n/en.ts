@@ -345,4 +345,16 @@ export default {
   // === Language ===
   'lang.zh': '中文',
   'lang.en': 'English',
+
+  // === Version Update ===
+  'version.current': 'Version: v{0}',
+  'version.newAvailable': '🎉 New version v{0} available',
+  'version.download': 'Download',
+  'version.dismiss': 'Dismiss',
+  'version.checking': 'Checking for updates...',
+  'version.latest': 'Up to date',
+  'version.checkFailed': 'Update check failed',
+  'version.downloading': 'Downloading...',
+  'version.downloadSuccess': 'Downloaded ✓',
+  'version.downloadFailed': 'Download failed, retry',
 } as Record<string, string>;
