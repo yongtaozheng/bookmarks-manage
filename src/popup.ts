@@ -493,6 +493,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // == Tab 切换逻辑 ==
+  const tabBtns = document.querySelectorAll('.popup-tab-btn') as NodeListOf<HTMLButtonElement>;
+  const tabPanels = document.querySelectorAll('.popup-tab-panel') as NodeListOf<HTMLDivElement>;
+
+  // 从 storage 恢复上次的 tab
+  const savedTab = localStorage.getItem('popup_active_tab') || 'config';
+  function switchTab(tabName: string) {
+    tabBtns.forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-tab') === tabName);
+    });
+    tabPanels.forEach(panel => {
+      panel.classList.toggle('active', panel.getAttribute('data-tab-panel') === tabName);
+    });
+    localStorage.setItem('popup_active_tab', tabName);
+  }
+
+  // 初始化选中 tab
+  switchTab(savedTab);
+
+  // 绑定点击事件
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabName = btn.getAttribute('data-tab');
+      if (tabName) switchTab(tabName);
+    });
+  });
+
   // 如果不是Chrome扩展环境，直接返回
   if (!isChromeExtensionContext()) {
     return;

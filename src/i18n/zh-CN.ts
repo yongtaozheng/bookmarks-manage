@@ -317,6 +317,25 @@ export default {
   'password.lock.error': '密码错误，请重试',
   'password.lock.noConfig': 'Gitee配置不完整，无法验证密码',
 
+  // === Tab 标签 ===
+  'tab.config': '⚙️ 配置',
+  'tab.shortcut': '⌨️ 快捷键',
+  'tab.password': '🔒 密码',
+  'tab.feedback': '💬 反馈',
+
+  // === 反馈 ===
+  'feedback.title': '💬 反馈与交流',
+  'feedback.desc': '如果您在使用中遇到问题或有功能建议，欢迎通过以下渠道反馈：',
+  'feedback.giteeIssue': 'Gitee Issue',
+  'feedback.giteeIssueDesc': '在 Gitee 上提交问题或建议',
+  'feedback.githubIssue': 'GitHub Issue',
+  'feedback.githubIssueDesc': '在 GitHub 上提交问题或建议',
+  'feedback.wechatOA': '微信公众号',
+  'feedback.wechatOADesc': '关注公众号获取最新动态和使用技巧',
+  'feedback.wechatOAName': '前端也能这么有趣',
+  'feedback.wechatGroup': '微信交流群',
+  'feedback.wechatGroupDesc': '扫描下方二维码加入微信交流群，与其他用户交流使用心得',
+
   // === 主题设置 ===
   'theme.toggle': '切换主题',
   'theme.system': '跟随系统',

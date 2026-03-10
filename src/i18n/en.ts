@@ -317,6 +317,25 @@ export default {
   'password.lock.error': 'Incorrect password, please try again',
   'password.lock.noConfig': 'Gitee configuration is incomplete, cannot verify password',
 
+  // === Tabs ===
+  'tab.config': '⚙️ Config',
+  'tab.shortcut': '⌨️ Shortcuts',
+  'tab.password': '🔒 Password',
+  'tab.feedback': '💬 Feedback',
+
+  // === Feedback ===
+  'feedback.title': '💬 Feedback & Community',
+  'feedback.desc': 'If you encounter any issues or have feature suggestions, feel free to reach out:',
+  'feedback.giteeIssue': 'Gitee Issue',
+  'feedback.giteeIssueDesc': 'Submit issues or suggestions on Gitee',
+  'feedback.githubIssue': 'GitHub Issue',
+  'feedback.githubIssueDesc': 'Submit issues or suggestions on GitHub',
+  'feedback.wechatOA': 'WeChat Official Account',
+  'feedback.wechatOADesc': 'Follow for latest updates and tips',
+  'feedback.wechatOAName': '前端也能这么有趣',
+  'feedback.wechatGroup': 'WeChat Group',
+  'feedback.wechatGroupDesc': 'Scan the QR code below to join the WeChat group and discuss with other users',
+
   // === Theme Settings ===
   'theme.toggle': 'Toggle Theme',
   'theme.system': 'System',

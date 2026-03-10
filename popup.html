@@ -369,6 +369,44 @@
         font-family: 'YunFengJingLong', 'Microsoft YaHei', '微软雅黑', sans-serif;
         color: var(--color-text-primary);
       }
+
+      /* Tab 样式 */
+      .popup-tabs {
+        display: flex;
+        width: 580px;
+        margin: 0.5em auto 0 auto;
+        border-bottom: 2px solid var(--color-border-light);
+        gap: 0;
+      }
+      .popup-tab-btn {
+        flex: 1;
+        padding: 0.6em 0;
+        background: none;
+        border: none;
+        border-bottom: 3px solid transparent;
+        font-size: var(--font-size-md);
+        font-family: var(--font-family-primary);
+        color: var(--color-text-muted);
+        cursor: pointer;
+        transition: color 0.2s, border-color 0.2s, background 0.2s;
+        margin-bottom: -2px;
+        border-radius: 6px 6px 0 0;
+      }
+      .popup-tab-btn:hover {
+        color: var(--color-accent-blue);
+        background: var(--color-bg-hover);
+      }
+      .popup-tab-btn.active {
+        color: var(--color-accent-blue);
+        border-bottom-color: var(--color-accent-blue);
+        font-weight: bold;
+      }
+      .popup-tab-panel {
+        display: none;
+      }
+      .popup-tab-panel.active {
+        display: block;
+      }
     </style>
   </head>
   <body>
@@ -384,17 +422,29 @@
     </div>
     <!-- 主内容（默认隐藏，密码检查完成后显示） -->
     <div id="popupContent" style="display:none;">
-    <button id="themeToggle" style="position:absolute;top:10px;right:130px;z-index:1000;background:var(--color-accent-blue);color:#fff;border:none;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;box-shadow:0 1px 4px var(--color-shadow);transition:background 0.2s;" title="切换主题" data-i18n-title="theme.toggle">
-      <span id="themeIcon">🖥️</span>
-    </button>
-    <select id="langSelect" class="font-yunfeng" style="position:absolute;top:12px;right:50px;z-index:1000;padding:2px 6px;border:1px solid var(--color-border);border-radius:4px;font-size:var(--font-size-base);background:var(--color-input-bg);color:var(--color-text-primary);cursor:pointer;">
-      <option value="zh-CN" data-i18n="lang.zh">中文</option>
-      <option value="en" data-i18n="lang.en">English</option>
-    </select>
-    <button class="help-btn" id="helpBtn" title="帮助" data-i18n-title="btn.help" style="position:absolute;top:10px;right:10px;z-index:1000;">?</button>
+    <div style="position:absolute;top:10px;right:10px;z-index:1000;display:flex;align-items:center;gap:8px;">
+      <button id="themeToggle" style="background:var(--color-accent-blue);color:#fff;border:none;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;box-shadow:0 1px 4px var(--color-shadow);transition:background 0.2s;display:flex;align-items:center;justify-content:center;" title="切换主题" data-i18n-title="theme.toggle">
+        <span id="themeIcon">🖥️</span>
+      </button>
+      <select id="langSelect" class="font-yunfeng" style="padding:2px 6px;border:1px solid var(--color-border);border-radius:4px;font-size:var(--font-size-base);background:var(--color-input-bg);color:var(--color-text-primary);cursor:pointer;height:28px;">
+        <option value="zh-CN" data-i18n="lang.zh">中文</option>
+        <option value="en" data-i18n="lang.en">English</option>
+      </select>
+      <button class="help-btn" id="helpBtn" title="帮助" data-i18n-title="btn.help" style="margin:0;">?</button>
+    </div>
     <h1 style="margin:0;padding:1em 0 0.5em 0;text-align:center;font-size:var(--font-size-2xl);color:var(--color-accent-blue);" class="font-yunfeng" data-i18n="app.name">JYeontu书签管理器</h1>
     <div class="popup-header">
     </div>
+    <!-- Tab 导航栏 -->
+    <div class="popup-tabs" id="popupTabs">
+      <button class="popup-tab-btn active" data-tab="config" data-i18n="tab.config">⚙️ 配置</button>
+      <button class="popup-tab-btn" data-tab="shortcut" data-i18n="tab.shortcut">⌨️ 快捷键</button>
+      <button class="popup-tab-btn" data-tab="password" data-i18n="tab.password">🔒 密码</button>
+      <button class="popup-tab-btn" data-tab="feedback" data-i18n="tab.feedback">💬 反馈</button>
+    </div>
+
+    <!-- Tab 1: 配置 -->
+    <div class="popup-tab-panel active" id="tabConfig" data-tab-panel="config">
     <div class="bookmark-manager-buttons">
       <button class="system-bookmark-btn" id="openSystemBookmarksBtn" data-i18n="popup.systemBookmarks">系统书签管理器</button>
       <button class="my-bookmark-btn" id="openMyBookmarksBtn" data-i18n="popup.myBookmarks">我的书签管理器</button>
@@ -434,6 +484,10 @@
       <button id="btnGetOverwrite" type="button" data-i18n="sync.overwriteGet">覆盖获取</button>
       <button id="btnGetMerge" type="button" data-i18n="sync.mergeGet">合并获取</button>
     </div>
+    </div>
+
+    <!-- Tab 2: 快捷键 -->
+    <div class="popup-tab-panel" id="tabShortcut" data-tab-panel="shortcut">
     <div class="shortcut-form" id="shortcutForm">
       <h3 data-i18n="shortcut.title">⌨️ 快捷键设置</h3>
       <div class="shortcut-msg" id="shortcutMsg"></div>
@@ -489,6 +543,10 @@
         </div>
       </div>
     </div>
+    </div>
+
+    <!-- Tab 3: 密码 -->
+    <div class="popup-tab-panel" id="tabPassword" data-tab-panel="password">
     <div class="shortcut-form" id="passwordForm">
       <h3 data-i18n="password.title">🔒 密码设置</h3>
       <div class="shortcut-msg" id="passwordMsg"></div>
@@ -505,6 +563,45 @@
         </label>
         <button type="button" id="savePasswordBtn" style="width:100%;padding:0.5em 0;background:var(--color-accent-blue);color:#fff;border:none;border-radius:6px;font-size:var(--font-size-md);font-family:var(--font-family-primary);cursor:pointer;transition:background 0.2s;" data-i18n="password.save">保存密码设置</button>
       </div>
+    </div>
+    </div>
+
+    <!-- Tab 4: 反馈 -->
+    <div class="popup-tab-panel" id="tabFeedback" data-tab-panel="feedback">
+    <div class="shortcut-form" id="feedbackPanel">
+      <h3 data-i18n="feedback.title">💬 反馈与交流</h3>
+      <div style="margin-bottom:1em;">
+        <p style="font-size:var(--font-size-md);color:var(--color-text-secondary);margin:0 0 0.8em 0;" data-i18n="feedback.desc">如果您在使用中遇到问题或有功能建议，欢迎通过以下渠道反馈：</p>
+        <div style="display:flex;flex-direction:column;gap:0.6em;">
+          <a href="https://gitee.com/zheng_yongtao/bookmarks-manage/issues" target="_blank" style="display:flex;align-items:center;gap:0.5em;padding:0.6em 1em;background:var(--color-bg-hover);border:1px solid var(--color-border-light);border-radius:6px;text-decoration:none;color:var(--color-text-primary);transition:background 0.2s;">
+            <span style="font-size:1.2em;">🟠</span>
+            <span>
+              <b data-i18n="feedback.giteeIssue">Gitee Issue</b>
+              <span style="display:block;font-size:var(--font-size-xs);color:var(--color-text-muted);" data-i18n="feedback.giteeIssueDesc">在 Gitee 上提交问题或建议</span>
+            </span>
+          </a>
+          <a href="https://github.com/yongtaozheng/bookmarks-manage/issues" target="_blank" style="display:flex;align-items:center;gap:0.5em;padding:0.6em 1em;background:var(--color-bg-hover);border:1px solid var(--color-border-light);border-radius:6px;text-decoration:none;color:var(--color-text-primary);transition:background 0.2s;">
+            <span style="font-size:1.2em;">⚫</span>
+            <span>
+              <b data-i18n="feedback.githubIssue">GitHub Issue</b>
+              <span style="display:block;font-size:var(--font-size-xs);color:var(--color-text-muted);" data-i18n="feedback.githubIssueDesc">在 GitHub 上提交问题或建议</span>
+            </span>
+          </a>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--color-border-light);padding-top:1em;">
+        <p style="font-size:var(--font-size-md);color:var(--color-accent-blue);font-weight:bold;margin:0 0 0.6em 0;" data-i18n="feedback.wechatOA">微信公众号</p>
+        <p style="font-size:var(--font-size-sm);color:var(--color-text-muted);margin:0 0 0.5em 0;" data-i18n="feedback.wechatOADesc">关注公众号获取最新动态和使用技巧</p>
+        <a href="https://mp.weixin.qq.com/s/B0ahLbzpZUSH0ClPbySdcQ" target="_blank" style="display:block;text-align:center;text-decoration:none;color:var(--color-accent-blue);font-size:var(--font-size-lg);font-weight:bold;margin:0 0 1em 0;" data-i18n="feedback.wechatOAName">前端也能这么有趣</a>
+      </div>
+      <div style="border-top:1px solid var(--color-border-light);padding-top:1em;">
+        <p style="font-size:var(--font-size-md);color:var(--color-accent-blue);font-weight:bold;margin:0 0 0.6em 0;" data-i18n="feedback.wechatGroup">微信交流群</p>
+        <p style="font-size:var(--font-size-sm);color:var(--color-text-muted);margin:0 0 0.8em 0;" data-i18n="feedback.wechatGroupDesc">扫描下方二维码加入微信交流群，与其他用户交流使用心得</p>
+        <div style="text-align:center;">
+          <img src="http://jyeontu.xyz:3003/viewImage/qrcode.png" alt="微信群二维码" style="max-width:200px;border-radius:8px;border:1px solid var(--color-border-light);" />
+        </div>
+      </div>
+    </div>
     </div>
     <div id="app"></div>
     <div id="helpModal" class="help-modal" style="display:none;">
