@@ -667,8 +667,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       fillSelectOptions(filePathSelect, [], t('select.loading'));
       try {
         const files = await fetchGiteeFiles(token, owner, repo, branch, dir);
-        // 过滤掉 .keep 文件
-        const filtered = files.filter((f: string) => !f.endsWith('.keep'));
+        // 过滤掉 .keep 文件和密码文件
+        const filtered = files.filter((f: string) => !f.endsWith('.keep') && !f.endsWith(PASSWORD_FILE_NAME));
         fillSelectOptions(filePathSelect, filtered, t('select.selectFile'));
       } catch (e) {
         fillSelectOptions(filePathSelect, [], t('select.getFileFailed'));
