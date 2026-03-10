@@ -2873,7 +2873,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   const lockOverlay = document.getElementById('passwordLockOverlay');
 
   // 初始化书签管理器（密码验证通过后调用）
+  // 使用 verified 标志防止从控���台重复调用
+  let verified = false;
   function initManager() {
+    if (verified) return; // 防止重复初始化
+    verified = true;
+    // 将主内容重新添加到DOM（如果之前被移除）
+    if (!document.getElementById('mainContent')) {
+      document.body.appendChild(mainContent);
+    }
     mainContent.style.display = '';
     window.bookmarkManager = new BookmarkManager();
   }
@@ -2972,7 +2980,31 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           if (pwdConfig && pwdConfig.enabled && pwdConfig.password) {
             needLock = true;
+
+            // === 安全优化：从DOM中移除主内容，而不是仅用display:none隐藏 ===
+            // 将mainContent从DOM树中移除，存储在闭包变量中
+            // 这样即使通过控制���也无法通过修改CSS来显示内容
+            mainContent.remove();
+
+            // 显示密码锁定遮罩
             lockOverlay.style.display = 'flex';
+
+            // 使用 MutationObserver 防止通过控制台篡改锁定遮罩
+            let unlocked = false;
+            const protectObserver = new MutationObserver(() => {
+              if (!unlocked) {
+                // 确保锁定遮罩始终可见
+                if (lockOverlay.style.display !== 'flex') {
+                  lockOverlay.style.display = 'flex';
+                }
+                // 确保主内容未被重新添加到DOM
+                if (document.getElementById('mainContent')) {
+                  document.getElementById('mainContent').remove();
+                }
+              }
+            });
+            protectObserver.observe(lockOverlay, { attributes: true, attributeFilter: ['style', 'class'] });
+            protectObserver.observe(document.body, { childList: true });
 
             const lockInput = document.getElementById('lockPasswordInput');
             const lockSubmit = document.getElementById('lockPasswordSubmit');
@@ -2985,7 +3017,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
               }
               if (inputVal === pwdConfig.password) {
+                // 标记已解锁，停止保护
+                unlocked = true;
+                protectObserver.disconnect();
+
+                // 隐藏锁定遮罩
                 lockOverlay.style.display = 'none';
+
+                // 初始化管理器（会将mainContent重新添加到DOM）
                 initManager();
               } else {
                 lockError.textContent = t('password.lock.error');

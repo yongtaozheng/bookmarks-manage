@@ -475,50 +475,774 @@ function showMsg(text: string, isError = false) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // 初始化主题
+  // 初始化主题（CSS变量，锁定界面也需要）
   await initTheme();
-  setupThemeToggle();
 
-  // 初始化语言
+  // 初始化语言（锁定遮罩也需要翻译）
   await initLocale();
   translateDOM();
 
-  // 语言选择器
-  const langSelect = document.getElementById('langSelect') as HTMLSelectElement;
-  if (langSelect) {
-    langSelect.value = getLocale();
-    langSelect.addEventListener('change', async () => {
-      await setLocale(langSelect.value as Locale);
-      translateDOM();
-    });
-  }
+  // ====== 初始化所有 popup UI（密码验证通过后调用）======
+  function initPopupUI() {
+    // 主题切换按钮（在 popupContent 内部）
+    setupThemeToggle();
 
-  // == Tab 切换逻辑 ==
-  const tabBtns = document.querySelectorAll('.popup-tab-btn') as NodeListOf<HTMLButtonElement>;
-  const tabPanels = document.querySelectorAll('.popup-tab-panel') as NodeListOf<HTMLDivElement>;
+    // 语言选择器
+    const langSelect = document.getElementById('langSelect') as HTMLSelectElement;
+    if (langSelect) {
+      langSelect.value = getLocale();
+      langSelect.addEventListener('change', async () => {
+        await setLocale(langSelect.value as Locale);
+        translateDOM();
+      });
+    }
 
-  // 从 storage 恢复上次的 tab
-  const savedTab = localStorage.getItem('popup_active_tab') || 'config';
-  function switchTab(tabName: string) {
+    // == Tab 切换逻辑 ==
+    const tabBtns = document.querySelectorAll('.popup-tab-btn') as NodeListOf<HTMLButtonElement>;
+    const tabPanels = document.querySelectorAll('.popup-tab-panel') as NodeListOf<HTMLDivElement>;
+
+    // 从 storage 恢复上次的 tab
+    const savedTab = localStorage.getItem('popup_active_tab') || 'config';
+    function switchTab(tabName: string) {
+      tabBtns.forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-tab') === tabName);
+      });
+      tabPanels.forEach(panel => {
+        panel.classList.toggle('active', panel.getAttribute('data-tab-panel') === tabName);
+      });
+      localStorage.setItem('popup_active_tab', tabName);
+    }
+
+    // 初始化选中 tab
+    switchTab(savedTab);
+
+    // 绑定点击事件
     tabBtns.forEach(btn => {
-      btn.classList.toggle('active', btn.getAttribute('data-tab') === tabName);
+      btn.addEventListener('click', () => {
+        const tabName = btn.getAttribute('data-tab');
+        if (tabName) switchTab(tabName);
+      });
     });
-    tabPanels.forEach(panel => {
-      panel.classList.toggle('active', panel.getAttribute('data-tab-panel') === tabName);
-    });
-    localStorage.setItem('popup_active_tab', tabName);
-  }
 
-  // 初始化选中 tab
-  switchTab(savedTab);
-
-  // 绑定点击事件
-  tabBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const tabName = btn.getAttribute('data-tab');
-      if (tabName) switchTab(tabName);
+    // Gitee 配置表单逻辑
+    // const form = document.getElementById('giteeForm');
+    const msg = document.getElementById('giteeMsg');
+    const fields = ['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath'];
+    // 自动填充
+    getConfigFromDB(fields).then((data) => {
+      fields.forEach(f => {
+        const el = document.getElementById(f) as HTMLInputElement;
+        if (el && data[f]) el.value = data[f];
+      });
     });
-  });
+    // 自动回填保存的 filePath 配置
+    getConfigFromDB(['giteeFilePath']).then((data) => {
+      const savedFile = data['giteeFilePath'];
+      if (savedFile) {
+        // 等待文件列表加载后再选中
+        const trySelect = () => {
+          const opt = Array.from(filePathSelect.options).find(o => o.value === savedFile);
+          if (opt) {
+            filePathSelect.value = savedFile;
+          } else {
+            setTimeout(trySelect, 100);
+          }
+        };
+        trySelect();
+      }
+    });
+    // 输入框失焦和输入时自动保存
+    fields.forEach(f => {
+      const el = document.getElementById(f) as HTMLInputElement;
+      function save() {
+        const config: Record<string, string> = {};
+        fields.forEach(ff => {
+          const v = (document.getElementById(ff) as HTMLInputElement).value;
+          config[ff] = v;
+        });
+        setConfigToDB(config).then(() => {
+          if (msg) {
+            msg.textContent = t('msg.configSaved');
+            setTimeout(() => { msg.textContent = ''; }, 1200);
+          }
+        });
+      }
+      el.addEventListener('blur', save);
+      el.addEventListener('input', save);
+    });
+
+    const tokenEl = document.getElementById('giteeToken') as HTMLInputElement;
+    const ownerEl = document.getElementById('giteeOwner') as HTMLInputElement;
+    const repoEl = document.getElementById('giteeRepo') as HTMLInputElement;
+    const branchSel = document.getElementById('giteeBranch') as HTMLSelectElement;
+    const filePathSelect = document.getElementById('giteeFilePath') as HTMLSelectElement;
+    const bookmarkDirInput = document.getElementById('bookmarkDir') as HTMLInputElement;
+
+    // 监听来自content script的消息（在DOM加载完成后设置）
+    chrome.runtime.onMessage.addListener((message: any) => {
+      if (message.type === 'updateToken' && message.token) {
+        // 更新token输入框
+        const tokenEl = document.getElementById('giteeToken') as HTMLInputElement;
+        if (tokenEl) {
+          tokenEl.value = message.token;
+          // 触发自动保存
+          tokenEl.dispatchEvent(new Event('blur'));
+          showMsg(t('msg.tokenUpdated'));
+        }
+      }
+      // 返回响应表示消息已处理
+      return true;
+    });
+
+    // 检查是否有待处理的token更新消息
+    setTimeout(() => {
+      // 从storage中读取最新的token
+      chrome.storage.local.get(['latestToken'], (result: any) => {
+        if (result.latestToken) {
+          const tokenEl = document.getElementById('giteeToken') as HTMLInputElement;
+          if (tokenEl) {
+            tokenEl.value = result.latestToken;
+            tokenEl.dispatchEvent(new Event('blur'));
+            showMsg(t('msg.tokenUpdated'));
+            // 清除storage中的token，避免重复使用
+            chrome.storage.local.remove(['latestToken']);
+          }
+        }
+      });
+    }, 100);
+
+    function fillSelectOptions(select: HTMLSelectElement, options: string[], placeholder = t('select.placeholder')) {
+      select.innerHTML = '';
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = placeholder;
+      select.appendChild(opt);
+      options.forEach(v => {
+        const o = document.createElement('option');
+        o.value = v;
+        o.textContent = v.split('/').pop() || v;
+        select.appendChild(o);
+      });
+    }
+    async function fetchGiteeFiles(token: string, owner: string, repo: string, branch: string, dir: string): Promise<string[]> {
+      // dir 为空时获取根目录，否则获取指定目录下文件
+      let url = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents`;
+      if (dir) url += `/${encodeURIComponent(dir)}`;
+      url += `?ref=${branch}`;
+      const res = await fetch(url, {
+        headers: { 'Authorization': `token ${token}` }
+      });
+      if (!res.ok) throw new Error(t('select.getFileFailed'));
+      const data = await res.json();
+      return Array.isArray(data) ? data.filter((f: any) => f.type === 'file').map((f: any) => f.path) : [];
+    }
+    async function fetchGiteeBranches(token: string, owner: string, repo: string): Promise<string[]> {
+      const url = `https://gitee.com/api/v5/repos/${owner}/${repo}/branches`;
+      const res = await fetch(url, {
+        headers: { 'Authorization': `token ${token}` }
+      });
+      if (!res.ok) throw new Error(t('select.getBranchFailed'));
+      const data = await res.json();
+      return data.map((b: any) => b.name);
+    }
+    async function updateFilePathOptions() {
+      const token = tokenEl.value.trim();
+      const owner = ownerEl.value.trim();
+      const repo = repoEl.value.trim();
+      const branch = branchSel.value;
+      const dir = bookmarkDirInput.value.trim();
+      if (!token || !owner || !repo || !branch || !dir) return;
+      fillSelectOptions(filePathSelect, [], t('select.loading'));
+      try {
+        const files = await fetchGiteeFiles(token, owner, repo, branch, dir);
+        // 过滤掉 .keep 文件
+        const filtered = files.filter((f: string) => !f.endsWith('.keep'));
+        fillSelectOptions(filePathSelect, filtered, t('select.selectFile'));
+      } catch (e) {
+        fillSelectOptions(filePathSelect, [], t('select.getFileFailed'));
+      }
+    }
+    async function updateBranches() {
+      const token = tokenEl.value.trim();
+      const owner = ownerEl.value.trim();
+      const repo = repoEl.value.trim();
+      if (!token || !owner || !repo) return;
+      if (token === lastToken && owner === lastOwner && repo === lastRepo) return;
+      lastToken = token; lastOwner = owner; lastRepo = repo;
+      fillSelectOptions(branchSel, [], t('select.loading'));
+      try {
+        const branches = await fetchGiteeBranches(token, owner, repo);
+        fillSelectOptions(branchSel, branches, t('select.selectBranch'));
+        // 默认选中 master 分支
+        if (branches.includes('master')) {
+          branchSel.value = 'master';
+        } else if (branches.length > 0) {
+          branchSel.value = branches[0];
+        }
+        // 触发文件列表刷新
+        updateFilePathOptions();
+      } catch (e) {
+        fillSelectOptions(branchSel, [], t('select.getBranchFailed'));
+        fillSelectOptions(filePathSelect, [], t('select.selectBranch'));
+      }
+      fillSelectOptions(filePathSelect, [], t('select.selectBranch'));
+    }
+    // 记录上次的值
+    let lastToken = '', lastOwner = '', lastRepo = '', lastBookmarkDir = '';
+    function hasConfigChanged() {
+      return tokenEl.value.trim() !== lastToken ||
+        ownerEl.value.trim() !== lastOwner ||
+        repoEl.value.trim() !== lastRepo ||
+        bookmarkDirInput.value.trim() !== lastBookmarkDir;
+    }
+    function updateLastConfig() {
+      lastToken = tokenEl.value.trim();
+      lastOwner = ownerEl.value.trim();
+      lastRepo = repoEl.value.trim();
+      lastBookmarkDir = bookmarkDirInput.value.trim();
+    }
+    // 失焦时仅在数据变化时才更新
+    tokenEl.addEventListener('blur', () => {
+      if (hasConfigChanged()) {
+        updateBranches();
+        updateLastConfig();
+      }
+    });
+    ownerEl.addEventListener('blur', () => {
+      if (hasConfigChanged()) {
+        updateBranches();
+        updateLastConfig();
+      }
+    });
+    repoEl.addEventListener('blur', () => {
+      if (hasConfigChanged()) {
+        updateBranches();
+        updateLastConfig();
+      }
+    });
+    bookmarkDirInput.addEventListener('blur', () => {
+      if (hasConfigChanged()) {
+        updateFilePathOptions();
+        updateLastConfig();
+      }
+    });
+    // 默认加载一次
+    setTimeout(() => {
+      updateFilePathOptions();
+    }, 300);
+
+    document.getElementById('btnSaveOverwrite')!.onclick = async function() {
+      if (!confirm(t('confirm.overwriteSave'))) {
+        return;
+      }
+
+      // 询问是否保留隐藏书签
+      const keepHidden = confirm(t('confirm.keepHidden'));
+
+      try {
+        const config = await getGiteeConfig();
+        const tree = await getLocalBookmarks();
+        let content = tree[0]?.children || [];
+
+        if (keepHidden) {
+          // 需要保留隐藏书签，从书签管理器中获取包含隐藏属性的书签
+          try {
+            // 通过消息传递获取书签管理器的完整书签数据
+            const bookmarkManagerData = await getBookmarkManagerData();
+
+            if (bookmarkManagerData && bookmarkManagerData.length > 0) {
+              // 筛选出书签管理器中的隐藏书签
+              const hiddenBookmarks = filterHiddenBookmarks(bookmarkManagerData);
+
+              // 将隐藏书签合并到当前要保存的书签中
+              content = mergeBookmarks(content, hiddenBookmarks);
+
+              showMsg(t('msg.hiddenBookmarksKept'));
+            } else {
+              showMsg(t('msg.cannotGetManagerData'), true);
+            }
+          } catch (error) {
+            showMsg(t('msg.getManagerDataFailed'), true);
+          }
+        }
+
+        await modifyFile(config, content, true);
+        showMsg(t('msg.overwriteSaveSuccess'));
+      } catch (e: any) {
+        showMsg(t('msg.overwriteSaveFailed', e.message), true);
+      }
+    };
+
+    document.getElementById('btnSaveMerge')!.onclick = async function() {
+      if (!confirm(t('confirm.mergeSave'))) {
+        return;
+      }
+      try {
+        const config = await getGiteeConfig();
+        const tree = await getLocalBookmarks();
+        const content = tree[0]?.children || [];
+        await modifyFile(config, content, false);
+        showMsg(t('msg.mergeSaveSuccess'));
+      } catch (e: any) {
+        showMsg(t('msg.mergeSaveFailed', e.message), true);
+      }
+    };
+
+    document.getElementById('btnGetOverwrite')!.onclick = async function() {
+      if (!confirm(t('confirm.overwriteGet'))) {
+        return;
+      }
+      try {
+        const config = await getGiteeConfig();
+        const data = await getFile(config);
+
+        // 检查数据结构
+        let bookmarksToCreate;
+        if (Array.isArray(data)) {
+          // 如果是数组，取第一个元素的children
+          bookmarksToCreate = data[0]?.children || [];
+        } else if (data.children) {
+          // 如果是对象且有children属性
+          bookmarksToCreate = data.children;
+        } else {
+          throw new Error(t('msg.remoteDataFormatError'));
+        }
+
+
+        // 过滤掉隐藏的书签，不在系统书签栏显示
+        const visibleBookmarks = filterVisibleBookmarks(bookmarksToCreate);
+
+        await removeAllBookmarks();
+        await createBookmarks(visibleBookmarks, '1'); // 只写入书签栏（仅可见书签）
+        showMsg(t('msg.overwriteGetSuccess'));
+      } catch (e: any) {
+        showMsg(t('msg.overwriteGetFailed', e.message), true);
+      }
+    };
+
+    document.getElementById('btnGetMerge')!.onclick = async function() {
+      if (!confirm(t('confirm.mergeGet'))) {
+        return;
+      }
+      try {
+        const config = await getGiteeConfig();
+        const data = await getFile(config);
+
+        const tree = await getLocalBookmarks();
+        const local = tree[0]?.children || [];
+
+        // 检查数据结构并获取远程书签
+        let remoteBookmarks;
+        if (Array.isArray(data)) {
+          remoteBookmarks = data[0]?.children || [];
+        } else if (data.children) {
+          remoteBookmarks = data.children;
+        } else {
+          throw new Error(t('msg.remoteDataFormatError'));
+        }
+
+
+        // 获取书签栏的书签进行合并
+        const localBookmarks = local.find((item: any) => item.title === '书签栏' || item.title === 'Bookmarks bar');
+        const localBookmarksChildren = localBookmarks?.children || [];
+
+        const merged = mergeBookmarks(localBookmarksChildren, remoteBookmarks);
+
+        // 过滤掉隐藏的书签，不在系统书签栏显示
+        const visibleMerged = filterVisibleBookmarks(merged);
+
+        await removeAllBookmarks();
+        await createBookmarks(visibleMerged, '1'); // 只写入书签栏（仅可见书签）
+        showMsg(t('msg.mergeGetSuccess'));
+      } catch (e: any) {
+        showMsg(t('msg.mergeGetFailed', e.message), true);
+      }
+    };
+
+    // 新增书签文件
+    document.getElementById('addBookmarkFile')!.onclick = async function() {
+      const fileName = prompt(t('prompt.newFileName'));
+      if (!fileName) return;
+
+      // 如果文件名没有后缀，自动补全为.json
+      const finalFileName = fileName.includes('.') ? fileName : `${fileName}.json`;
+
+      const token = tokenEl.value.trim();
+      const owner = ownerEl.value.trim();
+      const repo = repoEl.value.trim();
+      const branch = branchSel.value;
+      const dir = bookmarkDirInput.value.trim();
+
+      if (!token || !owner || !repo || !branch || !dir) {
+        showMsg(t('msg.fillConfigFirst'), true);
+        return;
+      }
+
+      try {
+        const filePath = dir ? `${dir}/${finalFileName}` : finalFileName;
+        const content = JSON.stringify([], null, 2); // 空的书签数组
+        const encodedContent = btoa(unescape(encodeURIComponent(content)));
+
+        const url = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeURIComponent(filePath)}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `token ${token}`
+          },
+          body: JSON.stringify({
+            access_token: token,
+            content: encodedContent,
+            message: `新增书签文件：${finalFileName}`,
+            branch: branch
+          })
+        });
+
+        if (response.ok) {
+          showMsg(t('msg.addFileSuccess', finalFileName));
+          updateFilePathOptions(); // 刷新文件列表
+        } else {
+          showMsg(t('msg.addFileFailed'), true);
+        }
+      } catch (e: any) {
+        showMsg(t('msg.addFileFailed') + ': ' + e.message, true);
+      }
+    };
+
+    // 删除书签文件
+    document.getElementById('deleteBookmarkFile')!.onclick = async function() {
+      const selectedFile = filePathSelect.value;
+      if (!selectedFile) {
+        showMsg(t('msg.selectFileFirst'), true);
+        return;
+      }
+
+      if (!confirm(t('confirm.deleteFile', selectedFile.split('/').pop() || ''))) {
+        return;
+      }
+
+      const token = tokenEl.value.trim();
+      const owner = ownerEl.value.trim();
+      const repo = repoEl.value.trim();
+      const branch = branchSel.value;
+
+      if (!token || !owner || !repo || !branch) {
+        showMsg(t('msg.fillConfigFirst'), true);
+        return;
+      }
+
+      try {
+        // 先获取文件信息（需要 sha）
+        const getUrl = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeURIComponent(selectedFile)}?ref=${branch}`;
+        const getResponse = await fetch(getUrl, {
+          headers: { 'Authorization': `token ${token}` }
+        });
+        if (!getResponse.ok) {
+          showMsg(t('msg.fileInfoFailed'), true);
+          return;
+        }
+        const fileInfo = await getResponse.json();
+
+        // 删除文件
+        const deleteUrl = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeURIComponent(selectedFile)}`;
+        const deleteResponse = await fetch(deleteUrl, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `token ${token}`
+          },
+          body: JSON.stringify({
+            access_token: token,
+            message: `删除书签文件：${selectedFile.split('/').pop()}`,
+            sha: fileInfo.sha,
+            branch: branch
+          })
+        });
+
+        if (deleteResponse.ok) {
+          showMsg(t('msg.deleteFileSuccess', selectedFile.split('/').pop() || ''));
+          updateFilePathOptions(); // 刷新文件列表
+        } else {
+          showMsg(t('msg.deleteFileFailed'), true);
+        }
+      } catch (e: any) {
+        showMsg(t('msg.deleteFileFailed') + ': ' + e.message, true);
+      }
+    };
+
+    // 打开Gitee仓库
+    document.getElementById('openGiteeRepo')!.onclick = function() {
+      const owner = ownerEl.value.trim();
+      const repo = repoEl.value.trim();
+      const branch = branchSel.value;
+      const file = filePathSelect.value;
+
+      if (!owner || !repo) {
+        showMsg(t('msg.fillOwnerRepo'), true);
+        return;
+      }
+
+      if (!file) {
+        showMsg(t('msg.selectBookmarkFile'), true);
+        return;
+      }
+
+      let url = `https://gitee.com/${owner}/${repo}/blob/${branch}/${file}`;
+
+      window.open(url, '_blank');
+    };
+
+    // 打开系统书签管理器
+    const openSystemBookmarksBtn = document.getElementById('openSystemBookmarksBtn');
+    if (openSystemBookmarksBtn) {
+      openSystemBookmarksBtn.onclick = function() {
+        if (chrome && chrome.tabs && chrome.tabs.create) {
+          chrome.tabs.create({ url: 'chrome://bookmarks/' }, function() {
+            if (chrome.runtime.lastError) {
+              alert(t('msg.cannotOpenManager'));
+            }
+          });
+        } else {
+          alert(t('msg.pleaseOpenManually'));
+        }
+      };
+    }
+
+    // 打开我的书签管理器
+    const openMyBookmarksBtn = document.getElementById('openMyBookmarksBtn');
+    if (openMyBookmarksBtn) {
+      openMyBookmarksBtn.onclick = function() {
+        if (chrome && chrome.tabs && chrome.tabs.create) {
+          // 设置认证时间戳，让 bookmark-manager 知道这是从 popup 跳转的，无需二次校验
+          chrome.storage.local.set({ bmAuthTimestamp: Date.now() }, function() {
+            chrome.tabs.create({ url: chrome.runtime.getURL('bookmark-manager.html') }, function() {
+              if (chrome.runtime.lastError) {
+                alert(t('msg.cannotOpenMyManager'));
+              }
+            });
+          });
+        } else {
+          // 非扩展环境，直接打开
+          window.open('bookmark-manager.html', '_blank');
+        }
+      };
+    }
+
+    // 帮助弹窗逻辑
+    const helpBtn = document.getElementById('helpBtn');
+    const helpModal = document.getElementById('helpModal');
+    const helpClose = document.getElementById('helpClose');
+    if (helpBtn && helpModal && helpClose) {
+      helpBtn.onclick = () => { helpModal.style.display = 'flex'; };
+      helpClose.onclick = () => { helpModal.style.display = 'none'; };
+      helpModal.onclick = (e) => {
+        if (e.target === helpModal) helpModal.style.display = 'none';
+      };
+    }
+
+    // == 快捷键设置逻辑 ==
+    const searchEnabledEl = document.getElementById('searchEnabled') as HTMLInputElement;
+    const searchTriggerKeyEl = document.getElementById('searchTriggerKey') as HTMLSelectElement;
+    const searchPressCountEl = document.getElementById('searchPressCount') as HTMLSelectElement;
+    const searchTimeWindowEl = document.getElementById('searchTimeWindow') as HTMLSelectElement;
+    const closeTabEnabledEl = document.getElementById('closeTabEnabled') as HTMLInputElement;
+    const closeTabModifierEl = document.getElementById('closeTabModifier') as HTMLSelectElement;
+    const closeTabKeyEl = document.getElementById('closeTabKey') as HTMLInputElement;
+    const shortcutMsg = document.getElementById('shortcutMsg');
+
+    if (searchEnabledEl && searchTriggerKeyEl && searchPressCountEl && searchTimeWindowEl &&
+        closeTabEnabledEl && closeTabModifierEl && closeTabKeyEl) {
+
+      // 启用/禁用子控件联动
+      function updateSearchControlsState() {
+        const disabled = !searchEnabledEl.checked;
+        searchTriggerKeyEl.disabled = disabled;
+        searchPressCountEl.disabled = disabled;
+        searchTimeWindowEl.disabled = disabled;
+      }
+      function updateCloseTabControlsState() {
+        const disabled = !closeTabEnabledEl.checked;
+        closeTabModifierEl.disabled = disabled;
+        closeTabKeyEl.disabled = disabled;
+      }
+
+      // 加载已保存的配置并回填表单
+      getShortcutConfig().then((config: any) => {
+        searchEnabledEl.checked = config.search.enabled;
+        searchTriggerKeyEl.value = config.search.triggerKey;
+        searchPressCountEl.value = String(config.search.pressCount);
+        searchTimeWindowEl.value = String(config.search.timeWindow);
+        closeTabEnabledEl.checked = config.closeTab.enabled;
+        closeTabModifierEl.value = config.closeTab.modifier;
+        closeTabKeyEl.value = config.closeTab.key.toUpperCase();
+        updateSearchControlsState();
+        updateCloseTabControlsState();
+      });
+
+      // 收集表单数据并保存
+      function saveShortcuts() {
+        const config = {
+          search: {
+            triggerKey: searchTriggerKeyEl.value,
+            pressCount: parseInt(searchPressCountEl.value, 10),
+            timeWindow: parseInt(searchTimeWindowEl.value, 10),
+            enabled: searchEnabledEl.checked,
+          },
+          closeTab: {
+            enabled: closeTabEnabledEl.checked,
+            modifier: closeTabModifierEl.value,
+            key: (closeTabKeyEl.value || 'w').toLowerCase(),
+          },
+        };
+        saveShortcutConfig(config).then(() => {
+          if (shortcutMsg) {
+            shortcutMsg.textContent = t('msg.shortcutSaved');
+            setTimeout(() => { if (shortcutMsg) shortcutMsg.textContent = ''; }, 1200);
+          }
+        });
+      }
+
+      // 绑定 change 事件 — select 和 checkbox
+      [searchEnabledEl, searchTriggerKeyEl, searchPressCountEl, searchTimeWindowEl,
+       closeTabEnabledEl, closeTabModifierEl].forEach((el: HTMLElement) => {
+        el.addEventListener('change', () => {
+          saveShortcuts();
+          updateSearchControlsState();
+          updateCloseTabControlsState();
+        });
+      });
+
+      // 关闭标签按键输入：限制单字符 + 自动保存
+      closeTabKeyEl.addEventListener('input', () => {
+        // 只保留最后输入的一个字符
+        if (closeTabKeyEl.value.length > 1) {
+          closeTabKeyEl.value = closeTabKeyEl.value.slice(-1);
+        }
+        closeTabKeyEl.value = closeTabKeyEl.value.toUpperCase();
+        saveShortcuts();
+      });
+      closeTabKeyEl.addEventListener('blur', () => {
+        if (!closeTabKeyEl.value) {
+          closeTabKeyEl.value = 'W'; // 为空时恢复默认值
+        }
+        saveShortcuts();
+      });
+    }
+
+    // == 密码设置逻辑 ==
+    const passwordEnabledEl = document.getElementById('passwordEnabled') as HTMLInputElement;
+    const passwordInputEl = document.getElementById('passwordInput') as HTMLInputElement;
+    const passwordConfirmEl = document.getElementById('passwordConfirm') as HTMLInputElement;
+    const passwordFieldsEl = document.getElementById('passwordFields') as HTMLDivElement;
+    const savePasswordBtnEl = document.getElementById('savePasswordBtn') as HTMLButtonElement;
+    const passwordMsg = document.getElementById('passwordMsg');
+
+    function showPasswordMsg(text: string, isError = false) {
+      if (passwordMsg) {
+        passwordMsg.textContent = text;
+        (passwordMsg as HTMLElement).style.color = isError ? 'var(--color-accent-red)' : 'var(--color-accent-green)';
+        setTimeout(() => { if (passwordMsg) passwordMsg.textContent = ''; }, 3000);
+      }
+    }
+
+    function updatePasswordFieldsState() {
+      if (passwordFieldsEl) {
+        const disabled = !passwordEnabledEl.checked;
+        passwordInputEl.disabled = disabled;
+        passwordConfirmEl.disabled = disabled;
+        // 保存按钮始终可用，取消勾选后也需要能保存"关闭密码"状态
+        passwordInputEl.style.opacity = disabled ? '0.5' : '1';
+        passwordConfirmEl.style.opacity = disabled ? '0.5' : '1';
+      }
+    }
+
+    if (passwordEnabledEl && passwordInputEl && passwordConfirmEl && savePasswordBtnEl) {
+      // 初始化：从Gitee加载密码配置
+      async function loadPasswordConfig() {
+        const token = tokenEl.value.trim();
+        const owner = ownerEl.value.trim();
+        const repo = repoEl.value.trim();
+        const branch = branchSel.value;
+        const dir = bookmarkDirInput.value.trim();
+
+        if (!token || !owner || !repo || !branch || !dir) {
+          updatePasswordFieldsState();
+          return;
+        }
+
+        try {
+          const config = await getPasswordConfig(token, owner, repo, branch, dir);
+          if (config) {
+            passwordEnabledEl.checked = config.enabled;
+            passwordInputEl.value = config.password;
+            passwordConfirmEl.value = config.password;
+          } else {
+            // 密码.json不存在，说明没有配置密码
+            passwordEnabledEl.checked = false;
+            passwordInputEl.value = '';
+            passwordConfirmEl.value = '';
+          }
+        } catch (error) {
+          passwordEnabledEl.checked = false;
+        }
+        updatePasswordFieldsState();
+      }
+
+      // 页面加载时读取密码配置
+      setTimeout(() => {
+        loadPasswordConfig();
+      }, 500);
+
+      // 启用/禁用密码保护
+      passwordEnabledEl.addEventListener('change', () => {
+        updatePasswordFieldsState();
+      });
+
+      // 保存密码设置
+      savePasswordBtnEl.addEventListener('click', async () => {
+        const token = tokenEl.value.trim();
+        const owner = ownerEl.value.trim();
+        const repo = repoEl.value.trim();
+        const branch = branchSel.value;
+        const dir = bookmarkDirInput.value.trim();
+
+        if (!token || !owner || !repo || !branch || !dir) {
+          showPasswordMsg(t('password.msg.configFirst'), true);
+          return;
+        }
+
+        const enabled = passwordEnabledEl.checked;
+        const password = passwordInputEl.value;
+        const confirm = passwordConfirmEl.value;
+
+        if (enabled) {
+          if (!password) {
+            showPasswordMsg(t('password.msg.empty'), true);
+            return;
+          }
+          if (password !== confirm) {
+            showPasswordMsg(t('password.msg.mismatch'), true);
+            return;
+          }
+        }
+
+        const config = {
+          enabled: enabled,
+          password: enabled ? password : ''
+        };
+
+        const success = await savePasswordConfig(token, owner, repo, branch, dir, config);
+        if (success) {
+          showPasswordMsg(t('password.msg.saved'));
+        } else {
+          showPasswordMsg(t('password.msg.saveFailed'), true);
+        }
+      });
+
+      // 初始化密码字段状态
+      updatePasswordFieldsState();
+    }
+  } // end initPopupUI
 
   // 如果不是Chrome扩展环境，直接返回
   if (!isChromeExtensionContext()) {
@@ -546,9 +1270,32 @@ document.addEventListener('DOMContentLoaded', async () => {
       const pwdConfig = await getPasswordConfig(pToken, pOwner, pRepo, pBranch, pDir);
       if (pwdConfig && pwdConfig.enabled && pwdConfig.password) {
         needLock = true;
+
+        // === 安全优化：从DOM中移除主内容，而不是仅用display:none隐藏 ===
+        // 将popupContent从DOM树中移除，存储在闭包变量中
+        // 这样即使通过控制台也无法通过修改CSS来显示内容
+        popupContent.remove();
+
         // 显示密码锁定遮罩
         document.body.style.minHeight = '360px';
         lockOverlay.style.display = 'flex';
+
+        // 使用 MutationObserver 防止通过控制台篡改锁定遮罩
+        let unlocked = false;
+        const protectObserver = new MutationObserver(() => {
+          if (!unlocked) {
+            // 确保锁定遮罩始终可见
+            if (lockOverlay.style.display !== 'flex') {
+              lockOverlay.style.display = 'flex';
+            }
+            // 确保主内容未被重新添加到DOM
+            if (document.getElementById('popupContent')) {
+              document.getElementById('popupContent')!.remove();
+            }
+          }
+        });
+        protectObserver.observe(lockOverlay, { attributes: true, attributeFilter: ['style', 'class'] });
+        protectObserver.observe(document.body, { childList: true });
 
         const doUnlock = () => {
           const inputVal = lockInput.value;
@@ -557,9 +1304,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
           }
           if (inputVal === pwdConfig.password) {
+            // 标记已解锁，停止保护
+            unlocked = true;
+            protectObserver.disconnect();
+
+            // 隐藏锁定遮罩
             lockOverlay.style.display = 'none';
-            popupContent.style.display = 'flex';
             document.body.style.minHeight = '';
+
+            // 将主内容重新添加到DOM并显示
+            document.body.appendChild(popupContent);
+            popupContent.style.display = 'flex';
+
+            // 重新翻译DOM（因为popupContent刚恢复到DOM）
+            translateDOM();
+
+            // 初始化所有UI组件
+            initPopupUI();
           } else {
             lockError.textContent = t('password.lock.error');
             lockInput.value = '';
@@ -574,731 +1335,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         setTimeout(() => lockInput.focus(), 50);
       }
     }
-    // 无需密码，直接显示主内容
+    // 无需密码，直接显示主内容并初始化
     if (!needLock) {
       popupContent.style.display = 'flex';
+      initPopupUI();
     }
   } catch (e) {
-    // 密码检查失败，不锁定，显示主内容
+    // 密码检查失败，不锁定，显示主内容并初始化
     popupContent.style.display = 'flex';
-  }
-
-  // Gitee 配置表单逻辑
-  // const form = document.getElementById('giteeForm');
-  const msg = document.getElementById('giteeMsg');
-  const fields = ['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath'];
-  // 自动填充
-  getConfigFromDB(fields).then((data) => {
-    fields.forEach(f => {
-      const el = document.getElementById(f) as HTMLInputElement;
-      if (el && data[f]) el.value = data[f];
-    });
-  });
-  // 自动回填保存的 filePath 配置
-  getConfigFromDB(['giteeFilePath']).then((data) => {
-    const savedFile = data['giteeFilePath'];
-    if (savedFile) {
-      // 等待文件列表加载后再选中
-      const trySelect = () => {
-        const opt = Array.from(filePathSelect.options).find(o => o.value === savedFile);
-        if (opt) {
-          filePathSelect.value = savedFile;
-        } else {
-          setTimeout(trySelect, 100);
-        }
-      };
-      trySelect();
-    }
-  });
-  // 输入框失焦和输入时自动保存
-  fields.forEach(f => {
-    const el = document.getElementById(f) as HTMLInputElement;
-    function save() {
-      const config: Record<string, string> = {};
-      fields.forEach(ff => {
-        const v = (document.getElementById(ff) as HTMLInputElement).value;
-        config[ff] = v;
-      });
-      setConfigToDB(config).then(() => {
-        if (msg) {
-          msg.textContent = t('msg.configSaved');
-          setTimeout(() => { msg.textContent = ''; }, 1200);
-        }
-      });
-    }
-    el.addEventListener('blur', save);
-    el.addEventListener('input', save);
-  });
-
-  const tokenEl = document.getElementById('giteeToken') as HTMLInputElement;
-  const ownerEl = document.getElementById('giteeOwner') as HTMLInputElement;
-  const repoEl = document.getElementById('giteeRepo') as HTMLInputElement;
-  const branchSel = document.getElementById('giteeBranch') as HTMLSelectElement;
-  const filePathSelect = document.getElementById('giteeFilePath') as HTMLSelectElement;
-  const bookmarkDirInput = document.getElementById('bookmarkDir') as HTMLInputElement;
-  
-  // 监听来自content script的消息（在DOM加载完成后设置）
-  chrome.runtime.onMessage.addListener((message: any) => {
-    if (message.type === 'updateToken' && message.token) {
-      // 更新token输入框
-      const tokenEl = document.getElementById('giteeToken') as HTMLInputElement;
-      if (tokenEl) {
-        tokenEl.value = message.token;
-        // 触发自动保存
-        tokenEl.dispatchEvent(new Event('blur'));
-        showMsg(t('msg.tokenUpdated'));
-      }
-    }
-    // 返回响应表示消息已处理
-    return true;
-  });
-  
-  // 检查是否有待处理的token更新消息
-  setTimeout(() => {
-    // 从storage中读取最新的token
-    chrome.storage.local.get(['latestToken'], (result: any) => {
-      if (result.latestToken) {
-        const tokenEl = document.getElementById('giteeToken') as HTMLInputElement;
-        if (tokenEl) {
-          tokenEl.value = result.latestToken;
-          tokenEl.dispatchEvent(new Event('blur'));
-          showMsg(t('msg.tokenUpdated'));
-          // 清除storage中的token，避免重复使用
-          chrome.storage.local.remove(['latestToken']);
-        }
-      }
-    });
-  }, 100);
-  
-  function fillSelectOptions(select: HTMLSelectElement, options: string[], placeholder = t('select.placeholder')) {
-    select.innerHTML = '';
-    const opt = document.createElement('option');
-    opt.value = '';
-    opt.textContent = placeholder;
-    select.appendChild(opt);
-    options.forEach(v => {
-      const o = document.createElement('option');
-      o.value = v;
-      o.textContent = v.split('/').pop() || v;
-      select.appendChild(o);
-    });
-  }
-  async function fetchGiteeFiles(token: string, owner: string, repo: string, branch: string, dir: string): Promise<string[]> {
-    // dir 为空时获取根目录，否则获取指定目录下文件
-    let url = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents`;
-    if (dir) url += `/${encodeURIComponent(dir)}`;
-    url += `?ref=${branch}`;
-    const res = await fetch(url, {
-      headers: { 'Authorization': `token ${token}` }
-    });
-    if (!res.ok) throw new Error(t('select.getFileFailed'));
-    const data = await res.json();
-    return Array.isArray(data) ? data.filter((f: any) => f.type === 'file').map((f: any) => f.path) : [];
-  }
-  async function fetchGiteeBranches(token: string, owner: string, repo: string): Promise<string[]> {
-    const url = `https://gitee.com/api/v5/repos/${owner}/${repo}/branches`;
-    const res = await fetch(url, {
-      headers: { 'Authorization': `token ${token}` }
-    });
-    if (!res.ok) throw new Error(t('select.getBranchFailed'));
-    const data = await res.json();
-    return data.map((b: any) => b.name);
-  }
-  async function updateFilePathOptions() {
-    const token = tokenEl.value.trim();
-    const owner = ownerEl.value.trim();
-    const repo = repoEl.value.trim();
-    const branch = branchSel.value;
-    const dir = bookmarkDirInput.value.trim();
-    if (!token || !owner || !repo || !branch || !dir) return;
-    fillSelectOptions(filePathSelect, [], t('select.loading'));
-    try {
-      const files = await fetchGiteeFiles(token, owner, repo, branch, dir);
-      // 过滤掉 .keep 文件
-      const filtered = files.filter((f: string) => !f.endsWith('.keep'));
-      fillSelectOptions(filePathSelect, filtered, t('select.selectFile'));
-    } catch (e) {
-      fillSelectOptions(filePathSelect, [], t('select.getFileFailed'));
-    }
-  }
-  async function updateBranches() {
-    const token = tokenEl.value.trim();
-    const owner = ownerEl.value.trim();
-    const repo = repoEl.value.trim();
-    if (!token || !owner || !repo) return;
-    if (token === lastToken && owner === lastOwner && repo === lastRepo) return;
-    lastToken = token; lastOwner = owner; lastRepo = repo;
-    fillSelectOptions(branchSel, [], t('select.loading'));
-    try {
-      const branches = await fetchGiteeBranches(token, owner, repo);
-      fillSelectOptions(branchSel, branches, t('select.selectBranch'));
-      // 默认选中 master 分支
-      if (branches.includes('master')) {
-        branchSel.value = 'master';
-      } else if (branches.length > 0) {
-        branchSel.value = branches[0];
-      }
-      // 触发文件列表刷新
-      updateFilePathOptions();
-    } catch (e) {
-      fillSelectOptions(branchSel, [], t('select.getBranchFailed'));
-      fillSelectOptions(filePathSelect, [], t('select.selectBranch'));
-    }
-    fillSelectOptions(filePathSelect, [], t('select.selectBranch'));
-  }
-  // 记录上次的值
-  let lastToken = '', lastOwner = '', lastRepo = '', lastBookmarkDir = '';
-  function hasConfigChanged() {
-    return tokenEl.value.trim() !== lastToken ||
-      ownerEl.value.trim() !== lastOwner ||
-      repoEl.value.trim() !== lastRepo ||
-      bookmarkDirInput.value.trim() !== lastBookmarkDir;
-  }
-  function updateLastConfig() {
-    lastToken = tokenEl.value.trim();
-    lastOwner = ownerEl.value.trim();
-    lastRepo = repoEl.value.trim();
-    lastBookmarkDir = bookmarkDirInput.value.trim();
-  }
-  // 失焦时仅在数据变化时才更新
-  tokenEl.addEventListener('blur', () => {
-    if (hasConfigChanged()) {
-      updateBranches();
-      updateLastConfig();
-    }
-  });
-  ownerEl.addEventListener('blur', () => {
-    if (hasConfigChanged()) {
-      updateBranches();
-      updateLastConfig();
-    }
-  });
-  repoEl.addEventListener('blur', () => {
-    if (hasConfigChanged()) {
-      updateBranches();
-      updateLastConfig();
-    }
-  });
-  bookmarkDirInput.addEventListener('blur', () => {
-    if (hasConfigChanged()) {
-      updateFilePathOptions();
-      updateLastConfig();
-    }
-  });
-  // 默认加载一次
-  setTimeout(() => {
-    updateFilePathOptions();
-  }, 300);
-
-  document.getElementById('btnSaveOverwrite')!.onclick = async function() {
-    if (!confirm(t('confirm.overwriteSave'))) {
-      return;
-    }
-
-    // 询问是否保留隐藏书签
-    const keepHidden = confirm(t('confirm.keepHidden'));
-
-    try {
-      const config = await getGiteeConfig();
-      const tree = await getLocalBookmarks();
-      let content = tree[0]?.children || [];
-
-      if (keepHidden) {
-        // 需要保留隐藏书签，从书签管理器中获取包含隐藏属性的书签
-        try {
-          // 通过消息传递获取书签管理器的完整书签数据
-          const bookmarkManagerData = await getBookmarkManagerData();
-
-          if (bookmarkManagerData && bookmarkManagerData.length > 0) {
-            // 筛选出书签管理器中的隐藏书签
-            const hiddenBookmarks = filterHiddenBookmarks(bookmarkManagerData);
-
-            // 将隐藏书签合并到当前要保存的书签中
-            content = mergeBookmarks(content, hiddenBookmarks);
-
-            showMsg(t('msg.hiddenBookmarksKept'));
-          } else {
-            showMsg(t('msg.cannotGetManagerData'), true);
-          }
-        } catch (error) {
-          showMsg(t('msg.getManagerDataFailed'), true);
-        }
-      }
-
-      await modifyFile(config, content, true);
-      showMsg(t('msg.overwriteSaveSuccess'));
-    } catch (e: any) {
-      showMsg(t('msg.overwriteSaveFailed', e.message), true);
-    }
-  };
-
-  document.getElementById('btnSaveMerge')!.onclick = async function() {
-    if (!confirm(t('confirm.mergeSave'))) {
-      return;
-    }
-    try {
-      const config = await getGiteeConfig();
-      const tree = await getLocalBookmarks();
-      const content = tree[0]?.children || [];
-      await modifyFile(config, content, false);
-      showMsg(t('msg.mergeSaveSuccess'));
-    } catch (e: any) {
-      showMsg(t('msg.mergeSaveFailed', e.message), true);
-    }
-  };
-
-  document.getElementById('btnGetOverwrite')!.onclick = async function() {
-    if (!confirm(t('confirm.overwriteGet'))) {
-      return;
-    }
-    try {
-      const config = await getGiteeConfig();
-      const data = await getFile(config);
-
-      // 检查数据结构
-      let bookmarksToCreate;
-      if (Array.isArray(data)) {
-        // 如果是数组，取第一个元素的children
-        bookmarksToCreate = data[0]?.children || [];
-      } else if (data.children) {
-        // 如果是对象且有children属性
-        bookmarksToCreate = data.children;
-      } else {
-        throw new Error(t('msg.remoteDataFormatError'));
-      }
-
-
-      // 过滤掉隐藏的书签，不在系统书签栏显示
-      const visibleBookmarks = filterVisibleBookmarks(bookmarksToCreate);
-
-      await removeAllBookmarks();
-      await createBookmarks(visibleBookmarks, '1'); // 只写入书签栏（仅可见书签）
-      showMsg(t('msg.overwriteGetSuccess'));
-    } catch (e: any) {
-      showMsg(t('msg.overwriteGetFailed', e.message), true);
-    }
-  };
-
-  document.getElementById('btnGetMerge')!.onclick = async function() {
-    if (!confirm(t('confirm.mergeGet'))) {
-      return;
-    }
-    try {
-      const config = await getGiteeConfig();
-      const data = await getFile(config);
-
-      const tree = await getLocalBookmarks();
-      const local = tree[0]?.children || [];
-
-      // 检查数据结构并获取远程书签
-      let remoteBookmarks;
-      if (Array.isArray(data)) {
-        remoteBookmarks = data[0]?.children || [];
-      } else if (data.children) {
-        remoteBookmarks = data.children;
-      } else {
-        throw new Error(t('msg.remoteDataFormatError'));
-      }
-      
-      
-      // 获取书签栏的书签进行合并
-      const localBookmarks = local.find((item: any) => item.title === '书签栏' || item.title === 'Bookmarks bar');
-      const localBookmarksChildren = localBookmarks?.children || [];
-      
-      const merged = mergeBookmarks(localBookmarksChildren, remoteBookmarks);
-
-      // 过滤掉隐藏的书签，不在系统书签栏显示
-      const visibleMerged = filterVisibleBookmarks(merged);
-
-      await removeAllBookmarks();
-      await createBookmarks(visibleMerged, '1'); // 只写入书签栏（仅可见书签）
-      showMsg(t('msg.mergeGetSuccess'));
-    } catch (e: any) {
-      showMsg(t('msg.mergeGetFailed', e.message), true);
-    }
-  };
-
-  // 新增书签文件
-  document.getElementById('addBookmarkFile')!.onclick = async function() {
-    const fileName = prompt(t('prompt.newFileName'));
-    if (!fileName) return;
-
-    // 如果文件名没有后缀，自动补全为.json
-    const finalFileName = fileName.includes('.') ? fileName : `${fileName}.json`;
-
-    const token = tokenEl.value.trim();
-    const owner = ownerEl.value.trim();
-    const repo = repoEl.value.trim();
-    const branch = branchSel.value;
-    const dir = bookmarkDirInput.value.trim();
-
-    if (!token || !owner || !repo || !branch || !dir) {
-      showMsg(t('msg.fillConfigFirst'), true);
-      return;
-    }
-
-    try {
-      const filePath = dir ? `${dir}/${finalFileName}` : finalFileName;
-      const content = JSON.stringify([], null, 2); // 空的书签数组
-      const encodedContent = btoa(unescape(encodeURIComponent(content)));
-
-      const url = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeURIComponent(filePath)}`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `token ${token}`
-        },
-        body: JSON.stringify({
-          access_token: token,
-          content: encodedContent,
-          message: `新增书签文件：${finalFileName}`,
-          branch: branch
-        })
-      });
-
-      if (response.ok) {
-        showMsg(t('msg.addFileSuccess', finalFileName));
-        updateFilePathOptions(); // 刷新文件列表
-      } else {
-        showMsg(t('msg.addFileFailed'), true);
-      }
-    } catch (e: any) {
-      showMsg(t('msg.addFileFailed') + ': ' + e.message, true);
-    }
-  };
-  
-  // 删除书签文件
-  document.getElementById('deleteBookmarkFile')!.onclick = async function() {
-    const selectedFile = filePathSelect.value;
-    if (!selectedFile) {
-      showMsg(t('msg.selectFileFirst'), true);
-      return;
-    }
-
-    if (!confirm(t('confirm.deleteFile', selectedFile.split('/').pop() || ''))) {
-      return;
-    }
-
-    const token = tokenEl.value.trim();
-    const owner = ownerEl.value.trim();
-    const repo = repoEl.value.trim();
-    const branch = branchSel.value;
-
-    if (!token || !owner || !repo || !branch) {
-      showMsg(t('msg.fillConfigFirst'), true);
-      return;
-    }
-
-    try {
-      // 先获取文件信息（需要 sha）
-      const getUrl = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeURIComponent(selectedFile)}?ref=${branch}`;
-      const getResponse = await fetch(getUrl, {
-        headers: { 'Authorization': `token ${token}` }
-      });
-      if (!getResponse.ok) {
-        showMsg(t('msg.fileInfoFailed'), true);
-        return;
-      }
-      const fileInfo = await getResponse.json();
-
-      // 删除文件
-      const deleteUrl = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeURIComponent(selectedFile)}`;
-      const deleteResponse = await fetch(deleteUrl, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `token ${token}`
-        },
-        body: JSON.stringify({
-          access_token: token,
-          message: `删除书签文件：${selectedFile.split('/').pop()}`,
-          sha: fileInfo.sha,
-          branch: branch
-        })
-      });
-
-      if (deleteResponse.ok) {
-        showMsg(t('msg.deleteFileSuccess', selectedFile.split('/').pop() || ''));
-        updateFilePathOptions(); // 刷新文件列表
-      } else {
-        showMsg(t('msg.deleteFileFailed'), true);
-      }
-    } catch (e: any) {
-      showMsg(t('msg.deleteFileFailed') + ': ' + e.message, true);
-    }
-  };
-
-  // 打开Gitee仓库
-  document.getElementById('openGiteeRepo')!.onclick = function() {
-    const owner = ownerEl.value.trim();
-    const repo = repoEl.value.trim();
-    const branch = branchSel.value;
-    const file = filePathSelect.value;
-    
-    if (!owner || !repo) {
-      showMsg(t('msg.fillOwnerRepo'), true);
-      return;
-    }
-    
-    if (!file) {
-      showMsg(t('msg.selectBookmarkFile'), true);
-      return;
-    }
-    
-    let url = `https://gitee.com/${owner}/${repo}/blob/${branch}/${file}`;
-    
-    window.open(url, '_blank');
-  };
-
-  // 打开系统书签管理器
-  const openSystemBookmarksBtn = document.getElementById('openSystemBookmarksBtn');
-  if (openSystemBookmarksBtn) {
-    openSystemBookmarksBtn.onclick = function() {
-      if (chrome && chrome.tabs && chrome.tabs.create) {
-        chrome.tabs.create({ url: 'chrome://bookmarks/' }, function() {
-          if (chrome.runtime.lastError) {
-            alert(t('msg.cannotOpenManager'));
-          }
-        });
-      } else {
-        alert(t('msg.pleaseOpenManually'));
-      }
-    };
-  }
-
-  // 打开我的书签管理器
-  const openMyBookmarksBtn = document.getElementById('openMyBookmarksBtn');
-  if (openMyBookmarksBtn) {
-    openMyBookmarksBtn.onclick = function() {
-      if (chrome && chrome.tabs && chrome.tabs.create) {
-        // 设置认证时间戳，让 bookmark-manager 知道这是从 popup 跳转的，无需二次校验
-        chrome.storage.local.set({ bmAuthTimestamp: Date.now() }, function() {
-          chrome.tabs.create({ url: chrome.runtime.getURL('bookmark-manager.html') }, function() {
-            if (chrome.runtime.lastError) {
-              alert(t('msg.cannotOpenMyManager'));
-            }
-          });
-        });
-      } else {
-        // 非扩展环境，直接打开
-        window.open('bookmark-manager.html', '_blank');
-      }
-    };
-  }
-
-  // 帮助弹窗逻辑
-  const helpBtn = document.getElementById('helpBtn');
-  const helpModal = document.getElementById('helpModal');
-  const helpClose = document.getElementById('helpClose');
-  if (helpBtn && helpModal && helpClose) {
-    helpBtn.onclick = () => { helpModal.style.display = 'flex'; };
-    helpClose.onclick = () => { helpModal.style.display = 'none'; };
-    helpModal.onclick = (e) => {
-      if (e.target === helpModal) helpModal.style.display = 'none';
-    };
-  }
-
-  // == 快捷键设置逻辑 ==
-  const searchEnabledEl = document.getElementById('searchEnabled') as HTMLInputElement;
-  const searchTriggerKeyEl = document.getElementById('searchTriggerKey') as HTMLSelectElement;
-  const searchPressCountEl = document.getElementById('searchPressCount') as HTMLSelectElement;
-  const searchTimeWindowEl = document.getElementById('searchTimeWindow') as HTMLSelectElement;
-  const closeTabEnabledEl = document.getElementById('closeTabEnabled') as HTMLInputElement;
-  const closeTabModifierEl = document.getElementById('closeTabModifier') as HTMLSelectElement;
-  const closeTabKeyEl = document.getElementById('closeTabKey') as HTMLInputElement;
-  const shortcutMsg = document.getElementById('shortcutMsg');
-
-  if (searchEnabledEl && searchTriggerKeyEl && searchPressCountEl && searchTimeWindowEl &&
-      closeTabEnabledEl && closeTabModifierEl && closeTabKeyEl) {
-
-    // 启用/禁用子控件联动
-    function updateSearchControlsState() {
-      const disabled = !searchEnabledEl.checked;
-      searchTriggerKeyEl.disabled = disabled;
-      searchPressCountEl.disabled = disabled;
-      searchTimeWindowEl.disabled = disabled;
-    }
-    function updateCloseTabControlsState() {
-      const disabled = !closeTabEnabledEl.checked;
-      closeTabModifierEl.disabled = disabled;
-      closeTabKeyEl.disabled = disabled;
-    }
-
-    // 加载已保存的配置并回填表单
-    getShortcutConfig().then((config: any) => {
-      searchEnabledEl.checked = config.search.enabled;
-      searchTriggerKeyEl.value = config.search.triggerKey;
-      searchPressCountEl.value = String(config.search.pressCount);
-      searchTimeWindowEl.value = String(config.search.timeWindow);
-      closeTabEnabledEl.checked = config.closeTab.enabled;
-      closeTabModifierEl.value = config.closeTab.modifier;
-      closeTabKeyEl.value = config.closeTab.key.toUpperCase();
-      updateSearchControlsState();
-      updateCloseTabControlsState();
-    });
-
-    // 收集表单数据并保存
-    function saveShortcuts() {
-      const config = {
-        search: {
-          triggerKey: searchTriggerKeyEl.value,
-          pressCount: parseInt(searchPressCountEl.value, 10),
-          timeWindow: parseInt(searchTimeWindowEl.value, 10),
-          enabled: searchEnabledEl.checked,
-        },
-        closeTab: {
-          enabled: closeTabEnabledEl.checked,
-          modifier: closeTabModifierEl.value,
-          key: (closeTabKeyEl.value || 'w').toLowerCase(),
-        },
-      };
-      saveShortcutConfig(config).then(() => {
-        if (shortcutMsg) {
-          shortcutMsg.textContent = t('msg.shortcutSaved');
-          setTimeout(() => { if (shortcutMsg) shortcutMsg.textContent = ''; }, 1200);
-        }
-      });
-    }
-
-    // 绑定 change 事件 — select 和 checkbox
-    [searchEnabledEl, searchTriggerKeyEl, searchPressCountEl, searchTimeWindowEl,
-     closeTabEnabledEl, closeTabModifierEl].forEach((el: HTMLElement) => {
-      el.addEventListener('change', () => {
-        saveShortcuts();
-        updateSearchControlsState();
-        updateCloseTabControlsState();
-      });
-    });
-
-    // 关闭标签按键输入：限制单字符 + 自动保存
-    closeTabKeyEl.addEventListener('input', () => {
-      // 只保留最后输入的一个字符
-      if (closeTabKeyEl.value.length > 1) {
-        closeTabKeyEl.value = closeTabKeyEl.value.slice(-1);
-      }
-      closeTabKeyEl.value = closeTabKeyEl.value.toUpperCase();
-      saveShortcuts();
-    });
-    closeTabKeyEl.addEventListener('blur', () => {
-      if (!closeTabKeyEl.value) {
-        closeTabKeyEl.value = 'W'; // 为空时恢复默认值
-      }
-      saveShortcuts();
-    });
-  }
-
-  // == 密码设置逻辑 ==
-  const passwordEnabledEl = document.getElementById('passwordEnabled') as HTMLInputElement;
-  const passwordInputEl = document.getElementById('passwordInput') as HTMLInputElement;
-  const passwordConfirmEl = document.getElementById('passwordConfirm') as HTMLInputElement;
-  const passwordFieldsEl = document.getElementById('passwordFields') as HTMLDivElement;
-  const savePasswordBtnEl = document.getElementById('savePasswordBtn') as HTMLButtonElement;
-  const passwordMsg = document.getElementById('passwordMsg');
-
-  function showPasswordMsg(text: string, isError = false) {
-    if (passwordMsg) {
-      passwordMsg.textContent = text;
-      (passwordMsg as HTMLElement).style.color = isError ? 'var(--color-accent-red)' : 'var(--color-accent-green)';
-      setTimeout(() => { if (passwordMsg) passwordMsg.textContent = ''; }, 3000);
-    }
-  }
-
-  function updatePasswordFieldsState() {
-    if (passwordFieldsEl) {
-      const disabled = !passwordEnabledEl.checked;
-      passwordInputEl.disabled = disabled;
-      passwordConfirmEl.disabled = disabled;
-      // 保存按钮始终可用，取消勾选后也需要能保存"关闭密码"状态
-      passwordInputEl.style.opacity = disabled ? '0.5' : '1';
-      passwordConfirmEl.style.opacity = disabled ? '0.5' : '1';
-    }
-  }
-
-  if (passwordEnabledEl && passwordInputEl && passwordConfirmEl && savePasswordBtnEl) {
-    // 初始化：从Gitee加载密码配置
-    async function loadPasswordConfig() {
-      const token = tokenEl.value.trim();
-      const owner = ownerEl.value.trim();
-      const repo = repoEl.value.trim();
-      const branch = branchSel.value;
-      const dir = bookmarkDirInput.value.trim();
-
-      if (!token || !owner || !repo || !branch || !dir) {
-        updatePasswordFieldsState();
-        return;
-      }
-
-      try {
-        const config = await getPasswordConfig(token, owner, repo, branch, dir);
-        if (config) {
-          passwordEnabledEl.checked = config.enabled;
-          passwordInputEl.value = config.password;
-          passwordConfirmEl.value = config.password;
-        } else {
-          // 密码.json不存在，说明没有配置密码
-          passwordEnabledEl.checked = false;
-          passwordInputEl.value = '';
-          passwordConfirmEl.value = '';
-        }
-      } catch (error) {
-        passwordEnabledEl.checked = false;
-      }
-      updatePasswordFieldsState();
-    }
-
-    // 页面加载时读取密码配置
-    setTimeout(() => {
-      loadPasswordConfig();
-    }, 500);
-
-    // 启用/禁用密码保护
-    passwordEnabledEl.addEventListener('change', () => {
-      updatePasswordFieldsState();
-    });
-
-    // 保存密码设置
-    savePasswordBtnEl.addEventListener('click', async () => {
-      const token = tokenEl.value.trim();
-      const owner = ownerEl.value.trim();
-      const repo = repoEl.value.trim();
-      const branch = branchSel.value;
-      const dir = bookmarkDirInput.value.trim();
-
-      if (!token || !owner || !repo || !branch || !dir) {
-        showPasswordMsg(t('password.msg.configFirst'), true);
-        return;
-      }
-
-      const enabled = passwordEnabledEl.checked;
-      const password = passwordInputEl.value;
-      const confirm = passwordConfirmEl.value;
-
-      if (enabled) {
-        if (!password) {
-          showPasswordMsg(t('password.msg.empty'), true);
-          return;
-        }
-        if (password !== confirm) {
-          showPasswordMsg(t('password.msg.mismatch'), true);
-          return;
-        }
-      }
-
-      const config = {
-        enabled: enabled,
-        password: enabled ? password : ''
-      };
-
-      const success = await savePasswordConfig(token, owner, repo, branch, dir, config);
-      if (success) {
-        showPasswordMsg(t('password.msg.saved'));
-      } else {
-        showPasswordMsg(t('password.msg.saveFailed'), true);
-      }
-    });
-
-    // 初始化密码字段状态
-    updatePasswordFieldsState();
+    initPopupUI();
   }
 });
