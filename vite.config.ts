@@ -53,11 +53,13 @@ export default defineConfig({
         }
       ]
     }),
-    // content-search 和 background 需要以 IIFE 格式打包
+    // content-search、background 和 bookmark-manager 需要以 IIFE 格式打包
     // 因为 Chrome content_scripts 和 service_worker 不支持 ES modules 的 import 语句
+    // bookmark-manager.js 也需要 IIFE 格式以支持 import 加密模块后打包为单文件
     chromeExtensionScripts([
       'src/content-search.ts',
       'src/background.ts',
+      'src/bookmark-manager.js',
     ]),
   ],
   build: {
@@ -65,7 +67,6 @@ export default defineConfig({
       input: {
         popup: resolve(process.cwd(), 'popup.html'),
         'bookmark-manager': resolve(process.cwd(), 'bookmark-manager.html'),
-        'bookmark-manager-js': resolve(process.cwd(), 'src/bookmark-manager.js'),
       },
       output: {
         entryFileNames: '[name].js',

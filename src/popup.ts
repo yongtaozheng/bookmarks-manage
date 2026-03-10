@@ -1,13 +1,14 @@
 import { initLocale, t, setLocale, getLocale, translateDOM } from './i18n/index';
 import type { Locale } from './i18n/index';
 import { initTheme, setupThemeToggle } from './theme';
+import { encrypt, decryptSafe } from './crypto';
 
 declare const chrome: any;
 
 // 检查chrome API是否可用
 function isChromeExtensionContext(): boolean {
-  return typeof chrome !== 'undefined' && 
-         chrome.runtime && 
+  return typeof chrome !== 'undefined' &&
+         chrome.runtime &&
          chrome.runtime.sendMessage &&
          chrome.bookmarks;
 }
@@ -32,37 +33,48 @@ function openDB(): Promise<IDBDatabase> {
     };
   });
 }
-function getConfigFromDB(fields: string[]): Promise<any> {
-  return openDB().then(db => {
-    return new Promise(resolve => {
-      const tx = db.transaction(STORE_NAME, 'readonly');
-      const store = tx.objectStore(STORE_NAME);
-      const result: any = {};
-      let count = fields.length;
-      fields.forEach(f => {
-        const req = store.get(f);
-        req.onsuccess = function() {
-          result[f] = req.result || '';
-          count--;
-          if (count === 0) resolve(result);
-        };
-        req.onerror = function() {
-          count--;
-          if (count === 0) resolve(result);
-        };
-      });
+async function getConfigFromDB(fields: string[]): Promise<any> {
+  const db = await openDB();
+  // 1. 从 IndexedDB 读取原始（加密后的）数据
+  const rawResult: any = await new Promise(resolve => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    const result: any = {};
+    let count = fields.length;
+    fields.forEach(f => {
+      const req = store.get(f);
+      req.onsuccess = function() {
+        result[f] = req.result || '';
+        count--;
+        if (count === 0) resolve(result);
+      };
+      req.onerror = function() {
+        count--;
+        if (count === 0) resolve(result);
+      };
     });
   });
+  // 2. 解密每个字段（兼容未加密的旧数据）
+  const decrypted: any = {};
+  for (const f of fields) {
+    decrypted[f] = await decryptSafe(rawResult[f]);
+  }
+  return decrypted;
 }
-function setConfigToDB(config: Record<string, string>) {
-  return openDB().then(db => {
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORE_NAME);
-    Object.entries(config).forEach(([k, v]) => store.put(v, k));
-    return new Promise<void>(resolve => {
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => resolve();
-    });
+async function setConfigToDB(config: Record<string, string>) {
+  // 1. 先加密所有配置值
+  const encryptedConfig: Record<string, string> = {};
+  for (const [k, v] of Object.entries(config)) {
+    encryptedConfig[k] = v ? await encrypt(v) : v;
+  }
+  // 2. 写入 IndexedDB
+  const db = await openDB();
+  const tx = db.transaction(STORE_NAME, 'readwrite');
+  const store = tx.objectStore(STORE_NAME);
+  Object.entries(encryptedConfig).forEach(([k, v]) => store.put(v, k));
+  return new Promise<void>(resolve => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => resolve();
   });
 }
 // == 密码文件工具 ==
@@ -377,7 +389,7 @@ function createBookmarks(nodes: any[], parentId = '1'): Promise<void> {
 function filterHiddenBookmarks(bookmarks: any[]): any[] {
   const filterBookmarks = (items: any[]): any[] => {
     const result: any[] = [];
-    
+
     items.forEach(item => {
       if (item.hidden) {
         // 保留隐藏的书签
@@ -385,7 +397,7 @@ function filterHiddenBookmarks(bookmarks: any[]): any[] {
       } else if (item.children && item.children.length > 0) {
         // 递归筛选子项
         const filteredChildren = filterBookmarks(item.children);
-        
+
         // 如果目录包含隐藏的子项，则保留整个目录
         if (filteredChildren.length > 0) {
           result.push({
@@ -395,10 +407,10 @@ function filterHiddenBookmarks(bookmarks: any[]): any[] {
         }
       }
     });
-    
+
     return result;
   };
-  
+
   return filterBookmarks(bookmarks);
 }
 

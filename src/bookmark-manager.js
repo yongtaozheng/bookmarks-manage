@@ -1,3 +1,5 @@
+import { encrypt, decryptSafe } from './crypto';
+
 // i18n 辅助函数
 const t = (key, ...args) => {
   if (window.__i18n && window.__i18n.t) {
@@ -66,13 +68,13 @@ class BookmarkManager {
         } catch (error) {
         }
       }
-      
+
       // 如果Gitee加载失败，使用本地Chrome书签
       if (typeof chrome !== 'undefined' && chrome.bookmarks) {
         const tree = await chrome.bookmarks.getTree();
         // 获取所有根节点的子节点，包括书签栏、其他书签等
         const chromeBookmarks = tree[0].children || [];
-        
+
         // 尝试从storage恢复隐藏状态
         if (typeof chrome !== 'undefined' && chrome.storage) {
           const storedData = await this.loadBookmarksFromStorage();
@@ -92,7 +94,7 @@ class BookmarkManager {
         } else {
           this.bookmarks = chromeBookmarks;
         }
-        
+
         this.saveBookmarksToStorage();
       } else {
         // 模拟数据用于测试
@@ -147,7 +149,7 @@ class BookmarkManager {
       });
     };
     collectIds(chromeBookmarks);
-    
+
     // 检查存储的数据中的ID是否都存在于Chrome书签中
     const checkIds = (bookmarks) => {
       for (const bookmark of bookmarks) {
@@ -162,7 +164,7 @@ class BookmarkManager {
       }
       return true;
     };
-    
+
     return checkIds(storedData);
   }
 
@@ -181,26 +183,26 @@ class BookmarkManager {
       });
     };
     collectHiddenState(storedData);
-    
+
     // 递归合并隐藏状态到Chrome书签数据
     const mergeRecursive = (chromeItems) => {
       return chromeItems.map(item => {
         const merged = { ...item };
-        
+
         // 恢复隐藏状态
         if (hiddenStateMap.has(item.id)) {
           merged.hidden = hiddenStateMap.get(item.id);
         }
-        
+
         // 递归处理子项
         if (item.children && item.children.length > 0) {
           merged.children = mergeRecursive(item.children);
         }
-        
+
         return merged;
       });
     };
-    
+
     return mergeRecursive(chromeBookmarks);
   }
 
@@ -395,7 +397,7 @@ class BookmarkManager {
     // 使用事件委托处理文件夹树的事件
     this.folderTree.addEventListener('click', (e) => {
       const target = e.target;
-      
+
       // 处理文件夹切换
       if (target.classList.contains('folder-toggle')) {
         const children = target.parentElement.nextElementSibling;
@@ -404,7 +406,7 @@ class BookmarkManager {
           target.textContent = target.textContent === '▼' ? '▶' : '▼';
         }
       }
-      
+
       // 处理文件夹选择
       if (target.classList.contains('folder-item') || target.closest('.folder-item')) {
         const folderItem = target.classList.contains('folder-item') ? target : target.closest('.folder-item');
@@ -418,12 +420,12 @@ class BookmarkManager {
     // 使用事件委托处理书签项目的事件
     this.bookmarkTree.addEventListener('click', (e) => {
       const target = e.target;
-      
+
       // 如果点击的是拖动句柄，不处理其他事件
       if (target.classList.contains('drag-handle')) {
         return;
       }
-      
+
       // 处理编辑按钮
       if (target.classList.contains('action-btn-edit')) {
         e.stopPropagation(); // 阻止事件冒泡
@@ -433,7 +435,7 @@ class BookmarkManager {
         }
         return;
       }
-      
+
       // 处理隐藏/显示按钮
       if (target.classList.contains('action-btn-hide')) {
         e.stopPropagation(); // 阻止事件冒泡
@@ -443,7 +445,7 @@ class BookmarkManager {
         }
         return;
       }
-      
+
       // 处理删除按钮
       if (target.classList.contains('action-btn-delete')) {
         e.stopPropagation(); // 阻止事件冒泡
@@ -453,7 +455,7 @@ class BookmarkManager {
         }
         return;
       }
-      
+
       // 处理脚本书签点击
       if (target.classList.contains('script-bookmark') || target.closest('.script-bookmark')) {
         e.stopPropagation();
@@ -462,10 +464,10 @@ class BookmarkManager {
         this.executeScript(scriptUrl);
         return;
       }
-      
-      
+
+
       // 处理文件夹点击（只有在没有点击按钮时才触发）
-      if ((target.classList.contains('folder-item') || target.closest('.folder-item')) && 
+      if ((target.classList.contains('folder-item') || target.closest('.folder-item')) &&
           !target.classList.contains('drag-handle')) {
         const folderItem = target.classList.contains('folder-item') ? target : target.closest('.folder-item');
         const folderId = folderItem.getAttribute('data-folder-id');
@@ -485,7 +487,7 @@ class BookmarkManager {
       if (bookmarkItem) {
         // 重置所有拖动状态
         this.resetDragState();
-        
+
         this.draggedElement = bookmarkItem;
         bookmarkItem.classList.add('dragging');
         e.dataTransfer.effectAllowed = 'move';
@@ -507,15 +509,15 @@ class BookmarkManager {
     this.bookmarkTree.addEventListener('dragover', (e) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
-      
+
       const draggedOver = e.target.closest('.bookmark-item');
       if (draggedOver && draggedOver !== this.draggedElement) {
         this.clearDragOverClasses();
         this.dragOverElement = draggedOver;
-        
+
         const rect = draggedOver.getBoundingClientRect();
         const midpoint = rect.top + rect.height / 2;
-        
+
         if (e.clientY < midpoint) {
           draggedOver.classList.add('drag-over');
         } else {
@@ -532,11 +534,11 @@ class BookmarkManager {
 
     this.bookmarkTree.addEventListener('drop', (e) => {
       e.preventDefault();
-      
+
       if (this.draggedElement && this.dragOverElement) {
         this.handleDrop(this.draggedElement, this.dragOverElement, e);
       }
-      
+
       // 清理所有拖动状态
       this.draggedElement = null;
       this.dragOverElement = null;
@@ -549,7 +551,7 @@ class BookmarkManager {
     this.draggedElement = null;
     this.dragOverElement = null;
     this.clearDragOverClasses();
-    
+
     // 清理所有可能的拖动样式
     const elements = this.bookmarkTree.querySelectorAll('.bookmark-item');
     elements.forEach(el => {
@@ -568,35 +570,35 @@ class BookmarkManager {
   handleDrop(draggedElement, dropTarget, event) {
     const draggedId = draggedElement.getAttribute('data-bookmark-id');
     const dropTargetId = dropTarget.getAttribute('data-bookmark-id');
-    
+
     if (draggedId === dropTargetId) return;
-    
+
     // 获取当前文件夹的书签列表
     const currentFolder = this.findFolderById(this.bookmarks, this.currentFolder.id);
     if (!currentFolder || !currentFolder.children) return;
-    
+
     const bookmarks = currentFolder.children;
     const draggedIndex = bookmarks.findIndex(b => b.id === draggedId);
     const dropIndex = bookmarks.findIndex(b => b.id === dropTargetId);
-    
+
     if (draggedIndex === -1 || dropIndex === -1) return;
-    
+
     // 确定插入位置
     const rect = dropTarget.getBoundingClientRect();
     const midpoint = rect.top + rect.height / 2;
     const insertIndex = event.clientY < midpoint ? dropIndex : dropIndex + 1;
-    
+
     // 重新排序
     const draggedBookmark = bookmarks.splice(draggedIndex, 1)[0];
     const adjustedInsertIndex = insertIndex > draggedIndex ? insertIndex - 1 : insertIndex;
     bookmarks.splice(adjustedInsertIndex, 0, draggedBookmark);
-    
+
     // 更新Chrome书签API
     this.updateBookmarkOrder(draggedId, dropTargetId, insertIndex > dropIndex);
-    
+
     // 保存到存储
     this.saveBookmarksToStorage();
-    
+
     // 延迟重新渲染，确保状态清理完成
     setTimeout(() => {
       this.renderBookmarks();
@@ -607,17 +609,17 @@ class BookmarkManager {
     try {
       // 使用当前文件夹作为父ID
       const parentId = this.currentFolder.id;
-      
+
       // 计算新的索引位置
       const currentFolder = this.findFolderById(this.bookmarks, this.currentFolder.id);
       if (!currentFolder || !currentFolder.children) return;
-      
+
       const bookmarks = currentFolder.children;
       const dropIndex = bookmarks.findIndex(b => b.id === dropTargetId);
       if (dropIndex === -1) return;
-      
+
       const newIndex = insertAfter ? dropIndex + 1 : dropIndex;
-      
+
       // 移动书签
       await chrome.bookmarks.move(draggedId, {
         parentId: parentId,
@@ -642,7 +644,7 @@ class BookmarkManager {
   getBookmarkIndex(bookmarkId) {
     const currentFolder = this.findFolderById(this.bookmarks, this.currentFolder.id);
     if (!currentFolder || !currentFolder.children) return 0;
-    
+
     return currentFolder.children.findIndex(b => b.id === bookmarkId);
   }
 
@@ -654,7 +656,7 @@ class BookmarkManager {
 
   applyFilter(filterType) {
     this.currentFilter = filterType;
-    
+
     // 根据筛选类型过滤书签
     switch (filterType) {
       case 'all':
@@ -667,7 +669,7 @@ class BookmarkManager {
         this.filteredBookmarks = this.filterHiddenOnlyBookmarks(this.bookmarks);
         break;
     }
-    
+
     // 重新渲染左侧目录树（在"只显示隐藏"模式下会过滤空目录）
     this.renderFolderTree();
     this.renderBookmarks();
@@ -676,7 +678,7 @@ class BookmarkManager {
 
   searchInBookmarks(bookmarks, searchTerm) {
     const results = [];
-    
+
     for (const bookmark of bookmarks) {
       if (bookmark.children) {
         // 文件夹
@@ -689,13 +691,13 @@ class BookmarkManager {
         }
       } else if (bookmark.url) {
         // 书签
-        if (bookmark.title.toLowerCase().includes(searchTerm) || 
+        if (bookmark.title.toLowerCase().includes(searchTerm) ||
             bookmark.url.toLowerCase().includes(searchTerm)) {
           results.push(bookmark);
         }
       }
     }
-    
+
     return results;
   }
 
@@ -707,11 +709,11 @@ class BookmarkManager {
   getFolders(bookmarks) {
     const folders = [];
     const searchTerm = this.searchInput.value.trim();
-    
+
     for (const bookmark of bookmarks) {
       if (bookmark.children) {
         const childFolders = this.getFolders(bookmark.children);
-        
+
         // 如果有搜索条件，检查目录是否包含搜索结果
         if (searchTerm) {
           const hasSearchResults = this.hasSearchResults(bookmark, searchTerm.toLowerCase());
@@ -719,7 +721,7 @@ class BookmarkManager {
             continue; // 跳过不包含搜索结果的目录
           }
         }
-        
+
         // 根据当前筛选模式过滤目录
         if (this.currentFilter === 'hidden') {
           // 在"只显示隐藏"模式下，只显示包含隐藏内容的目录
@@ -733,7 +735,7 @@ class BookmarkManager {
             continue; // 跳过隐藏的目录
           }
         }
-        
+
         folders.push({
           id: bookmark.id,
           title: bookmark.title,
@@ -764,7 +766,7 @@ class BookmarkManager {
     if (bookmark.title.toLowerCase().includes(searchTerm)) {
       return true;
     }
-    
+
     // 检查子项
     if (bookmark.children) {
       for (const child of bookmark.children) {
@@ -773,7 +775,7 @@ class BookmarkManager {
         }
       }
     }
-    
+
     return false;
   }
 
@@ -782,7 +784,7 @@ class BookmarkManager {
     try {
       const urlObj = new URL(url);
       const domain = urlObj.hostname;
-      
+
       // 尝试多种favicon URL格式
       const faviconUrls = [
         `https://www.google.com/s2/favicons?domain=${domain}&sz=16`,
@@ -791,7 +793,7 @@ class BookmarkManager {
         `https://${domain}/favicon.png`,
         `https://${domain}/apple-touch-icon.png`
       ];
-      
+
       // 返回第一个URL（Google的favicon服务通常最可靠）
       return faviconUrls[0];
     } catch (error) {
@@ -844,7 +846,7 @@ class BookmarkManager {
       const hiddenIcon = isHidden ? '👁️‍🗨️' : '';
       const hiddenClass = isHidden ? ' hidden-folder' : '';
       const hasChildren = folder.children && folder.children.length > 0;
-      
+
       html += `
         <div class="folder-item${hiddenClass}" data-folder-id="${folder.id}" style="padding-left: ${16 + level * 16}px;">
           ${hasChildren ? '<div class="folder-toggle">▼</div>' : '<div class="folder-toggle" style="visibility: hidden;">▼</div>'}
@@ -863,10 +865,10 @@ class BookmarkManager {
 
   selectRootFolder() {
     // 查找书签栏（通常是第一个根节点）
-    const bookmarkBar = this.bookmarks.find(bookmark => 
+    const bookmarkBar = this.bookmarks.find(bookmark =>
       bookmark.title === '书签栏' || bookmark.title === 'Bookmarks bar'
     );
-    
+
     if (bookmarkBar) {
       this.selectFolder(bookmarkBar.id);
     } else if (this.bookmarks.length > 0) {
@@ -880,19 +882,19 @@ class BookmarkManager {
     document.querySelectorAll('.folder-item').forEach(item => {
       item.classList.remove('active');
     });
-    
+
     // 设置当前选中的文件夹
     const selectedItem = document.querySelector(`[data-folder-id="${folderId}"]`);
     if (selectedItem) {
       selectedItem.classList.add('active');
     }
-    
+
     // 找到选中的文件夹
     const folder = this.findFolderById(this.bookmarks, folderId);
     if (folder) {
       this.currentFolder = folder;
       this.panelTitle.textContent = folder.title;
-      
+
       // 检查是否在搜索状态
       const searchTerm = this.searchInput.value.trim();
       if (searchTerm) {
@@ -910,7 +912,7 @@ class BookmarkManager {
     document.querySelectorAll('.sidebar .folder-item').forEach(item => {
       item.classList.remove('active');
     });
-    
+
     const leftSidebarItem = document.querySelector(`.sidebar [data-folder-id="${folderId}"]`);
     if (leftSidebarItem) {
       leftSidebarItem.classList.add('active');
@@ -963,13 +965,13 @@ class BookmarkManager {
 
   renderBookmarks() {
     const searchTerm = this.searchInput.value.trim();
-    
+
     // 如果有搜索条件，在根目录进行搜索
     if (searchTerm) {
       this.renderSearchResults(searchTerm);
       return;
     }
-    
+
     // 没有搜索条件时，显示当前文件夹内容
     if (!this.currentFolder) {
       this.bookmarkTree.innerHTML = `
@@ -1008,8 +1010,8 @@ class BookmarkManager {
     // 更新当前文件夹为最新数据
     this.currentFolder = folder;
     const bookmarks = this.currentFolder.children || [];
-    
-    
+
+
     if (bookmarks.length === 0) {
       this.bookmarkTree.innerHTML = `
         <div class="empty-state">
@@ -1034,7 +1036,7 @@ class BookmarkManager {
         filteredBookmarks = bookmarks;
         break;
     }
-    
+
     if (filteredBookmarks.length === 0) {
       this.bookmarkTree.innerHTML = `
         <div class="empty-state">
@@ -1051,7 +1053,7 @@ class BookmarkManager {
   renderSearchResults(searchTerm) {
     // 在根目录进行搜索
     const rootBookmarks = this.bookmarks[0]?.children || [];
-    
+
     // 根据当前筛选状态过滤书签
     let filteredBookmarks = rootBookmarks;
     switch (this.currentFilter) {
@@ -1066,10 +1068,10 @@ class BookmarkManager {
         filteredBookmarks = rootBookmarks;
         break;
     }
-    
+
     // 应用搜索过滤
     const searchResults = this.searchInBookmarks(filteredBookmarks, searchTerm.toLowerCase());
-    
+
     if (searchResults.length === 0) {
       this.bookmarkTree.innerHTML = `
         <div class="empty-state">
@@ -1087,10 +1089,10 @@ class BookmarkManager {
 
     // 显示搜索结果，包含文件夹路径信息
     this.bookmarkTree.innerHTML = this.renderSearchResultsList(searchResults, searchTerm);
-    
+
     // 更新面板标题
     this.panelTitle.textContent = `${t('manager.searchResults')} (${searchResults.length} ${t('manager.items')})`;
-    
+
     // 清除左侧选中状态，因为显示的是全局搜索结果
     document.querySelectorAll('.folder-item').forEach(item => {
       item.classList.remove('active');
@@ -1099,20 +1101,20 @@ class BookmarkManager {
 
   renderSearchResultsList(bookmarks, searchTerm) {
     let html = '';
-    
+
     for (const bookmark of bookmarks) {
       if (bookmark.url) {
         // 书签
         const isHidden = bookmark.hidden || false;
         const hiddenClass = isHidden ? ' hidden-bookmark' : '';
         const hiddenIcon = isHidden ? '👁️‍🗨️' : '';
-        
+
         // 检测是否为脚本书签
         const isJavaScript = bookmark.url.startsWith('javascript:');
         const isDataUrl = bookmark.url.startsWith('data:');
-        
+
         let faviconUrl, displayUrl, clickHandler;
-        
+
         if (isJavaScript || isDataUrl) {
           // 脚本书签特殊处理
           faviconUrl = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIgMkgxNFYxNEgyVjJaIiBzdHJva2U9IiM2NjYiIHN0cm9rZS13aWR0aD0iMS41IiBmaWxsPSJub25lIi8+CjxwYXRoIGQ9Ik0yIDZIMTRWNkg2VjJaIiBmaWxsPSIjNjY2Ii8+Cjwvc3ZnPgo=';
@@ -1145,7 +1147,7 @@ class BookmarkManager {
         html += this.renderSearchResultsList(bookmark.children, searchTerm);
       }
     }
-    
+
     return html;
   }
 
@@ -1158,7 +1160,7 @@ class BookmarkManager {
   renderSearchResultsInFolder(folder, searchTerm) {
     // 在该目录中搜索匹配的内容
     const searchResults = this.searchInBookmarks(folder.children || [], searchTerm.toLowerCase());
-    
+
     if (searchResults.length === 0) {
       this.bookmarkTree.innerHTML = `
         <div class="empty-state">
@@ -1177,23 +1179,23 @@ class BookmarkManager {
 
   renderBookmarkList(bookmarks) {
     let html = '';
-    
+
     // 渲染传入的书签（已经过筛选）
     for (const bookmark of bookmarks) {
       // 直接使用书签数据中的hidden属性
       const isHidden = bookmark.hidden || false;
-      
+
       if (bookmark.url) {
         // 书签
         const hiddenClass = isHidden ? ' hidden-bookmark' : '';
         const hiddenIcon = isHidden ? '👁️‍🗨️' : '';
-        
+
         // 检测是否为脚本书签
         const isJavaScript = bookmark.url.startsWith('javascript:');
         const isDataUrl = bookmark.url.startsWith('data:');
-        
+
         let faviconUrl, displayUrl, clickHandler;
-        
+
         if (isJavaScript || isDataUrl) {
           // 脚本书签特殊处理
           faviconUrl = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIgMkgxNFYxNEgyVjJaIiBzdHJva2U9IiM2NjYiIHN0cm9rZS13aWR0aD0iMS41IiBmaWxsPSJub25lIi8+CjxwYXRoIGQ9Ik0yIDZIMTRWNkg2VjJaIiBmaWxsPSIjNjY2Ii8+Cjwvc3ZnPgo=';
@@ -1242,7 +1244,7 @@ class BookmarkManager {
         `;
       }
     }
-    
+
     return html;
   }
 
@@ -1642,53 +1644,35 @@ class BookmarkManager {
     return mergeNodes([...currentBookmarks], importedBookmarks);
   }
 
-  findBookmarkById(bookmarkId) {
-    // 递归查找书签
-    const findInBookmarks = (bookmarks) => {
-      for (const bookmark of bookmarks) {
-        if (bookmark.id === bookmarkId) {
-          return bookmark;
-        }
-        if (bookmark.children) {
-          const found = findInBookmarks(bookmark.children);
-          if (found) return found;
-        }
-      }
-      return null;
-    };
-    
-    return findInBookmarks(this.bookmarks);
-  }
-
   toggleBookmarkVisibility(bookmarkId) {
-    
+
     // 查找当前书签
     const bookmark = this.findBookmarkById(bookmarkId);
     if (bookmark) {
-      
+
       // 直接修改书签的hidden属性
       bookmark.hidden = !bookmark.hidden;
-      
+
       // 如果是目录，递归处理所有子项
       if (bookmark.children && bookmark.children.length > 0) {
         this.toggleFolderVisibility(bookmark, bookmark.hidden);
       }
-      
+
       // 保存到Gitee仓库
       this.saveBookmarkTreeToGitee(this.bookmarks);
-      
+
       // 保存到storage供popup使用
       this.saveBookmarksToStorage();
-      
+
       // 更新系统书签（过滤掉隐藏的书签）
       this.updateSystemBookmarks();
-      
+
       // 重新渲染左侧目录树（同步隐藏状态）
       this.renderFolderTree();
-      
+
       // 重新渲染当前文件夹
       this.renderBookmarks();
-      
+
       // 更新统计信息
       this.updateStats();
     } else {
@@ -1697,15 +1681,15 @@ class BookmarkManager {
 
   // 递归处理目录的隐藏/显示
   toggleFolderVisibility(folder, isHidden) {
-    
+
     // 设置目录本身的隐藏状态
     folder.hidden = isHidden;
-    
+
     // 递归处理所有子项
     if (folder.children && folder.children.length > 0) {
       for (const child of folder.children) {
         child.hidden = isHidden;
-        
+
         // 如果子项也是目录，递归处理
         if (child.children && child.children.length > 0) {
           this.toggleFolderVisibility(child, isHidden);
@@ -1717,10 +1701,10 @@ class BookmarkManager {
   updateSystemBookmarks() {
     // 更新系统书签，过滤掉隐藏的书签（系统书签栏不显示隐藏书签）
     if (typeof chrome !== 'undefined' && chrome.bookmarks) {
-      
+
       // 过滤掉隐藏的书签，系统书签栏只显示可见的书签
       const visibleBookmarks = this.filterVisibleBookmarks(this.bookmarks[0].children);
-      
+
       // 先清空所有书签，然后重新创建可见的书签
       this.removeAllBookmarks().then(() => {
         // 重新创建可见的书签到系统书签栏
@@ -1759,17 +1743,17 @@ class BookmarkManager {
     if (!Array.isArray(bookmarks)) {
       return [];
     }
-    
+
     return bookmarks.filter(bookmark => {
       if (!bookmark) {
         return false;
       }
-      
+
       // 如果书签被隐藏，则过滤掉
       if (bookmark.hidden === true) {
         return false;
       }
-      
+
       // 如果有子项，递归过滤
       if (bookmark.children && Array.isArray(bookmark.children)) {
         const filteredChildren = this.filterVisibleBookmarks(bookmark.children);
@@ -1781,7 +1765,7 @@ class BookmarkManager {
           return false;
         }
       }
-      
+
       return true;
     });
   }
@@ -1791,20 +1775,20 @@ class BookmarkManager {
     if (!Array.isArray(nodes) || nodes.length === 0) {
       return Promise.resolve();
     }
-    
-    
+
+
     return Promise.all(nodes.map(node => {
       if (!node) {
         return Promise.resolve();
       }
-      
+
       if (node.url) {
         // 创建书签
         return new Promise(res => {
-          chrome.bookmarks.create({ 
-            parentId, 
-            title: node.title, 
-            url: node.url 
+          chrome.bookmarks.create({
+            parentId,
+            title: node.title,
+            url: node.url
           }, (bookmark) => {
             if (chrome.runtime.lastError) {
             } else {
@@ -1815,9 +1799,9 @@ class BookmarkManager {
       } else {
         // 创建文件夹
         return new Promise(res => {
-          chrome.bookmarks.create({ 
-            parentId, 
-            title: node.title 
+          chrome.bookmarks.create({
+            parentId,
+            title: node.title
           }, (folder) => {
             if (chrome.runtime.lastError) {
               res(undefined);
@@ -1844,7 +1828,7 @@ class BookmarkManager {
       }
 
       const url = `https://gitee.com/api/v5/repos/${this.giteeConfig.owner}/${this.giteeConfig.repo}/contents/${this.giteeConfig.filePath}`;
-      
+
       fetch(url, {
         method: 'GET',
         headers: {
@@ -1874,43 +1858,15 @@ class BookmarkManager {
         if (item.hidden) {
           return false; // 过滤掉隐藏的书签
         }
-        
+
         if (item.children) {
           item.children = filterBookmarks(item.children);
         }
-        
-        return true;
-      });
-    };
-    
-    return filterBookmarks(bookmarks);
-  }
 
-  filterVisibleBookmarks(bookmarks) {
-    // 递归过滤，只显示可见的书签（不修改原始数据）
-    const filterBookmarks = (items) => {
-      return items.filter(item => {
-        if (item.hidden) {
-          return false; // 过滤掉隐藏的书签
-        }
-        
-        if (item.children) {
-          const filteredChildren = filterBookmarks(item.children);
-          if (filteredChildren.length > 0) {
-            // 创建新对象，不修改原始数据
-            return {
-              ...item,
-              children: filteredChildren
-            };
-          } else {
-            return false; // 如果文件夹下没有可见内容，也不显示
-          }
-        }
-        
         return true;
       });
     };
-    
+
     return filterBookmarks(bookmarks);
   }
 
@@ -1921,11 +1877,11 @@ class BookmarkManager {
         if (item.hidden) {
           return true; // 显示隐藏的书签
         }
-        
+
         if (item.children && item.children.length > 0) {
           // 递归过滤子项
           const filteredChildren = filterBookmarks(item.children);
-          
+
           // 如果目录本身是隐藏的，或者包含隐藏的子项，则显示
           if (item.hidden || filteredChildren.length > 0) {
             // 创建新对象，不修改原始数据
@@ -1937,11 +1893,11 @@ class BookmarkManager {
             return false; // 目录不隐藏且没有隐藏的子项，不显示
           }
         }
-        
+
         return false; // 过滤掉可见的书签
       });
     };
-    
+
     return filterBookmarks(bookmarks);
   }
 
@@ -2064,7 +2020,8 @@ class BookmarkManager {
 
   async getConfigFromIndexedDB(fields) {
     const db = await this.openDB();
-    return new Promise(resolve => {
+    // 1. 从 IndexedDB 读取原始（加密后的）数据
+    const rawResult = await new Promise(resolve => {
       const tx = db.transaction('gitee-config', 'readonly');
       const store = tx.objectStore('gitee-config');
       const result = {};
@@ -2082,13 +2039,25 @@ class BookmarkManager {
         };
       });
     });
+    // 2. 解密每个字段（兼容未加密的旧数据）
+    const decrypted = {};
+    for (const f of fields) {
+      decrypted[f] = await decryptSafe(rawResult[f]);
+    }
+    return decrypted;
   }
 
   async setConfigToIndexedDB(config) {
+    // 1. 先加密所有配置值
+    const encryptedConfig = {};
+    for (const [k, v] of Object.entries(config)) {
+      encryptedConfig[k] = v ? await encrypt(v) : v;
+    }
+    // 2. 写入 IndexedDB
     const db = await this.openDB();
     const tx = db.transaction('gitee-config', 'readwrite');
     const store = tx.objectStore('gitee-config');
-    Object.entries(config).forEach(([k, v]) => store.put(v, k));
+    Object.entries(encryptedConfig).forEach(([k, v]) => store.put(v, k));
     return new Promise(resolve => {
       tx.oncomplete = () => resolve();
       tx.onerror = () => resolve();
@@ -2114,7 +2083,7 @@ class BookmarkManager {
           'Authorization': `token ${this.giteeConfig.token}`
         }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         return data.sha;
@@ -2128,7 +2097,7 @@ class BookmarkManager {
   showConfigModal() {
     const modal = document.getElementById('configModal');
     modal.style.display = 'flex';
-    
+
     // 加载当前配置
     document.getElementById('giteeOwner').value = this.giteeConfig.owner;
     document.getElementById('giteeRepo').value = this.giteeConfig.repo;
@@ -2144,17 +2113,17 @@ class BookmarkManager {
     const owner = document.getElementById('giteeOwner').value.trim();
     const repo = document.getElementById('giteeRepo').value.trim();
     const token = document.getElementById('giteeToken').value.trim();
-    
+
     if (!owner || !repo || !token) {
       alert(t('manager.configIncomplete'));
       return;
     }
-    
+
     // 更新配置
     this.giteeConfig.owner = owner;
     this.giteeConfig.repo = repo;
     this.giteeConfig.token = token;
-    
+
     // 保存到IndexedDB
     try {
       await this.setConfigToIndexedDB({
@@ -2166,7 +2135,7 @@ class BookmarkManager {
       });
     } catch (error) {
     }
-    
+
     this.hideConfigModal();
     alert(t('manager.configSaved'));
   }
