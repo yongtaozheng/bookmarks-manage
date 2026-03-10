@@ -16,10 +16,8 @@ const GITEE_DIST_ZIP_API = 'https://gitee.com/api/v5/repos/zheng_yongtao/bookmar
 // Releases 页面 — 查看更新详情
 export const GITEE_RELEASES_PAGE = 'https://gitee.com/zheng_yongtao/bookmarks-manage/releases';
 
-const CHECK_INTERVAL_MS = 10 * 60 * 1000; // 10 分钟
 const REQUEST_TIMEOUT_MS = 10000; // 10 秒
 
-const STORAGE_KEY_CACHE = 'version_check_cache';
 const STORAGE_KEY_DISMISSED = 'version_check_dismissed';
 
 // === 类型 ===
@@ -28,13 +26,6 @@ export interface VersionCheckResult {
   currentVersion: string;
   latestVersion: string;
   downloadUrl: string;
-  releaseNotes?: string;
-}
-
-interface VersionCache {
-  latestVersion: string;
-  downloadUrl: string;
-  lastCheckTime: number;
   releaseNotes?: string;
 }
 
@@ -62,33 +53,6 @@ export function getCurrentVersion(): string {
     return chrome.runtime.getManifest().version;
   }
   return '0.0.0';
-}
-
-// === 缓存管理 ===
-function getCachedResult(): Promise<VersionCache | null> {
-  return new Promise((resolve) => {
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.get([STORAGE_KEY_CACHE], (result: any) => {
-        try {
-          resolve(result[STORAGE_KEY_CACHE] ? JSON.parse(result[STORAGE_KEY_CACHE]) : null);
-        } catch {
-          resolve(null);
-        }
-      });
-    } else {
-      resolve(null);
-    }
-  });
-}
-
-function setCachedResult(cache: VersionCache): Promise<void> {
-  return new Promise((resolve) => {
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.set({ [STORAGE_KEY_CACHE]: JSON.stringify(cache) }, () => resolve());
-    } else {
-      resolve();
-    }
-  });
 }
 
 // === 忽略版本管理 ===
@@ -160,25 +124,10 @@ async function fetchGiteeRelease(): Promise<{ version: string; downloadUrl: stri
 
 // === 主检查函数 ===
 /**
- * 检查版本更新
- * @param forceCheck - 是否强制跳过缓存
+ * 检查版本更新（每次打开 popup 实时检查）
  */
-export async function checkForUpdate(forceCheck = false): Promise<VersionCheckResult> {
+export async function checkForUpdate(): Promise<VersionCheckResult> {
   const currentVersion = getCurrentVersion();
-
-  // 检查缓存（非强制时）
-  if (!forceCheck) {
-    const cache = await getCachedResult();
-    if (cache && (Date.now() - cache.lastCheckTime < CHECK_INTERVAL_MS)) {
-      return {
-        hasUpdate: compareVersions(cache.latestVersion, currentVersion) > 0,
-        currentVersion,
-        latestVersion: cache.latestVersion,
-        downloadUrl: cache.downloadUrl,
-        releaseNotes: cache.releaseNotes,
-      };
-    }
-  }
 
   // 优先 GitHub，失败后回退 Gitee
   let release = await fetchGitHubRelease();
@@ -187,14 +136,6 @@ export async function checkForUpdate(forceCheck = false): Promise<VersionCheckRe
   }
 
   if (release && release.version) {
-    // 写入缓存
-    await setCachedResult({
-      latestVersion: release.version,
-      downloadUrl: release.downloadUrl,
-      lastCheckTime: Date.now(),
-      releaseNotes: release.notes,
-    });
-
     return {
       hasUpdate: compareVersions(release.version, currentVersion) > 0,
       currentVersion,
