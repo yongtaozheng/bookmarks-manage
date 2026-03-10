@@ -40,6 +40,12 @@ A modern Chrome bookmarks manager extension (Manifest V3) built with Vue 3 + Typ
 - **Broken Link Detection**: Automatically verify all bookmark URLs with concurrent HTTP checks, real-time progress, status filtering, and batch deletion of broken links.
 - **Data Security**: Gitee configuration stored in browser IndexedDB; shortcut settings and bookmark usage data stored in chrome.storage.local.
 
+## User Installation Guide
+
+> **Regular users**: See the 👉 [**Installation & Usage Guide**](./docs/installation-guide.md) — no programming experience required. Just download, unzip, and load into Chrome.
+
+The following section is for **developers**.
+
 ## Getting Started
 
 ### Clone
