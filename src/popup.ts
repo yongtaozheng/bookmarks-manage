@@ -558,7 +558,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
           if (inputVal === pwdConfig.password) {
             lockOverlay.style.display = 'none';
-            popupContent.style.display = '';
+            popupContent.style.display = 'flex';
             document.body.style.minHeight = '';
           } else {
             lockError.textContent = t('password.lock.error');
@@ -576,11 +576,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     // 无需密码，直接显示主内容
     if (!needLock) {
-      popupContent.style.display = '';
+      popupContent.style.display = 'flex';
     }
   } catch (e) {
     // 密码检查失败，不锁定，显示主内容
-    popupContent.style.display = '';
+    popupContent.style.display = 'flex';
   }
 
   // Gitee 配置表单逻辑

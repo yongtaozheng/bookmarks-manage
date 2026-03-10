@@ -103,8 +103,8 @@
         font-family: var(--font-family-primary);
       }
 
-      html, body { width: 600px !important; min-width: 600px !important; max-width: 600px !important; }
-      body { margin: 0; padding: 0; font-family: var(--font-family-primary); background: var(--color-bg-secondary); color: var(--color-text-primary); }
+      html, body { width: 600px !important; min-width: 600px !important; max-width: 600px !important; height: 600px !important; max-height: 600px !important; }
+      body { margin: 0; padding: 0; font-family: var(--font-family-primary); background: var(--color-bg-secondary); color: var(--color-text-primary); overflow: hidden; }
       .open-tab-btn {
         display: block;
         width: 580px;
@@ -401,6 +401,17 @@
         border-bottom-color: var(--color-accent-blue);
         font-weight: bold;
       }
+      .popup-fixed-header {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: var(--color-bg-secondary);
+      }
+      .popup-tab-content {
+        flex: 1;
+        overflow-y: auto;
+        min-height: 0;
+      }
       .popup-tab-panel {
         display: none;
       }
@@ -421,7 +432,9 @@
       </div>
     </div>
     <!-- 主内容（默认隐藏，密码检查完成后显示） -->
-    <div id="popupContent" style="display:none;">
+    <div id="popupContent" style="display:none;flex-direction:column;height:100vh;max-height:600px;">
+    <!-- 固定头部区域 -->
+    <div class="popup-fixed-header">
     <div style="position:absolute;top:10px;right:10px;z-index:1000;display:flex;align-items:center;gap:8px;">
       <button id="themeToggle" style="background:var(--color-accent-blue);color:#fff;border:none;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;box-shadow:0 1px 4px var(--color-shadow);transition:background 0.2s;display:flex;align-items:center;justify-content:center;" title="切换主题" data-i18n-title="theme.toggle">
         <span id="themeIcon">🖥️</span>
@@ -442,7 +455,10 @@
       <button class="popup-tab-btn" data-tab="password" data-i18n="tab.password">🔒 密码</button>
       <button class="popup-tab-btn" data-tab="feedback" data-i18n="tab.feedback">💬 反馈</button>
     </div>
+    </div><!-- /popup-fixed-header -->
 
+    <!-- 可滚动的 Tab 内容区域 -->
+    <div class="popup-tab-content">
     <!-- Tab 1: 配置 -->
     <div class="popup-tab-panel active" id="tabConfig" data-tab-panel="config">
     <div class="bookmark-manager-buttons">
@@ -603,6 +619,7 @@
       </div>
     </div>
     </div>
+    </div><!-- /popup-tab-content -->
     <div id="app"></div>
     <div id="helpModal" class="help-modal" style="display:none;">
       <div class="help-modal-content">
