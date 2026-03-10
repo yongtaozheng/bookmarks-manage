@@ -78,6 +78,39 @@ async function setConfigToDB(config: Record<string, string>) {
     tx.onerror = () => resolve();
   });
 }
+// 从 IndexedDB 读取原始加密数据（不解密）
+async function getRawConfigFromDB(fields: string[]): Promise<any> {
+  const db = await openDB();
+  return new Promise(resolve => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    const result: any = {};
+    let count = fields.length;
+    fields.forEach(f => {
+      const req = store.get(f);
+      req.onsuccess = function() {
+        result[f] = req.result || '';
+        count--;
+        if (count === 0) resolve(result);
+      };
+      req.onerror = function() {
+        count--;
+        if (count === 0) resolve(result);
+      };
+    });
+  });
+}
+// 将原始加密数据直接写入 IndexedDB（不再加密）
+async function setRawConfigToDB(config: Record<string, string>) {
+  const db = await openDB();
+  const tx = db.transaction(STORE_NAME, 'readwrite');
+  const store = tx.objectStore(STORE_NAME);
+  Object.entries(config).forEach(([k, v]) => store.put(v, k));
+  return new Promise<void>(resolve => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => resolve();
+  });
+}
 // == 密码文件工具 ==
 const PASSWORD_FILE_NAME = '密码.json';
 
@@ -1217,6 +1250,161 @@ document.addEventListener('DOMContentLoaded', async () => {
         saveShortcuts();
       });
     }
+
+    // == 配置导出/导入逻辑 ==
+    const importConfigFileEl = document.getElementById('importConfigFile') as HTMLInputElement;
+
+    // 导出配置
+    document.getElementById('btnExportConfig')!.onclick = async function() {
+      try {
+        // 获取 Gitee 配置（原始加密数据，不解密）
+        const rawGiteeConfig = await getRawConfigFromDB(['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath']);
+
+        // 获取快捷键配置
+        const shortcutCfg = await getShortcutConfig();
+
+        // 获取主题和语言
+        const storageData: any = await new Promise(resolve => {
+          chrome.storage.local.get(['app_theme', 'app_locale'], (result: any) => resolve(result));
+        });
+
+        const exportData = {
+          version: 1,
+          exportTime: new Date().toISOString(),
+          giteeConfig: {
+            encrypted: true,
+            giteeToken: rawGiteeConfig.giteeToken || '',
+            giteeOwner: rawGiteeConfig.giteeOwner || '',
+            giteeRepo: rawGiteeConfig.giteeRepo || '',
+            giteeBranch: rawGiteeConfig.giteeBranch || '',
+            giteeFilePath: rawGiteeConfig.giteeFilePath || '',
+            bookmarkDir: bookmarkDirInput.value.trim() || 'bookmarks',
+          },
+          shortcutConfig: shortcutCfg,
+          theme: storageData.app_theme || 'system',
+          locale: storageData.app_locale || 'zh-CN',
+        };
+
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `bookmarks-config-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showMsg(t('msg.exportConfigSuccess'));
+      } catch (e: any) {
+        showMsg(t('msg.exportConfigFailed'), true);
+      }
+    };
+
+    // 导入配置
+    document.getElementById('btnImportConfig')!.onclick = function() {
+      importConfigFileEl.click();
+    };
+
+    importConfigFileEl.addEventListener('change', async function() {
+      const file = this.files?.[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+
+        // 校验文件格式
+        if (!data.version || !data.giteeConfig) {
+          showMsg(t('msg.importConfigInvalid'), true);
+          this.value = '';
+          return;
+        }
+
+        if (!confirm(t('confirm.importConfig'))) {
+          this.value = '';
+          return;
+        }
+
+        // 1. 导入 Gitee 配置到 IndexedDB
+        const giteeFieldNames = ['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath'];
+        const giteeFields: Record<string, string> = {};
+        giteeFieldNames.forEach(f => {
+          if (data.giteeConfig[f] !== undefined) giteeFields[f] = data.giteeConfig[f];
+        });
+
+        if (data.giteeConfig.encrypted) {
+          // 加密数据：直接写入 IndexedDB（不再二次加密）
+          await setRawConfigToDB(giteeFields);
+        } else {
+          // 兼容旧版明文数据：加密后写入
+          await setConfigToDB(giteeFields);
+        }
+
+        // 回填表单（读取时自动解密）
+        const savedConfig = await getConfigFromDB(giteeFieldNames);
+        giteeFieldNames.forEach(f => {
+          const el = document.getElementById(f) as HTMLInputElement;
+          if (el && savedConfig[f]) el.value = savedConfig[f];
+        });
+
+        // 回填 bookmarkDir
+        if (data.giteeConfig.bookmarkDir) {
+          bookmarkDirInput.value = data.giteeConfig.bookmarkDir;
+        }
+
+        // 2. 导入快捷键配置
+        if (data.shortcutConfig) {
+          await saveShortcutConfig(data.shortcutConfig);
+          // 回填快捷键表单
+          const scCfg = await getShortcutConfig();
+          const _searchEnabled = document.getElementById('searchEnabled') as HTMLInputElement;
+          const _searchTriggerKey = document.getElementById('searchTriggerKey') as HTMLSelectElement;
+          const _searchPressCount = document.getElementById('searchPressCount') as HTMLSelectElement;
+          const _searchTimeWindow = document.getElementById('searchTimeWindow') as HTMLSelectElement;
+          const _closeTabEnabled = document.getElementById('closeTabEnabled') as HTMLInputElement;
+          const _closeTabModifier = document.getElementById('closeTabModifier') as HTMLSelectElement;
+          const _closeTabKey = document.getElementById('closeTabKey') as HTMLInputElement;
+          if (_searchEnabled) _searchEnabled.checked = scCfg.search.enabled;
+          if (_searchTriggerKey) _searchTriggerKey.value = scCfg.search.triggerKey;
+          if (_searchPressCount) _searchPressCount.value = String(scCfg.search.pressCount);
+          if (_searchTimeWindow) _searchTimeWindow.value = String(scCfg.search.timeWindow);
+          if (_closeTabEnabled) _closeTabEnabled.checked = scCfg.closeTab.enabled;
+          if (_closeTabModifier) _closeTabModifier.value = scCfg.closeTab.modifier;
+          if (_closeTabKey) _closeTabKey.value = scCfg.closeTab.key.toUpperCase();
+        }
+
+        // 3. 导入主题和语言
+        const storageUpdate: Record<string, string> = {};
+        if (data.theme) storageUpdate.app_theme = data.theme;
+        if (data.locale) storageUpdate.app_locale = data.locale;
+        if (Object.keys(storageUpdate).length > 0) {
+          await new Promise<void>(resolve => {
+            chrome.storage.local.set(storageUpdate, () => resolve());
+          });
+        }
+
+        // 刷新主题
+        if (data.theme) {
+          await initTheme();
+          setupThemeToggle();
+        }
+
+        // 刷新语言
+        if (data.locale) {
+          const _langSelect = document.getElementById('langSelect') as HTMLSelectElement;
+          if (_langSelect) _langSelect.value = data.locale;
+          await setLocale(data.locale as Locale);
+          translateDOM();
+        }
+
+        showMsg(t('msg.importConfigSuccess'));
+      } catch (e: any) {
+        showMsg(t('msg.importConfigFailed'), true);
+      }
+
+      // 重置 file input
+      this.value = '';
+    });
 
     // == 密码设置逻辑 ==
     const passwordEnabledEl = document.getElementById('passwordEnabled') as HTMLInputElement;

@@ -346,6 +346,16 @@ export default {
   'lang.zh': '中文',
   'lang.en': 'English',
 
+  // === Config Export/Import ===
+  'config.export': '📤 Export Config',
+  'config.import': '📥 Import Config',
+  'msg.exportConfigSuccess': 'Config exported!',
+  'msg.exportConfigFailed': 'Failed to export config',
+  'msg.importConfigSuccess': 'Config imported successfully! Page will refresh.',
+  'msg.importConfigFailed': 'Failed to import config, please check file format',
+  'msg.importConfigInvalid': 'Invalid config file format, please select a valid config file',
+  'confirm.importConfig': 'Are you sure you want to import config? This will overwrite all current settings (Gitee config, shortcuts, theme, language).',
+
   // === Version Update ===
   'version.current': 'Version: v{0}',
   'version.newAvailable': '🎉 New version v{0} available',

@@ -328,6 +328,15 @@
     // === 语言 ===
     "lang.zh": "\u4E2D\u6587",
     "lang.en": "English",
+    // === 配置导出/导入 ===
+    "config.export": "\u{1F4E4} \u5BFC\u51FA\u914D\u7F6E",
+    "config.import": "\u{1F4E5} \u5BFC\u5165\u914D\u7F6E",
+    "msg.exportConfigSuccess": "\u914D\u7F6E\u5DF2\u5BFC\u51FA\uFF01",
+    "msg.exportConfigFailed": "\u914D\u7F6E\u5BFC\u51FA\u5931\u8D25",
+    "msg.importConfigSuccess": "\u914D\u7F6E\u5BFC\u5165\u6210\u529F\uFF01\u9875\u9762\u5C06\u81EA\u52A8\u5237\u65B0\u3002",
+    "msg.importConfigFailed": "\u914D\u7F6E\u5BFC\u5165\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u6587\u4EF6\u683C\u5F0F",
+    "msg.importConfigInvalid": "\u5BFC\u5165\u6587\u4EF6\u683C\u5F0F\u65E0\u6548\uFF0C\u8BF7\u9009\u62E9\u6B63\u786E\u7684\u914D\u7F6E\u6587\u4EF6",
+    "confirm.importConfig": "\u786E\u5B9A\u8981\u5BFC\u5165\u914D\u7F6E\u5417\uFF1F\u8FD9\u5C06\u8986\u76D6\u5F53\u524D\u7684\u6240\u6709\u914D\u7F6E\uFF08Gitee\u914D\u7F6E\u3001\u5FEB\u6377\u952E\u3001\u4E3B\u9898\u3001\u8BED\u8A00\uFF09\u3002",
     // === 版本更新 ===
     "version.current": "\u5F53\u524D\u7248\u672C\uFF1Av{0}",
     "version.newAvailable": "\u{1F389} \u53D1\u73B0\u65B0\u7248\u672C v{0}",
@@ -671,6 +680,15 @@
     // === Language ===
     "lang.zh": "\u4E2D\u6587",
     "lang.en": "English",
+    // === Config Export/Import ===
+    "config.export": "\u{1F4E4} Export Config",
+    "config.import": "\u{1F4E5} Import Config",
+    "msg.exportConfigSuccess": "Config exported!",
+    "msg.exportConfigFailed": "Failed to export config",
+    "msg.importConfigSuccess": "Config imported successfully! Page will refresh.",
+    "msg.importConfigFailed": "Failed to import config, please check file format",
+    "msg.importConfigInvalid": "Invalid config file format, please select a valid config file",
+    "confirm.importConfig": "Are you sure you want to import config? This will overwrite all current settings (Gitee config, shortcuts, theme, language).",
     // === Version Update ===
     "version.current": "Version: v{0}",
     "version.newAvailable": "\u{1F389} New version v{0} available",
