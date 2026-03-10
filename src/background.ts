@@ -134,6 +134,26 @@ if (isChromeExtensionContext()) {
       }
     }
 
+    // 执行 javascript: 书签脚本（替代 eval，符合 MV3 CSP 要求）
+    if (message && message.type === 'executeBookmarklet') {
+      const tabId = message.tabId || (sender && sender.tab && sender.tab.id);
+      if (tabId && message.code) {
+        chrome.scripting.executeScript({
+          target: { tabId },
+          world: 'MAIN',
+          func: (code: string) => {
+            const script = document.createElement('script');
+            script.textContent = decodeURIComponent(code);
+            (document.head || document.documentElement).appendChild(script);
+            script.remove();
+          },
+          args: [message.code]
+        }).catch(() => {
+          // 静默处理：某些页面（如 chrome:// 页面）不允许注入脚本
+        });
+      }
+    }
+
     // 转发token更新消息给popup
     if (message.type === 'updateToken' && message.token) {
       // 存储token到storage，popup可以从storage中读取

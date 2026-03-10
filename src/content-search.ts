@@ -597,11 +597,14 @@ async function jumpTo(idx: number) {
   const url = bookmark?.url;
   if (url) {
     await recordBookmarkUsage(bookmark);
-    // 如果是javascript脚本，直接执行
+    // 如果是javascript脚本，通过 background 在页面主世界执行（符合 MV3 CSP）
     if (url.startsWith('javascript:')) {
       try {
         const script = url.substring(11); // 去掉 'javascript:' 前缀
-        eval(script);
+        chrome.runtime.sendMessage({
+          type: 'executeBookmarklet',
+          code: script
+        });
       } catch (e) {
         // 静默处理错误
       }

@@ -803,33 +803,38 @@ class BookmarkManager {
   }
 
 
-  // 执行脚本书签
+  // 执行脚本书签（符合 MV3 CSP，使用 chrome.scripting API 替代 eval/document.write）
   executeScript(scriptUrl) {
     if (scriptUrl.startsWith('javascript:')) {
       const script = scriptUrl.substring(11);
       try {
-        // 在新窗口中执行脚本
-        const newWindow = window.open('', '_blank');
-        if (newWindow) {
-          newWindow.document.write(`
-            <html>
-              <head><title>${t('manager.scriptExecution')}</title></head>
-              <body>
-                <h3>${t('manager.scriptExecutionResult')}</h3>
-                <div id="result"></div>
-                <script>
-                  try {
-                    const result = ${script};
-                    document.getElementById('result').innerHTML = '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
-                  } catch (error) {
-                    document.getElementById('result').innerHTML = '<p style="color: #f44336;">${t('manager.executionError')}' + error.message + '</p>';
-                  }
-                </script>
-              </body>
-            </html>
-          `);
-          newWindow.document.close();
-        }
+        // 查找可用的网页标签页，在其上下文中执行书签脚本
+        chrome.tabs.query({ currentWindow: true }, (tabs) => {
+          const targetTab = tabs.find(tab =>
+            tab.url && (tab.url.startsWith('http://') || tab.url.startsWith('https://'))
+          );
+
+          if (targetTab && targetTab.id) {
+            chrome.scripting.executeScript({
+              target: { tabId: targetTab.id },
+              world: 'MAIN',
+              func: (code) => {
+                const s = document.createElement('script');
+                s.textContent = decodeURIComponent(code);
+                (document.head || document.documentElement).appendChild(s);
+                s.remove();
+              },
+              args: [script]
+            }).then(() => {
+              // 切换到目标标签页
+              chrome.tabs.update(targetTab.id, { active: true });
+            }).catch((error) => {
+              alert(t('manager.scriptExecutionFailed') + error.message);
+            });
+          } else {
+            alert(t('manager.noWebPageTab') || '请先打开一个网页标签页，再执行脚本书签');
+          }
+        });
       } catch (error) {
         alert(t('manager.scriptExecutionFailed') + error.message);
       }

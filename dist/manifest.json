@@ -17,7 +17,8 @@
     "bookmarks",
     "activeTab",
     "tabs",
-    "storage"
+    "storage",
+    "scripting"
   ],
   "host_permissions": [
     "http://*/",

@@ -94,6 +94,23 @@
           chrome.tabs.remove(sender.tab.id);
         }
       }
+      if (message && message.type === "executeBookmarklet") {
+        const tabId = message.tabId || sender && sender.tab && sender.tab.id;
+        if (tabId && message.code) {
+          chrome.scripting.executeScript({
+            target: { tabId },
+            world: "MAIN",
+            func: (code) => {
+              const script = document.createElement("script");
+              script.textContent = decodeURIComponent(code);
+              (document.head || document.documentElement).appendChild(script);
+              script.remove();
+            },
+            args: [message.code]
+          }).catch(() => {
+          });
+        }
+      }
       if (message.type === "updateToken" && message.token) {
         chrome.storage.local.set({ "latestToken": message.token }, () => {
         });

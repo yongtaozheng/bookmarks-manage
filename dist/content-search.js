@@ -1033,8 +1033,8 @@
       document.removeEventListener("mousedown", onDocClick, true);
     }
   }
-  function getBookmarkUsageKey(bookmark2) {
-    return bookmark2.url || bookmark2.id;
+  function getBookmarkUsageKey(bookmark) {
+    return bookmark.url || bookmark.id;
   }
   async function getUsageData() {
     return new Promise((resolve) => {
@@ -1060,8 +1060,8 @@
       }
     });
   }
-  async function recordBookmarkUsage(bookmark2) {
-    const key = getBookmarkUsageKey(bookmark2);
+  async function recordBookmarkUsage(bookmark) {
+    const key = getBookmarkUsageKey(bookmark);
     const usage = await getUsageData();
     if (!usage[key]) usage[key] = { count: 0, last: 0 };
     usage[key].count += 1;
@@ -1104,11 +1104,11 @@
     selectedIdx = results.length ? 0 : -1;
     renderResults(results);
   }
-  function fuzzyScore(q, title, url2) {
+  function fuzzyScore(q, title, url) {
     title = title.toLowerCase();
-    url2 = url2.toLowerCase();
+    url = url.toLowerCase();
     if (title.includes(q)) return 100 + (100 - title.indexOf(q));
-    if (url2.includes(q)) return 80 + (100 - url2.indexOf(q));
+    if (url.includes(q)) return 80 + (100 - url.indexOf(q));
     if (title.replace(/\s/g, "").startsWith(q.replace(/\s/g, ""))) return 60;
     let t2 = 0, i = 0;
     for (let c of q) {
@@ -1123,13 +1123,13 @@
     if (!resultList) return;
     const colors = getContentThemeColors();
     resultList.innerHTML = "";
-    list.forEach((item, idx2) => {
+    list.forEach((item, idx) => {
       const li = document.createElement("li");
       li.textContent = item.title + (item.url ? ` (${item.url})` : "");
       li.style.padding = "0.4em 0.8em";
       li.style.cursor = "pointer";
-      li.style.background = idx2 === selectedIdx ? colors.selectedBg : colors.bg;
-      li.style.color = idx2 === selectedIdx ? colors.selectedText : colors.text;
+      li.style.background = idx === selectedIdx ? colors.selectedBg : colors.bg;
+      li.style.color = idx === selectedIdx ? colors.selectedText : colors.text;
       li.style.fontSize = "1.1em";
       li.style.fontFamily = "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', '\u5FAE\u8F6F\u96C5\u9ED1', sans-serif";
       li.style.overflow = "hidden";
@@ -1141,12 +1141,12 @@
       li.style.wordBreak = "break-all";
       li.onmouseenter = () => {
         if (keyboardPriority) return;
-        selectedIdx = idx2;
+        selectedIdx = idx;
         renderResults(list, folderTitle);
       };
       li.onmousedown = (e) => {
         e.preventDefault();
-        jumpTo(idx2);
+        jumpTo(idx);
       };
       resultList.appendChild(li);
     });
@@ -1185,7 +1185,10 @@
       if (url.startsWith("javascript:")) {
         try {
           const script = url.substring(11);
-          eval(script);
+          chrome.runtime.sendMessage({
+            type: "executeBookmarklet",
+            code: script
+          });
         } catch (e) {
         }
       } else if (url.startsWith("data:")) {

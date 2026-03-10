@@ -686,32 +686,35 @@
         return "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIgMkgxNFYxNEgyVjJaIiBzdHJva2U9IiM2NjYiIHN0cm9rZS13aWR0aD0iMS41IiBmaWxsPSJub25lIi8+CjxwYXRoIGQ9Ik0yIDZIMTRWNkg2VjJaIiBmaWxsPSIjNjY2Ii8+Cjwvc3ZnPgo=";
       }
     }
-    // 执行脚本书签
+    // 执行脚本书签（符合 MV3 CSP，使用 chrome.scripting API 替代 eval/document.write）
     executeScript(scriptUrl) {
       if (scriptUrl.startsWith("javascript:")) {
         const script = scriptUrl.substring(11);
         try {
-          const newWindow = window.open("", "_blank");
-          if (newWindow) {
-            newWindow.document.write(`
-            <html>
-              <head><title>${t("manager.scriptExecution")}</title></head>
-              <body>
-                <h3>${t("manager.scriptExecutionResult")}</h3>
-                <div id="result"></div>
-                <script>
-                  try {
-                    const result = ${script};
-                    document.getElementById('result').innerHTML = '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
-                  } catch (error) {
-                    document.getElementById('result').innerHTML = '<p style="color: #f44336;">${t("manager.executionError")}' + error.message + '</p>';
-                  }
-                <\/script>
-              </body>
-            </html>
-          `);
-            newWindow.document.close();
-          }
+          chrome.tabs.query({ currentWindow: true }, (tabs) => {
+            const targetTab = tabs.find(
+              (tab) => tab.url && (tab.url.startsWith("http://") || tab.url.startsWith("https://"))
+            );
+            if (targetTab && targetTab.id) {
+              chrome.scripting.executeScript({
+                target: { tabId: targetTab.id },
+                world: "MAIN",
+                func: (code) => {
+                  const s = document.createElement("script");
+                  s.textContent = decodeURIComponent(code);
+                  (document.head || document.documentElement).appendChild(s);
+                  s.remove();
+                },
+                args: [script]
+              }).then(() => {
+                chrome.tabs.update(targetTab.id, { active: true });
+              }).catch((error) => {
+                alert(t("manager.scriptExecutionFailed") + error.message);
+              });
+            } else {
+              alert(t("manager.noWebPageTab") || "\u8BF7\u5148\u6253\u5F00\u4E00\u4E2A\u7F51\u9875\u6807\u7B7E\u9875\uFF0C\u518D\u6267\u884C\u811A\u672C\u4E66\u7B7E");
+            }
+          });
         } catch (error) {
           alert(t("manager.scriptExecutionFailed") + error.message);
         }
