@@ -207,6 +207,8 @@
     "help.shortcutCloseTabDesc": "\u5173\u95ED\u5F53\u524D\u6807\u7B7E\u9875\uFF08\u9ED8\u8BA4 Alt+W\uFF09",
     "help.shortcutSearch": "\u8FDE\u7EED\u6309\u4FEE\u9970\u952E\uFF1A",
     "help.shortcutSearchDesc": "\u547C\u51FA\u5168\u5C40\u4E66\u7B7E\u641C\u7D22\uFF08\u9ED8\u8BA4\u8FDE\u7EED\u4E09\u6B21 Cmd/Ctrl/Alt\uFF09",
+    "help.shortcutContextMenu": "\u53F3\u952E\u83DC\u5355\uFF1A",
+    "help.shortcutContextMenuDesc": "\u5728\u9875\u9762\u53F3\u952E\u53EF\u5FEB\u901F\u6253\u5F00\u4E66\u7B7E\u7BA1\u7406\u5668",
     "help.shortcutEsc": "ESC\uFF1A",
     "help.shortcutEscDesc": "\u5173\u95ED\u641C\u7D22\u6846",
     "help.configTitle": "\u914D\u7F6E\u8BF4\u660E",
@@ -559,6 +561,8 @@
     "help.shortcutCloseTabDesc": "Close current tab (default Alt+W)",
     "help.shortcutSearch": "Press modifier repeatedly:",
     "help.shortcutSearchDesc": "Open global bookmark search (default triple Cmd/Ctrl/Alt)",
+    "help.shortcutContextMenu": "Context Menu:",
+    "help.shortcutContextMenuDesc": "Right-click on any page to quickly open bookmark manager",
     "help.shortcutEsc": "ESC:",
     "help.shortcutEscDesc": "Close search box",
     "help.configTitle": "Configuration",
@@ -2906,26 +2910,43 @@
     }
     /**
      * 非扩展环境下的 fetch 回退方案
+     * no-cors 模式下无法读取真实状态码，仅可判断网络是否可达
      */
     async checkLinkFallback(url) {
       if (!/^https?:\/\//i.test(url)) {
         return { status: "ok", statusCode: 0, url, message: "Skipped" };
       }
-      try {
+      const doFetch = async () => {
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 15e3);
-        const response = await fetch(url, {
-          method: "HEAD",
-          signal: controller.signal,
-          mode: "no-cors"
-        });
-        clearTimeout(timer);
+        const timer = setTimeout(() => controller.abort(), 2e4);
+        try {
+          const response = await fetch(url, {
+            method: "HEAD",
+            signal: controller.signal,
+            mode: "no-cors"
+          });
+          return response;
+        } finally {
+          clearTimeout(timer);
+        }
+      };
+      try {
+        const response = await doFetch();
         return { status: "ok", statusCode: response.status || 0, url };
       } catch (err) {
         if (err.name === "AbortError") {
           return { status: "warning", statusCode: 0, url, message: "Timeout" };
         }
-        return { status: "error", statusCode: 0, url, message: err.message || "Network error" };
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+          const response = await doFetch();
+          return { status: "ok", statusCode: response.status || 0, url };
+        } catch (retryErr) {
+          if (retryErr.name === "AbortError") {
+            return { status: "warning", statusCode: 0, url, message: "Timeout" };
+          }
+          return { status: "error", statusCode: 0, url, message: retryErr.message || "Network error" };
+        }
       }
     }
     /**
@@ -3208,12 +3229,12 @@
           };
         });
       });
-      const configData = await getConfig(["giteeToken", "giteeOwner", "giteeRepo", "giteeBranch", "giteeFilePath"]);
-      const pToken = configData.giteeToken || "";
-      const pOwner = configData.giteeOwner || "";
-      const pRepo = configData.giteeRepo || "";
-      const pBranch = configData.giteeBranch || "master";
-      const pFilePath = configData.giteeFilePath || "";
+      const rawConfig = await getConfig(["giteeToken", "giteeOwner", "giteeRepo", "giteeBranch", "giteeFilePath"]);
+      const pToken = await decryptSafe(rawConfig.giteeToken || "");
+      const pOwner = await decryptSafe(rawConfig.giteeOwner || "");
+      const pRepo = await decryptSafe(rawConfig.giteeRepo || "");
+      const pBranch = await decryptSafe(rawConfig.giteeBranch || "") || "master";
+      const pFilePath = await decryptSafe(rawConfig.giteeFilePath || "");
       const pDir = pFilePath.includes("/") ? pFilePath.substring(0, pFilePath.lastIndexOf("/")) : "";
       let needLock = false;
       if (pToken && pOwner && pRepo && pBranch && pDir) {

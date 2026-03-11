@@ -133,6 +133,8 @@ export default {
   'help.shortcutCloseTabDesc': '关闭当前标签页（默认 Alt+W）',
   'help.shortcutSearch': '连续按修饰键：',
   'help.shortcutSearchDesc': '呼出全局书签搜索（默认连续三次 Cmd/Ctrl/Alt）',
+  'help.shortcutContextMenu': '右键菜单：',
+  'help.shortcutContextMenuDesc': '在页面右键可快速打开书签管理器',
   'help.shortcutEsc': 'ESC：',
   'help.shortcutEscDesc': '关闭搜索框',
   'help.configTitle': '配置说明',

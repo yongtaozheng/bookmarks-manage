@@ -133,6 +133,8 @@ export default {
   'help.shortcutCloseTabDesc': 'Close current tab (default Alt+W)',
   'help.shortcutSearch': 'Press modifier repeatedly:',
   'help.shortcutSearchDesc': 'Open global bookmark search (default triple Cmd/Ctrl/Alt)',
+  'help.shortcutContextMenu': 'Context Menu:',
+  'help.shortcutContextMenuDesc': 'Right-click on any page to quickly open bookmark manager',
   'help.shortcutEsc': 'ESC:',
   'help.shortcutEscDesc': 'Close search box',
   'help.configTitle': 'Configuration',

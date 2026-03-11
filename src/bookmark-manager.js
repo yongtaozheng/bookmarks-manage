@@ -2541,27 +2541,47 @@ class BookmarkManager {
 
   /**
    * 非扩展环境下的 fetch 回退方案
+   * no-cors 模式下无法读取真实状态码，仅可判断网络是否可达
    */
   async checkLinkFallback(url) {
     if (!/^https?:\/\//i.test(url)) {
       return { status: 'ok', statusCode: 0, url, message: 'Skipped' };
     }
-    try {
+
+    const doFetch = async () => {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 15000);
-      const response = await fetch(url, {
-        method: 'HEAD',
-        signal: controller.signal,
-        mode: 'no-cors',
-      });
-      clearTimeout(timer);
+      const timer = setTimeout(() => controller.abort(), 20000);
+      try {
+        const response = await fetch(url, {
+          method: 'HEAD',
+          signal: controller.signal,
+          mode: 'no-cors',
+        });
+        return response;
+      } finally {
+        clearTimeout(timer);
+      }
+    };
+
+    try {
+      const response = await doFetch();
       // no-cors 模式下 status 为 0（opaque response），只能判定为 ok
       return { status: 'ok', statusCode: response.status || 0, url };
     } catch (err) {
       if (err.name === 'AbortError') {
         return { status: 'warning', statusCode: 0, url, message: 'Timeout' };
       }
-      return { status: 'error', statusCode: 0, url, message: err.message || 'Network error' };
+      // 首次失败后重试一次
+      try {
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        const response = await doFetch();
+        return { status: 'ok', statusCode: response.status || 0, url };
+      } catch (retryErr) {
+        if (retryErr.name === 'AbortError') {
+          return { status: 'warning', statusCode: 0, url, message: 'Timeout' };
+        }
+        return { status: 'error', statusCode: 0, url, message: retryErr.message || 'Network error' };
+      }
     }
   }
 
@@ -2926,12 +2946,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     });
 
-    const configData = await getConfig(['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath']);
-    const pToken = configData.giteeToken || '';
-    const pOwner = configData.giteeOwner || '';
-    const pRepo = configData.giteeRepo || '';
-    const pBranch = configData.giteeBranch || 'master';
-    const pFilePath = configData.giteeFilePath || '';
+    const rawConfig = await getConfig(['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath']);
+    // IndexedDB 中的配置值是加密的，需要解密后才能使用
+    const pToken = await decryptSafe(rawConfig.giteeToken || '');
+    const pOwner = await decryptSafe(rawConfig.giteeOwner || '');
+    const pRepo = await decryptSafe(rawConfig.giteeRepo || '');
+    const pBranch = await decryptSafe(rawConfig.giteeBranch || '') || 'master';
+    const pFilePath = await decryptSafe(rawConfig.giteeFilePath || '');
     const pDir = pFilePath.includes('/') ? pFilePath.substring(0, pFilePath.lastIndexOf('/')) : '';
 
     let needLock = false;
