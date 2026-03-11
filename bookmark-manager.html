@@ -1493,16 +1493,7 @@
     </div>
   </div>
 
-  <script type="module">
-    import { initLocale, t, translateDOM, getLocale, setLocale } from './src/i18n/index.ts';
-    import { initTheme, setupThemeToggle } from './src/theme.ts';
-    window.__i18n = { t, translateDOM, getLocale, setLocale, initLocale };
-    initTheme();
-    initLocale().then(() => {
-      translateDOM();
-      setupThemeToggle();
-    });
-  </script>
+  <!-- i18n、主题初始化已集成到 bookmark-manager.js 中，由 esbuild 统一打包 -->
   <script src="bookmark-manager.js"></script>
 </body>
 </html>

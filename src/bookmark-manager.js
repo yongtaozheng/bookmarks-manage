@@ -1,12 +1,9 @@
 import { encrypt, decryptSafe } from './crypto';
+import { initLocale, t as _t, translateDOM, getLocale, setLocale } from './i18n/index';
+import { initTheme, setupThemeToggle } from './theme';
 
-// i18n 辅助函数
-const t = (key, ...args) => {
-  if (window.__i18n && window.__i18n.t) {
-    return window.__i18n.t(key, ...args);
-  }
-  return key;
-};
+// i18n 辅助函数（直接使用 i18n 模块的翻译函数）
+const t = (key, ...args) => _t(key, ...args);
 
 // 书签管理器类
 class BookmarkManager {
@@ -2843,6 +2840,14 @@ class BookmarkManager {
 
 // 密码验证与初始化书签管理器
 document.addEventListener('DOMContentLoaded', async () => {
+  // 初始化 i18n 和主题（必须在使用 t() 前完成）
+  initTheme();
+  await initLocale();
+  translateDOM();
+  setupThemeToggle();
+  // 将 i18n 函数暴露到全局（供可能的外部使用）
+  window.__i18n = { t: _t, translateDOM, getLocale, setLocale, initLocale };
+
   const mainContent = document.getElementById('mainContent');
   const lockOverlay = document.getElementById('passwordLockOverlay');
 

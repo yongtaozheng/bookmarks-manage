@@ -1231,8 +1231,6 @@
       }
     }
   </style>
-  <script type="module" crossorigin src="/bookmark-manager.js"></script>
-  <link rel="modulepreload" crossorigin href="/theme.js">
 </head>
 <body>
   <!-- 密码锁定遮罩 -->
@@ -1495,6 +1493,7 @@
     </div>
   </div>
 
+  <!-- i18n、主题初始化已集成到 bookmark-manager.js 中，由 esbuild 统一打包 -->
   <script src="bookmark-manager.js"></script>
 </body>
 </html>
