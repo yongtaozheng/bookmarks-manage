@@ -2916,6 +2916,19 @@
       if (!/^https?:\/\//i.test(url)) {
         return { status: "ok", statusCode: 0, url, message: "Skipped" };
       }
+      const RESTRICTED_DOMAINS = [
+        "chrome.google.com",
+        "chromewebstore.google.com",
+        "accounts.google.com",
+        "clients2.google.com"
+      ];
+      try {
+        const hostname = new URL(url).hostname;
+        if (RESTRICTED_DOMAINS.some((d) => hostname === d || hostname.endsWith("." + d))) {
+          return { status: "ok", statusCode: 0, url, message: "Skipped (restricted domain)" };
+        }
+      } catch {
+      }
       const doFetch = async () => {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 2e4);

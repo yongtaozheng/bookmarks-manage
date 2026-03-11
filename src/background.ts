@@ -41,6 +41,22 @@ async function checkLink(url: string): Promise<{
     return { status: 'ok', statusCode: 0, url, message: 'Skipped (non-http)' };
   }
 
+  // 跳过 Chrome 内部受限域名，这些域名会触发 CORS 限制，无法从扩展中正常访问
+  const RESTRICTED_DOMAINS = [
+    'chrome.google.com',
+    'chromewebstore.google.com',
+    'accounts.google.com',
+    'clients2.google.com',
+  ];
+  try {
+    const hostname = new URL(url).hostname;
+    if (RESTRICTED_DOMAINS.some(domain => hostname === domain || hostname.endsWith('.' + domain))) {
+      return { status: 'ok', statusCode: 0, url, message: 'Skipped (restricted domain)' };
+    }
+  } catch {
+    // URL 解析失败，继续正常检测
+  }
+
   const TIMEOUT_MS = 20000;
 
   /** 发起一次带超时的 fetch 请求 */
