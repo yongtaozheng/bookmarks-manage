@@ -2229,11 +2229,21 @@
       if (typeof chrome !== "undefined" && chrome.bookmarks) {
         const visibleBookmarks = this.filterVisibleBookmarks(this.bookmarks[0].children);
         this.removeAllBookmarks().then(() => {
-          this.createBookmarks(visibleBookmarks, "1").then(() => {
+          this.getBookmarkBarId().then((bookmarkBarId) => {
+            this.createBookmarks(visibleBookmarks, bookmarkBarId).then(() => {
+            });
           });
         }).catch((error) => {
         });
       }
+    }
+    getBookmarkBarId() {
+      return new Promise((resolve) => {
+        chrome.bookmarks.getTree((nodes) => {
+          const bookmarkBarId = nodes?.[0]?.children?.[0]?.id;
+          resolve(bookmarkBarId || "1");
+        });
+      });
     }
     removeAllBookmarks() {
       return new Promise((resolve) => {
@@ -2279,7 +2289,7 @@
       });
     }
     createBookmarks(nodes, parentId = "1") {
-      if (!Array.isArray(nodes) || nodes.length === 0) {
+      if (!Array.isArray(nodes) || nodes.length === 0 || !parentId) {
         return Promise.resolve();
       }
       return Promise.all(nodes.map((node) => {
@@ -2305,7 +2315,7 @@
               parentId,
               title: node.title
             }, (folder) => {
-              if (chrome.runtime.lastError) {
+              if (chrome.runtime.lastError || !folder || !folder.id) {
                 res(void 0);
               } else {
                 if (node.children && node.children.length > 0) {

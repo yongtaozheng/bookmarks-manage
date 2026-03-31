@@ -10,7 +10,7 @@ declare const chrome: any;
 
 // === 常量 ===
 const GITHUB_RELEASE_API = 'https://api.github.com/repos/yongtaozheng/bookmarks-manage/releases/latest';
-const GITEE_RELEASE_API = 'https://gitee.com/api/v5/repos/zheng_yongtao/bookmarks-manage/releases/latest';
+const GITEE_MANIFEST_API = 'https://gitee.com/zheng_yongtao/bookmarks-manage/raw/main/manifest.json';
 // Gitee Contents API — 用于获取 dist.zip 的 download_url
 const GITEE_DIST_ZIP_API = 'https://gitee.com/api/v5/repos/zheng_yongtao/bookmarks-manage/contents/dist.zip?ref=main';
 // Releases 页面 — 查看更新详情
@@ -105,17 +105,17 @@ async function fetchGiteeRelease(): Promise<{ version: string; downloadUrl: stri
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-    const response = await fetch(GITEE_RELEASE_API, {
+    const response = await fetch(GITEE_MANIFEST_API, {
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
     if (!response.ok) return null;
     const data = await response.json();
-    if (!data.tag_name) return null;
+    if (!data.version) return null;
     return {
-      version: data.tag_name.replace(/^v/, ''),
+      version: String(data.version).replace(/^v/, ''),
       downloadUrl: GITEE_DIST_ZIP_API,
-      notes: data.body || '',
+      notes: '',
     };
   } catch {
     return null;

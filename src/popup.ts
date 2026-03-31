@@ -364,6 +364,15 @@ function getLocalBookmarks(): Promise<any[]> {
   });
 }
 
+function getBookmarkBarId(): Promise<string> {
+  return new Promise(resolve => {
+    chrome.bookmarks.getTree((nodes: any[]) => {
+      const bookmarkBarId = nodes?.[0]?.children?.[0]?.id;
+      resolve(bookmarkBarId || '1');
+    });
+  });
+}
+
 // 获取书签管理器的完整数据（包含隐藏属性）
 function getBookmarkManagerData(): Promise<any[]> {
   return new Promise(resolve => {
@@ -399,15 +408,32 @@ function removeAllBookmarks(): Promise<void> {
   });
 }
 function createBookmarks(nodes: any[], parentId = '1'): Promise<void> {
-  // parentId: '1' 是根目录
+  if (!Array.isArray(nodes) || nodes.length === 0) {
+    return Promise.resolve();
+  }
+
   return Promise.all(nodes.map(node => {
+    if (!node || !parentId) {
+      return Promise.resolve();
+    }
+
     if (node.url) {
       return new Promise(res => {
-        chrome.bookmarks.create({ parentId, title: node.title, url: node.url }, () => res(undefined));
+        chrome.bookmarks.create({ parentId, title: node.title || '', url: node.url }, () => {
+          if (chrome.runtime.lastError) {
+            // 读取 lastError，避免出现 Unchecked runtime.lastError 控制台噪音
+          }
+          res(undefined);
+        });
       });
     } else {
       return new Promise(res => {
-        chrome.bookmarks.create({ parentId, title: node.title }, (folder: any) => {
+        chrome.bookmarks.create({ parentId, title: node.title || '' }, (folder: any) => {
+          if (chrome.runtime.lastError || !folder || !folder.id) {
+            res(undefined);
+            return;
+          }
+
           if (node.children && node.children.length) {
             createBookmarks(node.children, folder.id).then(() => res(undefined));
           } else {
@@ -935,7 +961,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const visibleBookmarks = filterVisibleBookmarks(bookmarksToCreate);
 
         await removeAllBookmarks();
-        await createBookmarks(visibleBookmarks, '1'); // 只写入书签栏（仅可见书签）
+        const bookmarkBarId = await getBookmarkBarId();
+        await createBookmarks(visibleBookmarks, bookmarkBarId); // 只写入书签栏（仅可见书签）
         showMsg(t('msg.overwriteGetSuccess'));
       } catch (e: any) {
         showMsg(t('msg.overwriteGetFailed', e.message), true);
@@ -974,7 +1001,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const visibleMerged = filterVisibleBookmarks(merged);
 
         await removeAllBookmarks();
-        await createBookmarks(visibleMerged, '1'); // 只写入书签栏（仅可见书签）
+        const bookmarkBarId = await getBookmarkBarId();
+        await createBookmarks(visibleMerged, bookmarkBarId); // 只写入书签栏（仅可见书签）
         showMsg(t('msg.mergeGetSuccess'));
       } catch (e: any) {
         showMsg(t('msg.mergeGetFailed', e.message), true);

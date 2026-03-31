@@ -1709,12 +1709,23 @@ class BookmarkManager {
 
       // 先清空所有书签，然后重新创建可见的书签
       this.removeAllBookmarks().then(() => {
-        // 重新创建可见的书签到系统书签栏
-        this.createBookmarks(visibleBookmarks, '1').then(() => {
+        this.getBookmarkBarId().then((bookmarkBarId) => {
+          // 重新创建可见的书签到系统书签栏
+          this.createBookmarks(visibleBookmarks, bookmarkBarId).then(() => {
+          });
         });
       }).catch(error => {
       });
     }
+  }
+
+  getBookmarkBarId() {
+    return new Promise((resolve) => {
+      chrome.bookmarks.getTree((nodes) => {
+        const bookmarkBarId = nodes?.[0]?.children?.[0]?.id;
+        resolve(bookmarkBarId || '1');
+      });
+    });
   }
 
   removeAllBookmarks() {
@@ -1774,7 +1785,7 @@ class BookmarkManager {
 
   createBookmarks(nodes, parentId = '1') {
     // 参考popup页面的createBookmarks实现
-    if (!Array.isArray(nodes) || nodes.length === 0) {
+    if (!Array.isArray(nodes) || nodes.length === 0 || !parentId) {
       return Promise.resolve();
     }
 
@@ -1805,7 +1816,7 @@ class BookmarkManager {
             parentId,
             title: node.title
           }, (folder) => {
-            if (chrome.runtime.lastError) {
+            if (chrome.runtime.lastError || !folder || !folder.id) {
               res(undefined);
             } else {
               if (node.children && node.children.length > 0) {
