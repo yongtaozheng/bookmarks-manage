@@ -38,7 +38,7 @@ class BookmarkManager {
 
   async init() {
     await this.loadConfigFromIndexedDB();
-    await this.loadBookmarks();
+    await this.loadBookmarks({ promptOnConflict: true });
     this.setupEventListeners();
     this.renderFolderTree();
     this.updateStats();
@@ -50,74 +50,163 @@ class BookmarkManager {
     this.renderBookmarks();
   }
 
-  async loadBookmarks() {
+  async loadBookmarks(options = {}) {
+    const promptOnConflict = options.promptOnConflict === true;
     try {
-      // 优先从Gitee仓库加载书签数据
-      if (this.giteeConfig && this.giteeConfig.owner && this.giteeConfig.repo && this.giteeConfig.token) {
+      const localBookmarks = await this.getLocalBookmarksWithHiddenState();
+      let resolvedBookmarks = this.cloneBookmarks(localBookmarks);
+
+      if (this.isGiteeConfigured()) {
         try {
-          const data = await this.loadBookmarksFromGitee();
-          if (data && data.length > 0) {
-            // 我的书签管理器显示所有书签（包括隐藏的），不进行过滤
-            this.bookmarks = data;
-            this.saveBookmarksToStorage();
-            return;
+          const remoteBookmarks = await this.loadBookmarksFromGitee();
+          if (Array.isArray(remoteBookmarks) && remoteBookmarks.length > 0) {
+            if (this.areBookmarksEquivalent(localBookmarks, remoteBookmarks)) {
+              // 数据一致时保持“本地 + 远程”的合并语义（结果会与任一方一致）
+              resolvedBookmarks = this.mergeBookmarks(localBookmarks, remoteBookmarks);
+            } else {
+              if (promptOnConflict) {
+                resolvedBookmarks = await this.resolveInitialSyncConflict(localBookmarks, remoteBookmarks);
+              } else {
+                // 非初始化场景静默合并，避免重复弹窗干扰用户
+                resolvedBookmarks = this.mergeBookmarks(localBookmarks, remoteBookmarks);
+              }
+            }
           }
         } catch (error) {
+          // 远程不可用时回退到本地
         }
       }
 
-      // 如果Gitee加载失败，使用本地Chrome书签
-      if (typeof chrome !== 'undefined' && chrome.bookmarks) {
-        const tree = await chrome.bookmarks.getTree();
-        // 获取所有根节点的子节点，包括书签栏、其他书签等
-        const chromeBookmarks = tree[0].children || [];
-
-        // 尝试从storage恢复隐藏状态
-        if (typeof chrome !== 'undefined' && chrome.storage) {
-          const storedData = await this.loadBookmarksFromStorage();
-          if (storedData && storedData.length > 0) {
-            // 验证存储的数据是否仍然有效
-            if (this.validateStoredBookmarks(storedData, chromeBookmarks)) {
-              // 存储的数据有效，使用存储的数据（包含隐藏属性）
-              this.bookmarks = storedData;
-              return;
-            } else {
-              // 存储的数据无效，合并隐藏状态到Chrome书签数据
-              this.bookmarks = this.mergeHiddenState(chromeBookmarks, storedData);
-            }
-          } else {
-            this.bookmarks = chromeBookmarks;
-          }
-        } else {
-          this.bookmarks = chromeBookmarks;
-        }
-
-        this.saveBookmarksToStorage();
-      } else {
-        // 模拟数据用于测试
-        this.bookmarks = [
-          {
-            id: '1',
-            title: t('manager.sampleFolder'),
-            children: [
-              {
-                id: '2',
-                title: 'Google',
-                url: 'https://www.google.com'
-              },
-              {
-                id: '3',
-                title: 'GitHub',
-                url: 'https://github.com'
-              }
-            ]
-          }
-        ];
-        this.saveBookmarksToStorage();
-      }
+      this.bookmarks = resolvedBookmarks;
+      this.saveBookmarksToStorage();
     } catch (error) {
       this.bookmarks = [];
     }
+  }
+
+  isGiteeConfigured() {
+    return !!(
+      this.giteeConfig &&
+      this.giteeConfig.owner &&
+      this.giteeConfig.repo &&
+      this.giteeConfig.token &&
+      this.giteeConfig.filePath
+    );
+  }
+
+  cloneBookmarks(bookmarks) {
+    return JSON.parse(JSON.stringify(Array.isArray(bookmarks) ? bookmarks : []));
+  }
+
+  normalizeBookmarkNodeForCompare(node) {
+    if (!node || typeof node !== 'object') return null;
+    const normalized = {
+      title: node.title || '',
+      hidden: node.hidden === true
+    };
+
+    if (node.url) {
+      normalized.url = node.url;
+    } else if (Array.isArray(node.children)) {
+      normalized.children = node.children
+        .map(child => this.normalizeBookmarkNodeForCompare(child))
+        .filter(Boolean);
+    } else {
+      normalized.children = [];
+    }
+
+    return normalized;
+  }
+
+  normalizeBookmarksForCompare(bookmarks) {
+    if (!Array.isArray(bookmarks)) return [];
+    return bookmarks
+      .map(node => this.normalizeBookmarkNodeForCompare(node))
+      .filter(Boolean);
+  }
+
+  areBookmarksEquivalent(localBookmarks, remoteBookmarks) {
+    const localNormalized = this.normalizeBookmarksForCompare(localBookmarks);
+    const remoteNormalized = this.normalizeBookmarksForCompare(remoteBookmarks);
+    return JSON.stringify(localNormalized) === JSON.stringify(remoteNormalized);
+  }
+
+  askSyncConflictResolution() {
+    const remoteFileName = this.giteeConfig?.filePath || 'unknown';
+    const message = t('manager.syncConflictPrompt', remoteFileName);
+    const input = window.prompt(message, '3');
+    const value = (input || '').trim().toLowerCase();
+
+    if (!value) return 'merge';
+    if (['1', 'local', 'l'].includes(value)) return 'local';
+    if (['2', 'remote', 'r'].includes(value)) return 'remote';
+    if (['3', 'merge', 'm'].includes(value)) return 'merge';
+
+    alert(t('manager.syncConflictInvalidChoice'));
+    return 'merge';
+  }
+
+  async resolveInitialSyncConflict(localBookmarks, remoteBookmarks) {
+    const choice = this.askSyncConflictResolution();
+
+    if (choice === 'local') {
+      await this.saveBookmarkTreeToGitee(localBookmarks, {
+        mode: 'overwrite',
+        message: 'Sync conflict resolved by local browser bookmarks'
+      });
+      return this.cloneBookmarks(localBookmarks);
+    }
+
+    if (choice === 'remote') {
+      await this.applyBookmarksToBrowser(remoteBookmarks);
+      return this.cloneBookmarks(remoteBookmarks);
+    }
+
+    const merged = this.mergeBookmarks(localBookmarks, remoteBookmarks);
+    await Promise.all([
+      this.applyBookmarksToBrowser(merged),
+      this.saveBookmarkTreeToGitee(merged, {
+        mode: 'overwrite',
+        message: 'Sync conflict resolved by merged bookmarks'
+      })
+    ]);
+    return merged;
+  }
+
+  async getLocalBookmarksWithHiddenState() {
+    if (typeof chrome !== 'undefined' && chrome.bookmarks) {
+      const tree = await chrome.bookmarks.getTree();
+      const chromeBookmarks = tree?.[0]?.children || [];
+
+      if (typeof chrome !== 'undefined' && chrome.storage) {
+        const storedData = await this.loadBookmarksFromStorage();
+        if (storedData && storedData.length > 0) {
+          // 总是以浏览器当前书签树为准，仅从存储数据恢复 hidden 状态
+          return this.mergeHiddenState(chromeBookmarks, storedData);
+        }
+      }
+
+      return chromeBookmarks;
+    }
+
+    return [
+      {
+        id: '1',
+        title: t('manager.sampleFolder'),
+        children: [
+          {
+            id: '2',
+            title: 'Google',
+            url: 'https://www.google.com'
+          },
+          {
+            id: '3',
+            title: 'GitHub',
+            url: 'https://github.com'
+          }
+        ]
+      }
+    ];
   }
 
   // 从storage加载书签数据
@@ -627,8 +716,19 @@ class BookmarkManager {
     }
   }
 
-  findBookmarkById(bookmarks, id) {
+  findBookmarkById(bookmarksOrId, maybeId) {
+    // 兼容两种调用方式：
+    // 1) findBookmarkById(bookmarks, id)
+    // 2) findBookmarkById(id) -> 默认从 this.bookmarks 开始查找
+    const bookmarks = Array.isArray(bookmarksOrId) ? bookmarksOrId : this.bookmarks;
+    const id = Array.isArray(bookmarksOrId) ? maybeId : bookmarksOrId;
+
+    if (!Array.isArray(bookmarks) || id === undefined || id === null) {
+      return null;
+    }
+
     for (const bookmark of bookmarks) {
+      if (!bookmark || typeof bookmark !== 'object') continue;
       if (bookmark.id === id) return bookmark;
       if (bookmark.children) {
         const found = this.findBookmarkById(bookmark.children, id);
@@ -1383,24 +1483,49 @@ class BookmarkManager {
     }
   }
 
+  removeBookmarkById(bookmarks, id) {
+    if (!Array.isArray(bookmarks) || !id) {
+      return false;
+    }
+
+    for (let i = 0; i < bookmarks.length; i++) {
+      const item = bookmarks[i];
+      if (!item) continue;
+
+      if (item.id === id) {
+        bookmarks.splice(i, 1);
+        return true;
+      }
+
+      if (Array.isArray(item.children) && this.removeBookmarkById(item.children, id)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   deleteBookmark(id) {
     if (confirm(t('confirm.deleteBookmark'))) {
       try {
-        if (typeof chrome !== 'undefined' && chrome.bookmarks) {
-          chrome.bookmarks.remove(id, () => {
-            // 重新加载所有书签数据
-            this.loadBookmarks().then(() => {
-              // 重新渲染文件夹树
-              this.renderFolderTree();
-              // 重新渲染当前文件夹内容
-              this.renderBookmarks();
-              // 更新统计信息
-              this.updateStats();
-            });
-          });
-        } else {
-          alert(t('manager.deleteBookmarkNeedExtension'));
+        const removed = this.removeBookmarkById(this.bookmarks, id);
+        if (!removed) {
+          alert(t('manager.editNotFound'));
+          return;
         }
+
+        // 本地数据为准，避免使用已失效的 chrome bookmark id 导致报错
+        this.saveBookmarksToStorage();
+        this.saveBookmarkTreeToGitee(this.bookmarks);
+        this.updateSystemBookmarks();
+
+        this.renderFolderTree();
+        if (this.currentFolder && !this.findFolderById(this.bookmarks, this.currentFolder.id)) {
+          this.selectRootFolder();
+        } else {
+          this.renderBookmarks();
+        }
+        this.updateStats();
       } catch (error) {
         alert(t('manager.deleteBookmarkFailed'));
       }
@@ -1700,22 +1825,26 @@ class BookmarkManager {
     }
   }
 
+  async applyBookmarksToBrowser(bookmarksTree) {
+    if (!(typeof chrome !== 'undefined' && chrome.bookmarks)) {
+      return;
+    }
+
+    const root = Array.isArray(bookmarksTree)
+      ? (bookmarksTree.find(item => item && (item.title === '书签栏' || item.title === 'Bookmarks bar')) || bookmarksTree[0])
+      : null;
+    const sourceChildren = root?.children || [];
+    const visibleBookmarks = this.filterVisibleBookmarks(this.cloneBookmarks(sourceChildren));
+
+    await this.removeAllBookmarks();
+    const bookmarkBarId = await this.getBookmarkBarId();
+    await this.createBookmarks(visibleBookmarks, bookmarkBarId);
+  }
+
   updateSystemBookmarks() {
     // 更新系统书签，过滤掉隐藏的书签（系统书签栏不显示隐藏书签）
     if (typeof chrome !== 'undefined' && chrome.bookmarks) {
-
-      // 过滤掉隐藏的书签，系统书签栏只显示可见的书签
-      const visibleBookmarks = this.filterVisibleBookmarks(this.bookmarks[0].children);
-
-      // 先清空所有书签，然后重新创建可见的书签
-      this.removeAllBookmarks().then(() => {
-        this.getBookmarkBarId().then((bookmarkBarId) => {
-          // 重新创建可见的书签到系统书签栏
-          this.createBookmarks(visibleBookmarks, bookmarkBarId).then(() => {
-          });
-        });
-      }).catch(error => {
-      });
+      this.applyBookmarksToBrowser(this.bookmarks).catch(() => {});
     }
   }
 
@@ -1840,7 +1969,8 @@ class BookmarkManager {
         return;
       }
 
-      const url = `https://gitee.com/api/v5/repos/${this.giteeConfig.owner}/${this.giteeConfig.repo}/contents/${this.giteeConfig.filePath}`;
+      const encodedPath = this.giteeConfig.filePath.split('/').map(encodeURIComponent).join('/');
+      const url = `https://gitee.com/api/v5/repos/${this.giteeConfig.owner}/${this.giteeConfig.repo}/contents/${encodedPath}?ref=${encodeURIComponent(this.giteeConfig.branch)}`;
 
       fetch(url, {
         method: 'GET',
@@ -1946,67 +2076,66 @@ class BookmarkManager {
     return Array.from(map.values());
   }
 
-  saveBookmarkTreeToGitee(bookmarks) {
-    if (!this.giteeConfig || !this.giteeConfig.owner || !this.giteeConfig.repo || !this.giteeConfig.token) {
-      return;
+  async saveBookmarkTreeToGitee(bookmarks, options = {}) {
+    if (!this.isGiteeConfigured()) {
+      return false;
     }
 
-    const apiUrl = `https://gitee.com/api/v5/repos/${this.giteeConfig.owner}/${this.giteeConfig.repo}/contents/${this.giteeConfig.filePath}`;
+    const mode = options.mode === 'overwrite' ? 'overwrite' : 'merge';
+    const commitMessage = options.message || (
+      mode === 'overwrite'
+        ? 'Update bookmark tree - overwrite'
+        : 'Update bookmark tree - merge hidden attributes'
+    );
 
-    // 使用合并保存方式：先获取远程数据，合并后再上传
-    fetch(`${apiUrl}?ref=${this.giteeConfig.branch}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `token ${this.giteeConfig.token}`
-      }
-    })
-    .then(response => response.json())
-    .then(data => {
-      let mergedBookmarks = bookmarks;
-      const sha = data.sha;
+    const encodedPath = this.giteeConfig.filePath.split('/').map(encodeURIComponent).join('/');
+    const apiUrl = `https://gitee.com/api/v5/repos/${this.giteeConfig.owner}/${this.giteeConfig.repo}/contents/${encodedPath}`;
+    const refUrl = `${apiUrl}?ref=${encodeURIComponent(this.giteeConfig.branch)}`;
 
-      if (data.content) {
+    try {
+      const getResp = await fetch(refUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `token ${this.giteeConfig.token}`
+        }
+      });
+      const data = await getResp.json();
+
+      const sha = data?.sha;
+      let finalBookmarks = bookmarks;
+
+      if (mode === 'merge' && data?.content) {
         try {
-          // 解码远程文件内容
           const remoteContent = decodeURIComponent(escape(atob(data.content)));
           const remoteBookmarks = JSON.parse(remoteContent);
-
-          // 合并本地和远程书签（本地优先，保留hidden状态）
-          mergedBookmarks = this.mergeBookmarks(bookmarks, remoteBookmarks);
+          finalBookmarks = this.mergeBookmarks(bookmarks, remoteBookmarks);
         } catch (e) {
-          // 远程内容解析失败，使用本地数据直接覆盖
           console.warn('远程书签数据解析失败，将直接使用本地数据保存:', e);
         }
       }
 
-      // 编码合并后的内容并上传
-      const content = JSON.stringify(mergedBookmarks, null, 2);
+      const content = JSON.stringify(finalBookmarks, null, 2);
       const encodedContent = btoa(unescape(encodeURIComponent(content)));
+      const payload = {
+        message: commitMessage,
+        content: encodedContent,
+        sha
+      };
 
-      return fetch(apiUrl, {
+      const putResp = await fetch(apiUrl, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `token ${this.giteeConfig.token}`
         },
-        body: JSON.stringify({
-          message: 'Update bookmark tree - merge hidden attributes',
-          content: encodedContent,
-          sha: sha
-        })
+        body: JSON.stringify(payload)
       });
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.content) {
-        console.log('书签合并保存到Gitee成功');
-      } else {
-        console.warn('书签合并保存到Gitee失败:', data);
-      }
-    })
-    .catch(error => {
-      console.error('书签合并保存到Gitee出错:', error);
-    });
+      const putData = await putResp.json();
+      return !!putData.content;
+    } catch (error) {
+      console.error('书签保存到Gitee出错:', error);
+      return false;
+    }
   }
 
 

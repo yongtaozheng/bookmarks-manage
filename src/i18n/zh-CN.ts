@@ -209,6 +209,8 @@ export default {
   'manager.deleteBookmarkFailed': '删除书签失败',
   'manager.giteeConfigIncomplete': 'Gitee配置不完整',
   'manager.cannotGetFileContent': '无法获取文件内容',
+  'manager.syncConflictPrompt': '检测到本地浏览器书签与远程仓库书签不一致。\n远程书签文件：{0}\n\n请选择同步策略：\n1 - 使用本地浏览器书签数据（覆盖远程）\n2 - 使用远程仓库书签数据（覆盖本地浏览器）\n3 - 合并更新数据（同时更新远程仓库和本地浏览器）\n\n请输入 1 / 2 / 3（默认 3）',
+  'manager.syncConflictInvalidChoice': '输入无效，将默认执行“合并更新数据”',
   'manager.configIncomplete': '请填写完整的配置信息',
   'manager.configSaved': '配置已保存！',
   'manager.sampleFolder': '示例文件夹',

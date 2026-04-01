@@ -282,6 +282,8 @@
     "manager.deleteBookmarkFailed": "\u5220\u9664\u4E66\u7B7E\u5931\u8D25",
     "manager.giteeConfigIncomplete": "Gitee\u914D\u7F6E\u4E0D\u5B8C\u6574",
     "manager.cannotGetFileContent": "\u65E0\u6CD5\u83B7\u53D6\u6587\u4EF6\u5185\u5BB9",
+    "manager.syncConflictPrompt": "\u68C0\u6D4B\u5230\u672C\u5730\u6D4F\u89C8\u5668\u4E66\u7B7E\u4E0E\u8FDC\u7A0B\u4ED3\u5E93\u4E66\u7B7E\u4E0D\u4E00\u81F4\u3002\n\u8FDC\u7A0B\u4E66\u7B7E\u6587\u4EF6\uFF1A{0}\n\n\u8BF7\u9009\u62E9\u540C\u6B65\u7B56\u7565\uFF1A\n1 - \u4F7F\u7528\u672C\u5730\u6D4F\u89C8\u5668\u4E66\u7B7E\u6570\u636E\uFF08\u8986\u76D6\u8FDC\u7A0B\uFF09\n2 - \u4F7F\u7528\u8FDC\u7A0B\u4ED3\u5E93\u4E66\u7B7E\u6570\u636E\uFF08\u8986\u76D6\u672C\u5730\u6D4F\u89C8\u5668\uFF09\n3 - \u5408\u5E76\u66F4\u65B0\u6570\u636E\uFF08\u540C\u65F6\u66F4\u65B0\u8FDC\u7A0B\u4ED3\u5E93\u548C\u672C\u5730\u6D4F\u89C8\u5668\uFF09\n\n\u8BF7\u8F93\u5165 1 / 2 / 3\uFF08\u9ED8\u8BA4 3\uFF09",
+    "manager.syncConflictInvalidChoice": "\u8F93\u5165\u65E0\u6548\uFF0C\u5C06\u9ED8\u8BA4\u6267\u884C\u201C\u5408\u5E76\u66F4\u65B0\u6570\u636E\u201D",
     "manager.configIncomplete": "\u8BF7\u586B\u5199\u5B8C\u6574\u7684\u914D\u7F6E\u4FE1\u606F",
     "manager.configSaved": "\u914D\u7F6E\u5DF2\u4FDD\u5B58\uFF01",
     "manager.sampleFolder": "\u793A\u4F8B\u6587\u4EF6\u5939",
@@ -636,6 +638,8 @@
     "manager.deleteBookmarkFailed": "Failed to delete bookmark",
     "manager.giteeConfigIncomplete": "Gitee configuration is incomplete",
     "manager.cannotGetFileContent": "Unable to get file content",
+    "manager.syncConflictPrompt": "Local browser bookmarks and remote repository bookmarks are different.\nRemote bookmark file: {0}\n\nChoose a sync strategy:\n1 - Use local browser bookmarks (overwrite remote)\n2 - Use remote repository bookmarks (overwrite local browser)\n3 - Merge and update (update both remote repository and local browser)\n\nEnter 1 / 2 / 3 (default: 3)",
+    "manager.syncConflictInvalidChoice": 'Invalid input. Defaulting to "Merge and update".',
     "manager.configIncomplete": "Please fill in the complete configuration",
     "manager.configSaved": "Configuration saved!",
     "manager.sampleFolder": "Sample Folder",
@@ -977,7 +981,7 @@
     }
     async init() {
       await this.loadConfigFromIndexedDB();
-      await this.loadBookmarks();
+      await this.loadBookmarks({ promptOnConflict: true });
       this.setupEventListeners();
       this.renderFolderTree();
       this.updateStats();
@@ -985,62 +989,129 @@
       this.selectRootFolder();
       this.renderBookmarks();
     }
-    async loadBookmarks() {
+    async loadBookmarks(options = {}) {
+      const promptOnConflict = options.promptOnConflict === true;
       try {
-        if (this.giteeConfig && this.giteeConfig.owner && this.giteeConfig.repo && this.giteeConfig.token) {
+        const localBookmarks = await this.getLocalBookmarksWithHiddenState();
+        let resolvedBookmarks = this.cloneBookmarks(localBookmarks);
+        if (this.isGiteeConfigured()) {
           try {
-            const data = await this.loadBookmarksFromGitee();
-            if (data && data.length > 0) {
-              this.bookmarks = data;
-              this.saveBookmarksToStorage();
-              return;
+            const remoteBookmarks = await this.loadBookmarksFromGitee();
+            if (Array.isArray(remoteBookmarks) && remoteBookmarks.length > 0) {
+              if (this.areBookmarksEquivalent(localBookmarks, remoteBookmarks)) {
+                resolvedBookmarks = this.mergeBookmarks(localBookmarks, remoteBookmarks);
+              } else {
+                if (promptOnConflict) {
+                  resolvedBookmarks = await this.resolveInitialSyncConflict(localBookmarks, remoteBookmarks);
+                } else {
+                  resolvedBookmarks = this.mergeBookmarks(localBookmarks, remoteBookmarks);
+                }
+              }
             }
           } catch (error) {
           }
         }
-        if (typeof chrome !== "undefined" && chrome.bookmarks) {
-          const tree = await chrome.bookmarks.getTree();
-          const chromeBookmarks = tree[0].children || [];
-          if (typeof chrome !== "undefined" && chrome.storage) {
-            const storedData = await this.loadBookmarksFromStorage();
-            if (storedData && storedData.length > 0) {
-              if (this.validateStoredBookmarks(storedData, chromeBookmarks)) {
-                this.bookmarks = storedData;
-                return;
-              } else {
-                this.bookmarks = this.mergeHiddenState(chromeBookmarks, storedData);
-              }
-            } else {
-              this.bookmarks = chromeBookmarks;
-            }
-          } else {
-            this.bookmarks = chromeBookmarks;
-          }
-          this.saveBookmarksToStorage();
-        } else {
-          this.bookmarks = [
-            {
-              id: "1",
-              title: t2("manager.sampleFolder"),
-              children: [
-                {
-                  id: "2",
-                  title: "Google",
-                  url: "https://www.google.com"
-                },
-                {
-                  id: "3",
-                  title: "GitHub",
-                  url: "https://github.com"
-                }
-              ]
-            }
-          ];
-          this.saveBookmarksToStorage();
-        }
+        this.bookmarks = resolvedBookmarks;
+        this.saveBookmarksToStorage();
       } catch (error) {
         this.bookmarks = [];
       }
+    }
+    isGiteeConfigured() {
+      return !!(this.giteeConfig && this.giteeConfig.owner && this.giteeConfig.repo && this.giteeConfig.token && this.giteeConfig.filePath);
+    }
+    cloneBookmarks(bookmarks) {
+      return JSON.parse(JSON.stringify(Array.isArray(bookmarks) ? bookmarks : []));
+    }
+    normalizeBookmarkNodeForCompare(node) {
+      if (!node || typeof node !== "object") return null;
+      const normalized = {
+        title: node.title || "",
+        hidden: node.hidden === true
+      };
+      if (node.url) {
+        normalized.url = node.url;
+      } else if (Array.isArray(node.children)) {
+        normalized.children = node.children.map((child) => this.normalizeBookmarkNodeForCompare(child)).filter(Boolean);
+      } else {
+        normalized.children = [];
+      }
+      return normalized;
+    }
+    normalizeBookmarksForCompare(bookmarks) {
+      if (!Array.isArray(bookmarks)) return [];
+      return bookmarks.map((node) => this.normalizeBookmarkNodeForCompare(node)).filter(Boolean);
+    }
+    areBookmarksEquivalent(localBookmarks, remoteBookmarks) {
+      const localNormalized = this.normalizeBookmarksForCompare(localBookmarks);
+      const remoteNormalized = this.normalizeBookmarksForCompare(remoteBookmarks);
+      return JSON.stringify(localNormalized) === JSON.stringify(remoteNormalized);
+    }
+    askSyncConflictResolution() {
+      const remoteFileName = this.giteeConfig?.filePath || "unknown";
+      const message = t2("manager.syncConflictPrompt", remoteFileName);
+      const input = window.prompt(message, "3");
+      const value = (input || "").trim().toLowerCase();
+      if (!value) return "merge";
+      if (["1", "local", "l"].includes(value)) return "local";
+      if (["2", "remote", "r"].includes(value)) return "remote";
+      if (["3", "merge", "m"].includes(value)) return "merge";
+      alert(t2("manager.syncConflictInvalidChoice"));
+      return "merge";
+    }
+    async resolveInitialSyncConflict(localBookmarks, remoteBookmarks) {
+      const choice = this.askSyncConflictResolution();
+      if (choice === "local") {
+        await this.saveBookmarkTreeToGitee(localBookmarks, {
+          mode: "overwrite",
+          message: "Sync conflict resolved by local browser bookmarks"
+        });
+        return this.cloneBookmarks(localBookmarks);
+      }
+      if (choice === "remote") {
+        await this.applyBookmarksToBrowser(remoteBookmarks);
+        return this.cloneBookmarks(remoteBookmarks);
+      }
+      const merged = this.mergeBookmarks(localBookmarks, remoteBookmarks);
+      await Promise.all([
+        this.applyBookmarksToBrowser(merged),
+        this.saveBookmarkTreeToGitee(merged, {
+          mode: "overwrite",
+          message: "Sync conflict resolved by merged bookmarks"
+        })
+      ]);
+      return merged;
+    }
+    async getLocalBookmarksWithHiddenState() {
+      if (typeof chrome !== "undefined" && chrome.bookmarks) {
+        const tree = await chrome.bookmarks.getTree();
+        const chromeBookmarks = tree?.[0]?.children || [];
+        if (typeof chrome !== "undefined" && chrome.storage) {
+          const storedData = await this.loadBookmarksFromStorage();
+          if (storedData && storedData.length > 0) {
+            return this.mergeHiddenState(chromeBookmarks, storedData);
+          }
+        }
+        return chromeBookmarks;
+      }
+      return [
+        {
+          id: "1",
+          title: t2("manager.sampleFolder"),
+          children: [
+            {
+              id: "2",
+              title: "Google",
+              url: "https://www.google.com"
+            },
+            {
+              id: "3",
+              title: "GitHub",
+              url: "https://github.com"
+            }
+          ]
+        }
+      ];
     }
     // 从storage加载书签数据
     loadBookmarksFromStorage() {
@@ -1411,8 +1482,14 @@
         console.error("Failed to update bookmark order:", error);
       }
     }
-    findBookmarkById(bookmarks, id) {
+    findBookmarkById(bookmarksOrId, maybeId) {
+      const bookmarks = Array.isArray(bookmarksOrId) ? bookmarksOrId : this.bookmarks;
+      const id = Array.isArray(bookmarksOrId) ? maybeId : bookmarksOrId;
+      if (!Array.isArray(bookmarks) || id === void 0 || id === null) {
+        return null;
+      }
       for (const bookmark of bookmarks) {
+        if (!bookmark || typeof bookmark !== "object") continue;
         if (bookmark.id === id) return bookmark;
         if (bookmark.children) {
           const found = this.findBookmarkById(bookmark.children, id);
@@ -1992,20 +2069,41 @@
         alert(t2("manager.editFailed"));
       }
     }
+    removeBookmarkById(bookmarks, id) {
+      if (!Array.isArray(bookmarks) || !id) {
+        return false;
+      }
+      for (let i = 0; i < bookmarks.length; i++) {
+        const item = bookmarks[i];
+        if (!item) continue;
+        if (item.id === id) {
+          bookmarks.splice(i, 1);
+          return true;
+        }
+        if (Array.isArray(item.children) && this.removeBookmarkById(item.children, id)) {
+          return true;
+        }
+      }
+      return false;
+    }
     deleteBookmark(id) {
       if (confirm(t2("confirm.deleteBookmark"))) {
         try {
-          if (typeof chrome !== "undefined" && chrome.bookmarks) {
-            chrome.bookmarks.remove(id, () => {
-              this.loadBookmarks().then(() => {
-                this.renderFolderTree();
-                this.renderBookmarks();
-                this.updateStats();
-              });
-            });
-          } else {
-            alert(t2("manager.deleteBookmarkNeedExtension"));
+          const removed = this.removeBookmarkById(this.bookmarks, id);
+          if (!removed) {
+            alert(t2("manager.editNotFound"));
+            return;
           }
+          this.saveBookmarksToStorage();
+          this.saveBookmarkTreeToGitee(this.bookmarks);
+          this.updateSystemBookmarks();
+          this.renderFolderTree();
+          if (this.currentFolder && !this.findFolderById(this.bookmarks, this.currentFolder.id)) {
+            this.selectRootFolder();
+          } else {
+            this.renderBookmarks();
+          }
+          this.updateStats();
         } catch (error) {
           alert(t2("manager.deleteBookmarkFailed"));
         }
@@ -2225,15 +2323,20 @@
         }
       }
     }
+    async applyBookmarksToBrowser(bookmarksTree) {
+      if (!(typeof chrome !== "undefined" && chrome.bookmarks)) {
+        return;
+      }
+      const root = Array.isArray(bookmarksTree) ? bookmarksTree.find((item) => item && (item.title === "\u4E66\u7B7E\u680F" || item.title === "Bookmarks bar")) || bookmarksTree[0] : null;
+      const sourceChildren = root?.children || [];
+      const visibleBookmarks = this.filterVisibleBookmarks(this.cloneBookmarks(sourceChildren));
+      await this.removeAllBookmarks();
+      const bookmarkBarId = await this.getBookmarkBarId();
+      await this.createBookmarks(visibleBookmarks, bookmarkBarId);
+    }
     updateSystemBookmarks() {
       if (typeof chrome !== "undefined" && chrome.bookmarks) {
-        const visibleBookmarks = this.filterVisibleBookmarks(this.bookmarks[0].children);
-        this.removeAllBookmarks().then(() => {
-          this.getBookmarkBarId().then((bookmarkBarId) => {
-            this.createBookmarks(visibleBookmarks, bookmarkBarId).then(() => {
-            });
-          });
-        }).catch((error) => {
+        this.applyBookmarksToBrowser(this.bookmarks).catch(() => {
         });
       }
     }
@@ -2336,7 +2439,8 @@
           reject(new Error(t2("manager.giteeConfigIncomplete")));
           return;
         }
-        const url = `https://gitee.com/api/v5/repos/${this.giteeConfig.owner}/${this.giteeConfig.repo}/contents/${this.giteeConfig.filePath}`;
+        const encodedPath = this.giteeConfig.filePath.split("/").map(encodeURIComponent).join("/");
+        const url = `https://gitee.com/api/v5/repos/${this.giteeConfig.owner}/${this.giteeConfig.repo}/contents/${encodedPath}?ref=${encodeURIComponent(this.giteeConfig.branch)}`;
         fetch(url, {
           method: "GET",
           headers: {
@@ -2418,51 +2522,55 @@
       });
       return Array.from(map.values());
     }
-    saveBookmarkTreeToGitee(bookmarks) {
-      if (!this.giteeConfig || !this.giteeConfig.owner || !this.giteeConfig.repo || !this.giteeConfig.token) {
-        return;
+    async saveBookmarkTreeToGitee(bookmarks, options = {}) {
+      if (!this.isGiteeConfigured()) {
+        return false;
       }
-      const apiUrl = `https://gitee.com/api/v5/repos/${this.giteeConfig.owner}/${this.giteeConfig.repo}/contents/${this.giteeConfig.filePath}`;
-      fetch(`${apiUrl}?ref=${this.giteeConfig.branch}`, {
-        method: "GET",
-        headers: {
-          "Authorization": `token ${this.giteeConfig.token}`
-        }
-      }).then((response) => response.json()).then((data) => {
-        let mergedBookmarks = bookmarks;
-        const sha = data.sha;
-        if (data.content) {
+      const mode = options.mode === "overwrite" ? "overwrite" : "merge";
+      const commitMessage = options.message || (mode === "overwrite" ? "Update bookmark tree - overwrite" : "Update bookmark tree - merge hidden attributes");
+      const encodedPath = this.giteeConfig.filePath.split("/").map(encodeURIComponent).join("/");
+      const apiUrl = `https://gitee.com/api/v5/repos/${this.giteeConfig.owner}/${this.giteeConfig.repo}/contents/${encodedPath}`;
+      const refUrl = `${apiUrl}?ref=${encodeURIComponent(this.giteeConfig.branch)}`;
+      try {
+        const getResp = await fetch(refUrl, {
+          method: "GET",
+          headers: {
+            "Authorization": `token ${this.giteeConfig.token}`
+          }
+        });
+        const data = await getResp.json();
+        const sha = data?.sha;
+        let finalBookmarks = bookmarks;
+        if (mode === "merge" && data?.content) {
           try {
             const remoteContent = decodeURIComponent(escape(atob(data.content)));
             const remoteBookmarks = JSON.parse(remoteContent);
-            mergedBookmarks = this.mergeBookmarks(bookmarks, remoteBookmarks);
+            finalBookmarks = this.mergeBookmarks(bookmarks, remoteBookmarks);
           } catch (e) {
             console.warn("\u8FDC\u7A0B\u4E66\u7B7E\u6570\u636E\u89E3\u6790\u5931\u8D25\uFF0C\u5C06\u76F4\u63A5\u4F7F\u7528\u672C\u5730\u6570\u636E\u4FDD\u5B58:", e);
           }
         }
-        const content = JSON.stringify(mergedBookmarks, null, 2);
+        const content = JSON.stringify(finalBookmarks, null, 2);
         const encodedContent = btoa(unescape(encodeURIComponent(content)));
-        return fetch(apiUrl, {
+        const payload = {
+          message: commitMessage,
+          content: encodedContent,
+          sha
+        };
+        const putResp = await fetch(apiUrl, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
             "Authorization": `token ${this.giteeConfig.token}`
           },
-          body: JSON.stringify({
-            message: "Update bookmark tree - merge hidden attributes",
-            content: encodedContent,
-            sha
-          })
+          body: JSON.stringify(payload)
         });
-      }).then((response) => response.json()).then((data) => {
-        if (data.content) {
-          console.log("\u4E66\u7B7E\u5408\u5E76\u4FDD\u5B58\u5230Gitee\u6210\u529F");
-        } else {
-          console.warn("\u4E66\u7B7E\u5408\u5E76\u4FDD\u5B58\u5230Gitee\u5931\u8D25:", data);
-        }
-      }).catch((error) => {
-        console.error("\u4E66\u7B7E\u5408\u5E76\u4FDD\u5B58\u5230Gitee\u51FA\u9519:", error);
-      });
+        const putData = await putResp.json();
+        return !!putData.content;
+      } catch (error) {
+        console.error("\u4E66\u7B7E\u4FDD\u5B58\u5230Gitee\u51FA\u9519:", error);
+        return false;
+      }
     }
     // IndexedDB 相关方法
     async openDB() {

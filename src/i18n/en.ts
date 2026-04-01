@@ -209,6 +209,8 @@ export default {
   'manager.deleteBookmarkFailed': 'Failed to delete bookmark',
   'manager.giteeConfigIncomplete': 'Gitee configuration is incomplete',
   'manager.cannotGetFileContent': 'Unable to get file content',
+  'manager.syncConflictPrompt': 'Local browser bookmarks and remote repository bookmarks are different.\nRemote bookmark file: {0}\n\nChoose a sync strategy:\n1 - Use local browser bookmarks (overwrite remote)\n2 - Use remote repository bookmarks (overwrite local browser)\n3 - Merge and update (update both remote repository and local browser)\n\nEnter 1 / 2 / 3 (default: 3)',
+  'manager.syncConflictInvalidChoice': 'Invalid input. Defaulting to "Merge and update".',
   'manager.configIncomplete': 'Please fill in the complete configuration',
   'manager.configSaved': 'Configuration saved!',
   'manager.sampleFolder': 'Sample Folder',
