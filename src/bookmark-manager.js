@@ -1881,35 +1881,27 @@ class BookmarkManager {
   }
 
   filterVisibleBookmarks(bookmarks) {
-    // 递归过滤掉隐藏的书签，参考popup页面的数据结构处理
-    if (!Array.isArray(bookmarks)) {
-      return [];
-    }
+    // 递归过滤掉隐藏的书签，且不修改原始数据
+    if (!Array.isArray(bookmarks)) return [];
 
-    return bookmarks.filter(bookmark => {
-      if (!bookmark) {
-        return false;
-      }
+    return bookmarks.reduce((result, bookmark) => {
+      if (!bookmark || bookmark.hidden === true) return result;
 
-      // 如果书签被隐藏，则过滤掉
-      if (bookmark.hidden === true) {
-        return false;
-      }
-
-      // 如果有子项，递归过滤
-      if (bookmark.children && Array.isArray(bookmark.children)) {
+      if (Array.isArray(bookmark.children)) {
         const filteredChildren = this.filterVisibleBookmarks(bookmark.children);
-        // 如果文件夹被隐藏，但子项可能可见，保留文件夹但只显示可见的子项
-        if (filteredChildren.length > 0) {
-          bookmark.children = filteredChildren;
-        } else {
-          // 如果所有子项都被隐藏，则隐藏整个文件夹
-          return false;
+        if (filteredChildren.length === 0) {
+          return result;
         }
+        result.push({
+          ...bookmark,
+          children: filteredChildren
+        });
+        return result;
       }
 
-      return true;
-    });
+      result.push(bookmark);
+      return result;
+    }, []);
   }
 
   createBookmarks(nodes, parentId = '1') {

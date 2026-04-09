@@ -2370,26 +2370,23 @@
       });
     }
     filterVisibleBookmarks(bookmarks) {
-      if (!Array.isArray(bookmarks)) {
-        return [];
-      }
-      return bookmarks.filter((bookmark) => {
-        if (!bookmark) {
-          return false;
-        }
-        if (bookmark.hidden === true) {
-          return false;
-        }
-        if (bookmark.children && Array.isArray(bookmark.children)) {
+      if (!Array.isArray(bookmarks)) return [];
+      return bookmarks.reduce((result, bookmark) => {
+        if (!bookmark || bookmark.hidden === true) return result;
+        if (Array.isArray(bookmark.children)) {
           const filteredChildren = this.filterVisibleBookmarks(bookmark.children);
-          if (filteredChildren.length > 0) {
-            bookmark.children = filteredChildren;
-          } else {
-            return false;
+          if (filteredChildren.length === 0) {
+            return result;
           }
+          result.push({
+            ...bookmark,
+            children: filteredChildren
+          });
+          return result;
         }
-        return true;
-      });
+        result.push(bookmark);
+        return result;
+      }, []);
     }
     createBookmarks(nodes, parentId = "1") {
       if (!Array.isArray(nodes) || nodes.length === 0 || !parentId) {
