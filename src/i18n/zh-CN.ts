@@ -357,6 +357,7 @@ export default {
   'msg.exportConfigFailed': '配置导出失败',
   'msg.importConfigSuccess': '配置导入成功！页面将自动刷新。',
   'msg.importConfigFailed': '配置导入失败，请检查文件格式',
+  'msg.importConfigDecryptFailed': '导入失败：配置已加密且无法解密（可能来自其他浏览器环境或密钥已变更）',
   'msg.importConfigInvalid': '导入文件格式无效，请选择正确的配置文件',
   'confirm.importConfig': '确定要导入配置吗？这将覆盖当前的所有配置（Gitee配置、快捷键、主题、语言）。',
 

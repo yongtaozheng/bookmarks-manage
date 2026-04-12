@@ -421,6 +421,7 @@
     "msg.exportConfigFailed": "\u914D\u7F6E\u5BFC\u51FA\u5931\u8D25",
     "msg.importConfigSuccess": "\u914D\u7F6E\u5BFC\u5165\u6210\u529F\uFF01\u9875\u9762\u5C06\u81EA\u52A8\u5237\u65B0\u3002",
     "msg.importConfigFailed": "\u914D\u7F6E\u5BFC\u5165\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u6587\u4EF6\u683C\u5F0F",
+    "msg.importConfigDecryptFailed": "\u5BFC\u5165\u5931\u8D25\uFF1A\u914D\u7F6E\u5DF2\u52A0\u5BC6\u4E14\u65E0\u6CD5\u89E3\u5BC6\uFF08\u53EF\u80FD\u6765\u81EA\u5176\u4ED6\u6D4F\u89C8\u5668\u73AF\u5883\u6216\u5BC6\u94A5\u5DF2\u53D8\u66F4\uFF09",
     "msg.importConfigInvalid": "\u5BFC\u5165\u6587\u4EF6\u683C\u5F0F\u65E0\u6548\uFF0C\u8BF7\u9009\u62E9\u6B63\u786E\u7684\u914D\u7F6E\u6587\u4EF6",
     "confirm.importConfig": "\u786E\u5B9A\u8981\u5BFC\u5165\u914D\u7F6E\u5417\uFF1F\u8FD9\u5C06\u8986\u76D6\u5F53\u524D\u7684\u6240\u6709\u914D\u7F6E\uFF08Gitee\u914D\u7F6E\u3001\u5FEB\u6377\u952E\u3001\u4E3B\u9898\u3001\u8BED\u8A00\uFF09\u3002",
     // === 版本更新 ===
@@ -777,6 +778,7 @@
     "msg.exportConfigFailed": "Failed to export config",
     "msg.importConfigSuccess": "Config imported successfully! Page will refresh.",
     "msg.importConfigFailed": "Failed to import config, please check file format",
+    "msg.importConfigDecryptFailed": "Import failed: encrypted config cannot be decrypted (possibly from another browser environment or key changed)",
     "msg.importConfigInvalid": "Invalid config file format, please select a valid config file",
     "confirm.importConfig": "Are you sure you want to import config? This will overwrite all current settings (Gitee config, shortcuts, theme, language).",
     // === Version Update ===

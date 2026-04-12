@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>书签管理器插件视频脚本（可视化）</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --line: #dbe3ef;
+      --primary: #2563eb;
+      --accent: #0ea5e9;
+      --good: #16a34a;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% 10%, #e0f2fe 0, transparent 30%),
+        radial-gradient(circle at 90% 20%, #dbeafe 0, transparent 28%),
+        var(--bg);
+    }
+
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 28px 16px 40px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #1d4ed8, #0ea5e9);
+      border-radius: 16px;
+      padding: 22px;
+      color: #fff;
+      box-shadow: 0 12px 36px rgba(37, 99, 235, 0.25);
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: 26px;
+    }
+
+    .hero p {
+      margin: 0;
+      opacity: 0.95;
+      line-height: 1.6;
+    }
+
+    .meta {
+      margin-top: 14px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .tag {
+      background: rgba(255, 255, 255, 0.18);
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 13px;
+    }
+
+    .section {
+      margin-top: 18px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+    }
+
+    .section h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+
+    .timeline {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      border-left: 3px solid var(--line);
+    }
+
+    .item {
+      margin: 0 0 14px 0;
+      padding-left: 14px;
+      position: relative;
+    }
+
+    .item::before {
+      content: "";
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      left: -6.5px;
+      top: 8px;
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 2px var(--accent);
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fcfdff;
+    }
+
+    .time {
+      display: inline-block;
+      font-size: 12px;
+      color: #fff;
+      background: var(--primary);
+      border-radius: 999px;
+      padding: 3px 10px;
+      margin-bottom: 8px;
+    }
+
+    .title {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .line {
+      margin: 0;
+      line-height: 1.65;
+      color: var(--text);
+    }
+
+    .line + .line {
+      margin-top: 6px;
+    }
+
+    .label {
+      color: var(--muted);
+      font-weight: 700;
+      margin-right: 6px;
+    }
+
+    .tips {
+      margin: 0;
+      padding-left: 18px;
+      line-height: 1.7;
+    }
+
+    .tips li + li {
+      margin-top: 6px;
+    }
+
+    .hl {
+      color: var(--good);
+      font-weight: 700;
+    }
+
+    .footer {
+      margin-top: 14px;
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    @media (max-width: 700px) {
+      .hero h1 {
+        font-size: 22px;
+      }
+
+      .section {
+        padding: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <h1>《书签管理器插件》视频脚本（可视化版）</h1>
+      <p>目标：介绍插件能力 + 演示完整使用流程，重点补充 Gitee 仓库配置过程。可直接按时间轴拍摄。</p>
+      <div class="meta">
+        <span class="tag">总时长：2分30秒左右</span>
+        <span class="tag">形式：录屏 + 字幕 + 口播</span>
+        <span class="tag">风格：清晰教学、快速上手</span>
+      </div>
+    </header>
+
+    <section class="section">
+      <h2>时间轴分镜</h2>
+      <ul class="timeline">
+        <li class="item">
+          <article class="panel">
+            <span class="time">00:00 - 00:08</span>
+            <h3 class="title">痛点开场</h3>
+            <p class="line"><span class="label">画面：</span>浏览器收藏夹凌乱、重复书签和失效链接堆积的快切镜头。</p>
+            <p class="line"><span class="label">口播：</span>“你的书签，是不是也越存越多、越找越慢？”</p>
+            <p class="line"><span class="label">字幕/特效：</span>关键词高亮“乱、慢、找不到”；轻微抖动强调问题。</p>
+          </article>
+        </li>
+
+        <li class="item">
+          <article class="panel">
+            <span class="time">00:08 - 00:16</span>
+            <h3 class="title">产品亮相</h3>
+            <p class="line"><span class="label">画面：</span>插件图标与名称出现，切到 Chrome 工具栏。</p>
+            <p class="line"><span class="label">口播：</span>“这就是书签管理器插件，一站式管理、搜索和同步你的书签。”</p>
+            <p class="line"><span class="label">字幕/特效：</span>Logo 缩放入场，底部字幕“书签一站式管理”。</p>
+          </article>
+        </li>
+
+        <li class="item">
+          <article class="panel">
+            <span class="time">00:16 - 00:30</span>
+            <h3 class="title">核心能力总览</h3>
+            <p class="line"><span class="label">画面：</span>卡片式展示功能：全局搜索、云同步、重复检测、失效检测、密码保护。</p>
+            <p class="line"><span class="label">口播：</span>“它支持全局搜索、Gitee 云同步、重复书签检测、失效链接检测，还支持快捷键和密码保护。”</p>
+            <p class="line"><span class="label">字幕/特效：</span>每个能力 1.5 秒，图标滑入。</p>
+          </article>
+        </li>
+
+        <li class="item">
+          <article class="panel">
+            <span class="time">00:30 - 00:44</span>
+            <h3 class="title">下载安装</h3>
+            <p class="line"><span class="label">画面：</span>展示下载页 → 打开 <code>chrome://extensions/</code> → 开启开发者模式 → 加载已解压扩展。</p>
+            <p class="line"><span class="label">口播：</span>“插件可以在这里下载安装，链接放在视频说明区。下载后 3 步即可在 Chrome 完成加载。”</p>
+            <p class="line"><span class="label">字幕/特效：</span>“插件下载地址见说明区”；鼠标点击加光圈提示。</p>
+          </article>
+        </li>
+
+        <li class="item">
+          <article class="panel">
+            <span class="time">00:44 - 00:56</span>
+            <h3 class="title">打开插件面板</h3>
+            <p class="line"><span class="label">画面：</span>点击插件图标，展示 Popup：管理器入口、云同步、快捷键、密码、主题。</p>
+            <p class="line"><span class="label">口播：</span>“安装后点击图标即可进入主面板，所有核心设置都集中在这里。”</p>
+            <p class="line"><span class="label">字幕/特效：</span>区域框选每个模块位置。</p>
+          </article>
+        </li>
+
+        <li class="item">
+          <article class="panel">
+            <span class="time">00:56 - 01:30</span>
+            <h3 class="title">Gitee 仓库配置过程（重点）</h3>
+            <p class="line"><span class="label">画面：</span>Gitee 新建私有仓库 → 生成 Token（勾选 <code>projects</code>）→ 回到插件填写 Token/Owner/Repo/Branch/目录。</p>
+            <p class="line"><span class="label">口播：</span>“先在 Gitee 新建私有仓库，再生成 Token，权限勾选 projects。回到插件后填写 Token、用户名和仓库名，分支和目录保持默认即可。”</p>
+            <p class="line"><span class="label">字幕/特效：</span>四步字幕：`新建仓库` `生成Token` `填写配置` `保存成功`。<span class="hl">Token 全程打码</span>。</p>
+          </article>
+        </li>
+
+        <li class="item">
+          <article class="panel">
+            <span class="time">01:30 - 01:42</span>
+            <h3 class="title">首次同步演示</h3>
+            <p class="line"><span class="label">画面：</span>点击“覆盖保存”，展示成功提示，再快速展示“合并保存/覆盖获取/合并获取”按钮。</p>
+            <p class="line"><span class="label">口播：</span>“首次建议使用覆盖保存，把本地书签备份到云端。后续可按需选择覆盖或合并模式。”</p>
+            <p class="line"><span class="label">字幕/特效：</span>成功提示停留 1 秒，增强可信度。</p>
+          </article>
+        </li>
+
+        <li class="item">
+          <article class="panel">
+            <span class="time">01:42 - 01:56</span>
+            <h3 class="title">全局搜索演示</h3>
+            <p class="line"><span class="label">画面：</span>任意网页连续按 3 次 Ctrl/Cmd 呼出搜索框，输入关键词并回车打开书签。</p>
+            <p class="line"><span class="label">口播：</span>“在任意网页连续按三次 Ctrl 或 Cmd，就能呼出全局搜索，输入关键词直达目标书签。”</p>
+            <p class="line"><span class="label">字幕/特效：</span>键盘按键动画与输入高亮。</p>
+          </article>
+        </li>
+
+        <li class="item">
+          <article class="panel">
+            <span class="time">01:56 - 02:16</span>
+            <h3 class="title">书签整理与清理</h3>
+            <p class="line"><span class="label">画面：</span>进入书签管理器：拖拽排序、批量操作、检测重复、失效链接检测与删除。</p>
+            <p class="line"><span class="label">口播：</span>“在书签管理器中，你可以快速整理结构，还能自动识别重复书签和失效链接，一键批量清理。”</p>
+            <p class="line"><span class="label">字幕/特效：</span>进度条动画 + 勾选删除操作特写。</p>
+          </article>
+        </li>
+
+        <li class="item">
+          <article class="panel">
+            <span class="time">02:16 - 02:30</span>
+            <h3 class="title">结尾与引导</h3>
+            <p class="line"><span class="label">画面：</span>前后对比：混乱书签 vs 清晰结构，回到插件图标与下载提示。</p>
+            <p class="line"><span class="label">口播：</span>“用书签管理器，把收藏从堆积变成资产。下载链接在说明区，现在就去体验。”</p>
+            <p class="line"><span class="label">字幕/特效：</span>CTA 字幕：`立即下载安装`。</p>
+          </article>
+        </li>
+      </ul>
+    </section>
+
+    <section class="section">
+      <h2>制作注意事项</h2>
+      <ul class="tips">
+        <li>录屏建议 1440p 以上，浏览器缩放 110%~125%，保证按钮和文字可读。</li>
+        <li>Gitee Token、账号、仓库敏感信息要做固定区域打码，避免漏帧。</li>
+        <li>字幕每行尽量不超过 14 个字，关键词统一使用高亮色。</li>
+        <li>转场统一使用 150ms~250ms 溶解，减少风格割裂。</li>
+        <li>BGM 压低到不抢口播，操作点击音效轻量即可。</li>
+      </ul>
+    </section>
+
+    <p class="footer">文件路径：docs/video-script-visual.html（可直接浏览器打开）</p>
+  </div>
+</body>
+</html>

@@ -357,6 +357,7 @@ export default {
   'msg.exportConfigFailed': 'Failed to export config',
   'msg.importConfigSuccess': 'Config imported successfully! Page will refresh.',
   'msg.importConfigFailed': 'Failed to import config, please check file format',
+  'msg.importConfigDecryptFailed': 'Import failed: encrypted config cannot be decrypted (possibly from another browser environment or key changed)',
   'msg.importConfigInvalid': 'Invalid config file format, please select a valid config file',
   'confirm.importConfig': 'Are you sure you want to import config? This will overwrite all current settings (Gitee config, shortcuts, theme, language).',
 

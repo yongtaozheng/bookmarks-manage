@@ -1,7 +1,7 @@
 import { initLocale, t, setLocale, getLocale, translateDOM } from './i18n/index';
 import type { Locale } from './i18n/index';
 import { initTheme, setupThemeToggle } from './theme';
-import { encrypt, decryptSafe } from './crypto';
+import { encrypt, decrypt, decryptSafe } from './crypto';
 import { checkForUpdate, getCurrentVersion, getDismissedVersion, setDismissedVersion, downloadDistZip, GITEE_RELEASES_PAGE } from './version-check';
 
 declare const chrome: any;
@@ -100,16 +100,43 @@ async function getRawConfigFromDB(fields: string[]): Promise<any> {
     });
   });
 }
-// 将原始加密数据直接写入 IndexedDB（不再加密）
-async function setRawConfigToDB(config: Record<string, string>) {
-  const db = await openDB();
-  const tx = db.transaction(STORE_NAME, 'readwrite');
-  const store = tx.objectStore(STORE_NAME);
-  Object.entries(config).forEach(([k, v]) => store.put(v, k));
-  return new Promise<void>(resolve => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => resolve();
-  });
+function isLikelyEncryptedValue(value: string): boolean {
+  if (!value || typeof value !== 'string') return false;
+  if (value.length % 4 !== 0) return false;
+  if (!/^[A-Za-z0-9+/=]+$/.test(value)) return false;
+  try {
+    const decoded = atob(value);
+    return decoded.length > 12; // AES-GCM: 12 字节 IV + 密文
+  } catch {
+    return false;
+  }
+}
+
+async function normalizeImportedGiteeConfig(
+  config: Record<string, string>,
+  encrypted: boolean
+): Promise<Record<string, string>> {
+  if (!encrypted) return config;
+
+  const normalized: Record<string, string> = {};
+  for (const [k, v] of Object.entries(config)) {
+    if (!v) {
+      normalized[k] = v;
+      continue;
+    }
+    try {
+      normalized[k] = await decrypt(v);
+    } catch {
+      // encrypted 标记为 true 且值看起来像密文，但解密失败
+      // 说明导入文件密钥不匹配，继续导入会导致配置不可用
+      if (isLikelyEncryptedValue(v)) {
+        throw new Error('ENCRYPTED_CONFIG_DECRYPT_FAILED');
+      }
+      // 兼容历史异常数据（标记为加密但实际是明文）
+      normalized[k] = v;
+    }
+  }
+  return normalized;
 }
 // == 密码文件工具 ==
 const PASSWORD_FILE_NAME = '密码.json';
@@ -1360,13 +1387,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (data.giteeConfig[f] !== undefined) giteeFields[f] = data.giteeConfig[f];
         });
 
-        if (data.giteeConfig.encrypted) {
-          // 加密数据：直接写入 IndexedDB（不再二次加密）
-          await setRawConfigToDB(giteeFields);
-        } else {
-          // 兼容旧版明文数据：加密后写入
-          await setConfigToDB(giteeFields);
-        }
+        // 对导入数据先归一化为明文，再统一按当前密钥加密写入
+        const normalizedGiteeFields = await normalizeImportedGiteeConfig(giteeFields, Boolean(data.giteeConfig.encrypted));
+        await setConfigToDB(normalizedGiteeFields);
 
         // 回填表单（读取时自动解密）
         const savedConfig = await getConfigFromDB(giteeFieldNames);
@@ -1427,7 +1450,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         showMsg(t('msg.importConfigSuccess'));
       } catch (e: any) {
-        showMsg(t('msg.importConfigFailed'), true);
+        if (e?.message === 'ENCRYPTED_CONFIG_DECRYPT_FAILED') {
+          showMsg(t('msg.importConfigDecryptFailed'), true);
+        } else {
+          showMsg(t('msg.importConfigFailed'), true);
+        }
       }
 
       // 重置 file input
