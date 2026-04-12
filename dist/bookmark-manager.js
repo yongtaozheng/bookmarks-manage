@@ -1,43 +1,97 @@
 (() => {
   // src/crypto.ts
   var CRYPTO_KEY_NAME = "_bm_encryption_key";
-  var cachedKey = null;
-  async function getEncryptionKey() {
-    if (cachedKey) return cachedKey;
-    return new Promise((resolve, reject) => {
-      chrome.storage.local.get([CRYPTO_KEY_NAME], async (result) => {
-        try {
-          if (result[CRYPTO_KEY_NAME]) {
-            const key = await crypto.subtle.importKey(
-              "jwk",
-              result[CRYPTO_KEY_NAME],
-              { name: "AES-GCM" },
-              true,
-              ["encrypt", "decrypt"]
-            );
-            cachedKey = key;
-            resolve(key);
-          } else {
-            const key = await crypto.subtle.generateKey(
-              { name: "AES-GCM", length: 256 },
-              true,
-              ["encrypt", "decrypt"]
-            );
-            const jwk = await crypto.subtle.exportKey("jwk", key);
-            chrome.storage.local.set({ [CRYPTO_KEY_NAME]: jwk }, () => {
-              cachedKey = key;
-              resolve(key);
-            });
-          }
-        } catch (e) {
-          reject(e);
-        }
-      });
+  var CRYPTO_MASTER_PASSPHRASE_NAME = "_bm_encryption_master_passphrase";
+  var MASTER_KEY_SALT = "bookmarks-manage-master-key-v1";
+  var PBKDF2_ITERATIONS = 25e4;
+  var cachedKeyContext = null;
+  function storageGet(keys) {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(keys, (result) => resolve(result || {}));
     });
+  }
+  function storageSet(values) {
+    return new Promise((resolve) => {
+      chrome.storage.local.set(values, () => resolve());
+    });
+  }
+  async function deriveKeyFromPassphrase(passphrase) {
+    const encoder = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(passphrase),
+      { name: "PBKDF2" },
+      false,
+      ["deriveKey"]
+    );
+    return crypto.subtle.deriveKey(
+      {
+        name: "PBKDF2",
+        salt: encoder.encode(MASTER_KEY_SALT),
+        iterations: PBKDF2_ITERATIONS,
+        hash: "SHA-256"
+      },
+      keyMaterial,
+      { name: "AES-GCM", length: 256 },
+      true,
+      ["encrypt", "decrypt"]
+    );
+  }
+  async function getLegacyKey(generateIfMissing) {
+    const result = await storageGet([CRYPTO_KEY_NAME]);
+    const existing = result[CRYPTO_KEY_NAME];
+    if (existing) {
+      return crypto.subtle.importKey(
+        "jwk",
+        existing,
+        { name: "AES-GCM" },
+        true,
+        ["encrypt", "decrypt"]
+      );
+    }
+    if (!generateIfMissing) {
+      throw new Error("LEGACY_KEY_NOT_FOUND");
+    }
+    const key = await crypto.subtle.generateKey(
+      { name: "AES-GCM", length: 256 },
+      true,
+      ["encrypt", "decrypt"]
+    );
+    const jwk = await crypto.subtle.exportKey("jwk", key);
+    await storageSet({ [CRYPTO_KEY_NAME]: jwk });
+    return key;
+  }
+  async function getKeyContext() {
+    if (cachedKeyContext) return cachedKeyContext;
+    const result = await storageGet([CRYPTO_MASTER_PASSPHRASE_NAME]);
+    const passphrase = result[CRYPTO_MASTER_PASSPHRASE_NAME];
+    if (passphrase && typeof passphrase === "string") {
+      const key2 = await deriveKeyFromPassphrase(passphrase);
+      cachedKeyContext = { key: key2, mode: "master" };
+      return cachedKeyContext;
+    }
+    const key = await getLegacyKey(true);
+    cachedKeyContext = { key, mode: "legacy" };
+    return cachedKeyContext;
+  }
+  async function decryptWithKey(encryptedBase64, key) {
+    const binaryStr = atob(encryptedBase64);
+    const combined = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) {
+      combined[i] = binaryStr.charCodeAt(i);
+    }
+    const iv = combined.slice(0, 12);
+    const ciphertext = combined.slice(12);
+    const decrypted = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv },
+      key,
+      ciphertext
+    );
+    return new TextDecoder().decode(decrypted);
   }
   async function encrypt(plaintext) {
     if (!plaintext) return plaintext;
-    const key = await getEncryptionKey();
+    const { key } = await getKeyContext();
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const encoded = new TextEncoder().encode(plaintext);
     const ciphertext = await crypto.subtle.encrypt(
@@ -57,26 +111,22 @@
   }
   async function decrypt(encryptedBase64) {
     if (!encryptedBase64) return encryptedBase64;
-    const key = await getEncryptionKey();
-    const binaryStr = atob(encryptedBase64);
-    const combined = new Uint8Array(binaryStr.length);
-    for (let i = 0; i < binaryStr.length; i++) {
-      combined[i] = binaryStr.charCodeAt(i);
-    }
-    const iv = combined.slice(0, 12);
-    const ciphertext = combined.slice(12);
-    const decrypted = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv },
-      key,
-      ciphertext
-    );
-    return new TextDecoder().decode(decrypted);
+    const { key } = await getKeyContext();
+    return decryptWithKey(encryptedBase64, key);
   }
   async function decryptSafe(value) {
     if (!value) return value;
     try {
       return await decrypt(value);
     } catch {
+      try {
+        const { mode } = await getKeyContext();
+        if (mode === "master") {
+          const legacyKey = await getLegacyKey(false);
+          return await decryptWithKey(value, legacyKey);
+        }
+      } catch {
+      }
       return value;
     }
   }
@@ -414,6 +464,21 @@
     // === 语言 ===
     "lang.zh": "\u4E2D\u6587",
     "lang.en": "English",
+    // === 跨设备加密主密码 ===
+    "crypto.masterPassword": "\u8DE8\u8BBE\u5907\u52A0\u5BC6\u4E3B\u5BC6\u7801",
+    "crypto.masterPasswordPlaceholder": "\u8BF7\u8F93\u5165\u4E3B\u5BC6\u7801\uFF08\u7528\u4E8E\u8DE8\u8BBE\u5907\u89E3\u5BC6\uFF09",
+    "crypto.masterPasswordConfirm": "\u786E\u8BA4\u4E3B\u5BC6\u7801",
+    "crypto.masterPasswordConfirmPlaceholder": "\u8BF7\u518D\u6B21\u8F93\u5165\u4E3B\u5BC6\u7801",
+    "crypto.masterSave": "\u4FDD\u5B58\u4E3B\u5BC6\u7801",
+    "crypto.masterClear": "\u6E05\u9664\u4E3B\u5BC6\u7801",
+    "crypto.masterHint": "\u8BBE\u7F6E\u540E\u53EF\u5728\u4E0D\u540C\u8BBE\u5907\u4F7F\u7528\u540C\u4E00\u4E3B\u5BC6\u7801\u89E3\u5BC6\u914D\u7F6E\u5BFC\u51FA\u6587\u4EF6\u3002",
+    "crypto.masterSaved": "\u8DE8\u8BBE\u5907\u52A0\u5BC6\u4E3B\u5BC6\u7801\u5DF2\u4FDD\u5B58\uFF0C\u73B0\u6709\u914D\u7F6E\u5DF2\u8FC1\u79FB\u5230\u65B0\u5BC6\u94A5\u3002",
+    "crypto.masterCleared": "\u8DE8\u8BBE\u5907\u52A0\u5BC6\u4E3B\u5BC6\u7801\u5DF2\u6E05\u9664\uFF0C\u73B0\u6709\u914D\u7F6E\u5DF2\u8FC1\u79FB\u56DE\u672C\u5730\u5BC6\u94A5\u3002",
+    "crypto.masterEmpty": "\u4E3B\u5BC6\u7801\u4E0D\u80FD\u4E3A\u7A7A",
+    "crypto.masterMismatch": "\u4E24\u6B21\u8F93\u5165\u7684\u4E3B\u5BC6\u7801\u4E0D\u4E00\u81F4",
+    "crypto.masterSaveFailed": "\u4FDD\u5B58\u4E3B\u5BC6\u7801\u5931\u8D25",
+    "crypto.masterClearFailed": "\u6E05\u9664\u4E3B\u5BC6\u7801\u5931\u8D25",
+    "confirm.clearCryptoMaster": "\u786E\u5B9A\u6E05\u9664\u8DE8\u8BBE\u5907\u52A0\u5BC6\u4E3B\u5BC6\u7801\u5417\uFF1F\u6E05\u9664\u540E\u5C06\u56DE\u9000\u4E3A\u672C\u5730\u5BC6\u94A5\u6A21\u5F0F\u3002",
     // === 配置导出/导入 ===
     "config.export": "\u{1F4E4} \u5BFC\u51FA\u914D\u7F6E",
     "config.import": "\u{1F4E5} \u5BFC\u5165\u914D\u7F6E",
@@ -421,7 +486,7 @@
     "msg.exportConfigFailed": "\u914D\u7F6E\u5BFC\u51FA\u5931\u8D25",
     "msg.importConfigSuccess": "\u914D\u7F6E\u5BFC\u5165\u6210\u529F\uFF01\u9875\u9762\u5C06\u81EA\u52A8\u5237\u65B0\u3002",
     "msg.importConfigFailed": "\u914D\u7F6E\u5BFC\u5165\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u6587\u4EF6\u683C\u5F0F",
-    "msg.importConfigDecryptFailed": "\u5BFC\u5165\u5931\u8D25\uFF1A\u8BE5\u6587\u4EF6\u4E3A\u65E7\u7248\u52A0\u5BC6\u5BFC\u51FA\uFF0C\u4E14\u5F53\u524D\u8BBE\u5907\u65E0\u6CD5\u89E3\u5BC6\u3002\u8BF7\u5728\u539F\u8BBE\u5907\u5347\u7EA7\u540E\u91CD\u65B0\u5BFC\u51FA\u518D\u5BFC\u5165\u3002",
+    "msg.importConfigDecryptFailed": "\u5BFC\u5165\u5931\u8D25\uFF1A\u65E0\u6CD5\u89E3\u5BC6\u8BE5\u52A0\u5BC6\u914D\u7F6E\u3002\u8BF7\u5148\u8BBE\u7F6E\u4E0E\u5BFC\u51FA\u8BBE\u5907\u4E00\u81F4\u7684\u8DE8\u8BBE\u5907\u52A0\u5BC6\u4E3B\u5BC6\u7801\u540E\u91CD\u8BD5\u3002",
     "msg.importConfigInvalid": "\u5BFC\u5165\u6587\u4EF6\u683C\u5F0F\u65E0\u6548\uFF0C\u8BF7\u9009\u62E9\u6B63\u786E\u7684\u914D\u7F6E\u6587\u4EF6",
     "confirm.importConfig": "\u786E\u5B9A\u8981\u5BFC\u5165\u914D\u7F6E\u5417\uFF1F\u8FD9\u5C06\u8986\u76D6\u5F53\u524D\u7684\u6240\u6709\u914D\u7F6E\uFF08Gitee\u914D\u7F6E\u3001\u5FEB\u6377\u952E\u3001\u4E3B\u9898\u3001\u8BED\u8A00\uFF09\u3002",
     // === 版本更新 ===
@@ -771,6 +836,21 @@
     // === Language ===
     "lang.zh": "\u4E2D\u6587",
     "lang.en": "English",
+    // === Cross-device Encryption Master Password ===
+    "crypto.masterPassword": "Cross-device Encryption Master Password",
+    "crypto.masterPasswordPlaceholder": "Enter master password (for cross-device decryption)",
+    "crypto.masterPasswordConfirm": "Confirm Master Password",
+    "crypto.masterPasswordConfirmPlaceholder": "Enter master password again",
+    "crypto.masterSave": "Save Master Password",
+    "crypto.masterClear": "Clear Master Password",
+    "crypto.masterHint": "After setting, you can decrypt encrypted config exports on different devices with the same password.",
+    "crypto.masterSaved": "Master password saved. Existing config has been migrated to the new key.",
+    "crypto.masterCleared": "Master password cleared. Existing config has been migrated back to local key mode.",
+    "crypto.masterEmpty": "Master password cannot be empty",
+    "crypto.masterMismatch": "Master passwords do not match",
+    "crypto.masterSaveFailed": "Failed to save master password",
+    "crypto.masterClearFailed": "Failed to clear master password",
+    "confirm.clearCryptoMaster": "Clear cross-device master password? This will fall back to local key mode.",
     // === Config Export/Import ===
     "config.export": "\u{1F4E4} Export Config",
     "config.import": "\u{1F4E5} Import Config",
@@ -778,7 +858,7 @@
     "msg.exportConfigFailed": "Failed to export config",
     "msg.importConfigSuccess": "Config imported successfully! Page will refresh.",
     "msg.importConfigFailed": "Failed to import config, please check file format",
-    "msg.importConfigDecryptFailed": "Import failed: this is a legacy encrypted export and cannot be decrypted on this device. Re-export from the original device after upgrading.",
+    "msg.importConfigDecryptFailed": "Import failed: unable to decrypt this encrypted config. Set the same cross-device master password used on the export device and retry.",
     "msg.importConfigInvalid": "Invalid config file format, please select a valid config file",
     "confirm.importConfig": "Are you sure you want to import config? This will overwrite all current settings (Gitee config, shortcuts, theme, language).",
     // === Version Update ===

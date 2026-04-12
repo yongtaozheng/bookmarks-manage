@@ -1,57 +1,154 @@
 /**
  * IndexedDB 数据加密工具
  * 使用 AES-256-GCM 对存储在 IndexedDB 中的敏感配置（如 Gitee Token）进行加密
- * 加密密钥自动生成并安全存储在 chrome.storage.local 中
+ * 默认使用本地随机密钥；可切换为“主密码派生密钥”实现跨设备一致
  */
 
 declare const chrome: any;
 
 /** chrome.storage.local 中存储加密密钥的键名 */
 const CRYPTO_KEY_NAME = '_bm_encryption_key';
+/** 主密码（用于派生跨设备一致密钥） */
+const CRYPTO_MASTER_PASSPHRASE_NAME = '_bm_encryption_master_passphrase';
+/** 主密码派生参数 */
+const MASTER_KEY_SALT = 'bookmarks-manage-master-key-v1';
+const PBKDF2_ITERATIONS = 250000;
 
-/** 缓存的加密密钥，避免重复读取 storage */
-let cachedKey: CryptoKey | null = null;
+type KeyMode = 'master' | 'legacy';
+type KeyContext = {
+  key: CryptoKey;
+  mode: KeyMode;
+};
+
+/** 缓存的加密上下文，避免重复读取 storage 和重复派生 */
+let cachedKeyContext: KeyContext | null = null;
+
+function storageGet(keys: string[]): Promise<any> {
+  return new Promise(resolve => {
+    chrome.storage.local.get(keys, (result: any) => resolve(result || {}));
+  });
+}
+
+function storageSet(values: Record<string, any>): Promise<void> {
+  return new Promise(resolve => {
+    chrome.storage.local.set(values, () => resolve());
+  });
+}
+
+function storageRemove(keys: string[]): Promise<void> {
+  return new Promise(resolve => {
+    chrome.storage.local.remove(keys, () => resolve());
+  });
+}
+
+async function deriveKeyFromPassphrase(passphrase: string): Promise<CryptoKey> {
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(passphrase),
+    { name: 'PBKDF2' },
+    false,
+    ['deriveKey']
+  );
+  return crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: encoder.encode(MASTER_KEY_SALT),
+      iterations: PBKDF2_ITERATIONS,
+      hash: 'SHA-256',
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    true,
+    ['encrypt', 'decrypt']
+  );
+}
 
 /**
- * 获取或创建 AES-GCM 加密密钥
- * - 首次调用时生成随机 256 位密钥并存入 chrome.storage.local
- * - 后续调用从缓存或 storage 中读取
+ * 获取或创建旧版本地随机密钥（兼容历史数据）
  */
-async function getEncryptionKey(): Promise<CryptoKey> {
-  if (cachedKey) return cachedKey;
+async function getLegacyKey(generateIfMissing: boolean): Promise<CryptoKey> {
+  const result = await storageGet([CRYPTO_KEY_NAME]);
+  const existing = result[CRYPTO_KEY_NAME];
+  if (existing) {
+    return crypto.subtle.importKey(
+      'jwk',
+      existing,
+      { name: 'AES-GCM' },
+      true,
+      ['encrypt', 'decrypt']
+    );
+  }
+  if (!generateIfMissing) {
+    throw new Error('LEGACY_KEY_NOT_FOUND');
+  }
 
-  return new Promise((resolve, reject) => {
-    chrome.storage.local.get([CRYPTO_KEY_NAME], async (result: any) => {
-      try {
-        if (result[CRYPTO_KEY_NAME]) {
-          // 从 storage 导入已有密钥
-          const key = await crypto.subtle.importKey(
-            'jwk',
-            result[CRYPTO_KEY_NAME],
-            { name: 'AES-GCM' },
-            true,
-            ['encrypt', 'decrypt']
-          );
-          cachedKey = key;
-          resolve(key);
-        } else {
-          // 首次使用，生成新的随机密钥
-          const key = await crypto.subtle.generateKey(
-            { name: 'AES-GCM', length: 256 },
-            true,
-            ['encrypt', 'decrypt']
-          );
-          const jwk = await crypto.subtle.exportKey('jwk', key);
-          chrome.storage.local.set({ [CRYPTO_KEY_NAME]: jwk }, () => {
-            cachedKey = key;
-            resolve(key);
-          });
-        }
-      } catch (e) {
-        reject(e);
-      }
-    });
-  });
+  const key = await crypto.subtle.generateKey(
+    { name: 'AES-GCM', length: 256 },
+    true,
+    ['encrypt', 'decrypt']
+  );
+  const jwk = await crypto.subtle.exportKey('jwk', key);
+  await storageSet({ [CRYPTO_KEY_NAME]: jwk });
+  return key;
+}
+
+async function getKeyContext(): Promise<KeyContext> {
+  if (cachedKeyContext) return cachedKeyContext;
+
+  const result = await storageGet([CRYPTO_MASTER_PASSPHRASE_NAME]);
+  const passphrase = result[CRYPTO_MASTER_PASSPHRASE_NAME];
+  if (passphrase && typeof passphrase === 'string') {
+    const key = await deriveKeyFromPassphrase(passphrase);
+    cachedKeyContext = { key, mode: 'master' };
+    return cachedKeyContext;
+  }
+
+  const key = await getLegacyKey(true);
+  cachedKeyContext = { key, mode: 'legacy' };
+  return cachedKeyContext;
+}
+
+async function decryptWithKey(encryptedBase64: string, key: CryptoKey): Promise<string> {
+  const binaryStr = atob(encryptedBase64);
+  const combined = new Uint8Array(binaryStr.length);
+  for (let i = 0; i < binaryStr.length; i++) {
+    combined[i] = binaryStr.charCodeAt(i);
+  }
+
+  // 前 12 字节为 IV，其余为密文
+  const iv = combined.slice(0, 12);
+  const ciphertext = combined.slice(12);
+
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    ciphertext
+  );
+
+  return new TextDecoder().decode(decrypted);
+}
+
+/**
+ * 配置跨设备主密码（派生固定密钥）
+ */
+export async function setMasterPassphrase(passphrase: string): Promise<void> {
+  if (!passphrase) throw new Error('EMPTY_MASTER_PASSPHRASE');
+  await storageSet({ [CRYPTO_MASTER_PASSPHRASE_NAME]: passphrase });
+  cachedKeyContext = null;
+}
+
+/**
+ * 清除跨设备主密码，回退到本地随机密钥模式
+ */
+export async function clearMasterPassphrase(): Promise<void> {
+  await storageRemove([CRYPTO_MASTER_PASSPHRASE_NAME]);
+  cachedKeyContext = null;
+}
+
+export async function hasMasterPassphrase(): Promise<boolean> {
+  const result = await storageGet([CRYPTO_MASTER_PASSPHRASE_NAME]);
+  return Boolean(result[CRYPTO_MASTER_PASSPHRASE_NAME]);
 }
 
 /**
@@ -62,7 +159,7 @@ async function getEncryptionKey(): Promise<CryptoKey> {
 export async function encrypt(plaintext: string): Promise<string> {
   if (!plaintext) return plaintext;
 
-  const key = await getEncryptionKey();
+  const { key } = await getKeyContext();
   // 随机生成 12 字节 IV（AES-GCM 推荐长度）
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const encoded = new TextEncoder().encode(plaintext);
@@ -94,24 +191,8 @@ export async function encrypt(plaintext: string): Promise<string> {
 export async function decrypt(encryptedBase64: string): Promise<string> {
   if (!encryptedBase64) return encryptedBase64;
 
-  const key = await getEncryptionKey();
-  const binaryStr = atob(encryptedBase64);
-  const combined = new Uint8Array(binaryStr.length);
-  for (let i = 0; i < binaryStr.length; i++) {
-    combined[i] = binaryStr.charCodeAt(i);
-  }
-
-  // 前 12 字节为 IV，其余为密文
-  const iv = combined.slice(0, 12);
-  const ciphertext = combined.slice(12);
-
-  const decrypted = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv },
-    key,
-    ciphertext
-  );
-
-  return new TextDecoder().decode(decrypted);
+  const { key } = await getKeyContext();
+  return decryptWithKey(encryptedBase64, key);
 }
 
 /**
@@ -125,7 +206,18 @@ export async function decryptSafe(value: string): Promise<string> {
   try {
     return await decrypt(value);
   } catch {
-    // 解密失败说明是未加密的旧数据，直接返回原值
+    // 主密码模式下，尝试兼容解密旧版本地随机密钥数据
+    try {
+      const { mode } = await getKeyContext();
+      if (mode === 'master') {
+        const legacyKey = await getLegacyKey(false);
+        return await decryptWithKey(value, legacyKey);
+      }
+    } catch {
+      // ignore fallback failure
+    }
+
+    // 解密失败说明是未加密明文或非当前密钥生成的数据，直接返回原值
     return value;
   }
 }

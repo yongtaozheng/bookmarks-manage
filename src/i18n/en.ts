@@ -350,6 +350,22 @@ export default {
   'lang.zh': '中文',
   'lang.en': 'English',
 
+  // === Cross-device Encryption Master Password ===
+  'crypto.masterPassword': 'Cross-device Encryption Master Password',
+  'crypto.masterPasswordPlaceholder': 'Enter master password (for cross-device decryption)',
+  'crypto.masterPasswordConfirm': 'Confirm Master Password',
+  'crypto.masterPasswordConfirmPlaceholder': 'Enter master password again',
+  'crypto.masterSave': 'Save Master Password',
+  'crypto.masterClear': 'Clear Master Password',
+  'crypto.masterHint': 'After setting, you can decrypt encrypted config exports on different devices with the same password.',
+  'crypto.masterSaved': 'Master password saved. Existing config has been migrated to the new key.',
+  'crypto.masterCleared': 'Master password cleared. Existing config has been migrated back to local key mode.',
+  'crypto.masterEmpty': 'Master password cannot be empty',
+  'crypto.masterMismatch': 'Master passwords do not match',
+  'crypto.masterSaveFailed': 'Failed to save master password',
+  'crypto.masterClearFailed': 'Failed to clear master password',
+  'confirm.clearCryptoMaster': 'Clear cross-device master password? This will fall back to local key mode.',
+
   // === Config Export/Import ===
   'config.export': '📤 Export Config',
   'config.import': '📥 Import Config',
@@ -357,7 +373,7 @@ export default {
   'msg.exportConfigFailed': 'Failed to export config',
   'msg.importConfigSuccess': 'Config imported successfully! Page will refresh.',
   'msg.importConfigFailed': 'Failed to import config, please check file format',
-  'msg.importConfigDecryptFailed': 'Import failed: this is a legacy encrypted export and cannot be decrypted on this device. Re-export from the original device after upgrading.',
+  'msg.importConfigDecryptFailed': 'Import failed: unable to decrypt this encrypted config. Set the same cross-device master password used on the export device and retry.',
   'msg.importConfigInvalid': 'Invalid config file format, please select a valid config file',
   'confirm.importConfig': 'Are you sure you want to import config? This will overwrite all current settings (Gitee config, shortcuts, theme, language).',
 

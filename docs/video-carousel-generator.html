@@ -1,0 +1,1108 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>视频介绍轮播生成器</title>
+  <style>
+    :root {
+      --bg: #f3f6fb;
+      --card: #ffffff;
+      --line: #d9e2ef;
+      --text: #182433;
+      --muted: #5a6b81;
+      --primary: #2563eb;
+      --primary-2: #0ea5e9;
+      --danger: #dc2626;
+      --ok: #15803d;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% 10%, #dbeafe 0%, transparent 34%),
+        radial-gradient(circle at 90% 16%, #e0f2fe 0%, transparent 30%),
+        var(--bg);
+    }
+
+    .wrap {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+      grid-template-columns: 420px 1fr;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+    }
+
+    .panel {
+      padding: 14px;
+      max-height: calc(100vh - 36px);
+      overflow: auto;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: 0.3px;
+    }
+
+    .sub {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .row {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .row.two {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .group {
+      margin-top: 12px;
+      border-top: 1px dashed var(--line);
+      padding-top: 12px;
+    }
+
+    label {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+      display: block;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 9px 10px;
+      font-size: 13px;
+      outline: none;
+      background: #fff;
+      color: var(--text);
+    }
+
+    textarea {
+      min-height: 64px;
+      resize: vertical;
+    }
+
+    input[type="range"] {
+      width: 100%;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      border: 1px dashed var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      background: #fbfdff;
+      font-size: 13px;
+    }
+
+    button {
+      border: 1px solid transparent;
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    }
+
+    button.secondary {
+      background: #fff;
+      color: var(--text);
+      border-color: var(--line);
+    }
+
+    button.danger {
+      background: #fff;
+      color: var(--danger);
+      border-color: #fecaca;
+    }
+
+    button.ok {
+      background: linear-gradient(135deg, #16a34a, #22c55e);
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .preview {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .preview-top {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .status {
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--muted);
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+    }
+
+    .canvas-shell {
+      background: #090f1d;
+      border-radius: 12px;
+      padding: 10px;
+      border: 1px solid #0f172a;
+    }
+
+    #previewCanvas {
+      width: 100%;
+      height: auto;
+      max-height: 72vh;
+      border-radius: 8px;
+      display: block;
+      background: #000;
+      margin: 0 auto;
+    }
+
+    .timeline {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    #seekBar {
+      width: 100%;
+    }
+
+    .seek-time {
+      font-size: 12px;
+      color: var(--muted);
+      min-width: 110px;
+      text-align: right;
+    }
+
+    .scene-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .scene-item {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #fcfdff;
+    }
+
+    .scene-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: #f7faff;
+      border-bottom: 1px solid var(--line);
+      font-size: 12px;
+    }
+
+    .scene-index {
+      min-width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      background: #dbeafe;
+      color: #1d4ed8;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+    }
+
+    .scene-kind {
+      color: var(--muted);
+    }
+
+    .scene-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 6px;
+    }
+
+    .scene-actions button {
+      padding: 5px 8px;
+      font-size: 12px;
+    }
+
+    .scene-body {
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .scene-grid {
+      display: grid;
+      grid-template-columns: 82px 1fr;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .thumb {
+      width: 82px;
+      height: 62px;
+      border-radius: 8px;
+      object-fit: cover;
+      background: #e5e7eb;
+      border: 1px solid var(--line);
+    }
+
+    .empty {
+      margin-top: 10px;
+      padding: 12px;
+      border: 1px dashed var(--line);
+      border-radius: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      background: #fbfdff;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+      margin-top: 8px;
+    }
+
+    @media (max-width: 1080px) {
+      .wrap {
+        grid-template-columns: 1fr;
+      }
+
+      .panel {
+        max-height: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="card panel">
+      <h1>视频介绍轮播生成器</h1>
+      <p class="sub">上传图片/视频素材后，编辑每段标题与文案，自动生成带转场和动态镜头的介绍视频。导出成片后你只需要后期配音。</p>
+
+      <div class="group">
+        <label for="assetInput">素材上传（支持多选：图片 + 视频）</label>
+        <input id="assetInput" type="file" multiple accept="image/*,video/*" />
+        <div class="row two">
+          <button id="applyTemplateBtn" class="secondary">套用插件介绍文案</button>
+          <button id="clearAllBtn" class="danger">清空全部分镜</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="row two">
+          <div>
+            <label for="resolution">画幅</label>
+            <select id="resolution">
+              <option value="1920x1080">横版 1920x1080</option>
+              <option value="1080x1920">竖版 1080x1920</option>
+              <option value="1080x1080">方形 1080x1080</option>
+            </select>
+          </div>
+          <div>
+            <label for="fps">帧率 FPS</label>
+            <input id="fps" type="number" min="24" max="60" step="1" value="30" />
+          </div>
+        </div>
+
+        <div class="row two">
+          <div>
+            <label for="defaultImageDuration">图片默认时长（秒）</label>
+            <input id="defaultImageDuration" type="number" min="2" max="12" step="0.5" value="4.5" />
+          </div>
+          <div>
+            <label for="maxVideoDuration">视频片段最长时长（秒）</label>
+            <input id="maxVideoDuration" type="number" min="2" max="20" step="0.5" value="6" />
+          </div>
+        </div>
+
+        <div class="row two">
+          <div>
+            <label for="transition">转场时长（秒）</label>
+            <input id="transition" type="number" min="0" max="2" step="0.1" value="0.8" />
+          </div>
+          <div>
+            <label for="titleSafeBottom">字幕安全区底部（像素）</label>
+            <input id="titleSafeBottom" type="number" min="60" max="260" step="10" value="120" />
+          </div>
+        </div>
+
+        <div class="row two">
+          <div>
+            <label for="stylePreset">视觉风格</label>
+            <select id="stylePreset">
+              <option value="neon">霓虹电影感</option>
+              <option value="cyber">赛博故障风</option>
+              <option value="clean">高级极简风</option>
+            </select>
+          </div>
+          <div>
+            <label for="effectStrength">特效强度（0-100）</label>
+            <input id="effectStrength" type="range" min="0" max="100" step="1" value="72" />
+          </div>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3 style="margin: 0 0 8px; font-size: 15px;">分镜列表</h3>
+        <div id="sceneList" class="scene-list"></div>
+        <div id="emptyState" class="empty">还没有素材。请先上传图片/视频，系统会自动生成分镜卡片。</div>
+        <p class="hint">提示：每个分镜可单独修改标题、说明、时长；支持上移下移调整叙事顺序。</p>
+      </div>
+    </section>
+
+    <section class="card preview">
+      <div class="preview-top">
+        <button id="playBtn">预览播放</button>
+        <button id="stopBtn" class="secondary">停止</button>
+        <button id="exportBtn" class="ok">导出视频（WebM）</button>
+        <span id="statusText" class="status">就绪</span>
+      </div>
+
+      <div class="canvas-shell">
+        <canvas id="previewCanvas" width="1920" height="1080"></canvas>
+      </div>
+
+      <div class="timeline">
+        <input id="seekBar" type="range" min="0" max="1" step="0.001" value="0" />
+        <div id="seekTime" class="seek-time">00:00 / 00:00</div>
+      </div>
+
+      <p class="hint">导出说明：浏览器将实时录制预览画布并生成 <code>.webm</code> 文件。建议在导出期间保持当前标签页可见，并避免高负载操作。</p>
+    </section>
+  </main>
+
+  <script>
+    const state = {
+      scenes: [],
+      timeline: [],
+      totalDuration: 0,
+      settings: {
+        width: 1920,
+        height: 1080,
+        fps: 30,
+        defaultImageDuration: 4.5,
+        maxVideoDuration: 6,
+        transition: 0.8,
+        titleSafeBottom: 120,
+        stylePreset: "neon",
+        effectStrength: 0.72
+      },
+      fx: {
+        particles: []
+      },
+      preview: {
+        playing: false,
+        raf: 0,
+        startTs: 0,
+        startOffset: 0,
+        currentTime: 0,
+        exportMode: false
+      },
+      export: {
+        running: false
+      }
+    };
+
+    const els = {
+      assetInput: document.getElementById("assetInput"),
+      applyTemplateBtn: document.getElementById("applyTemplateBtn"),
+      clearAllBtn: document.getElementById("clearAllBtn"),
+      resolution: document.getElementById("resolution"),
+      fps: document.getElementById("fps"),
+      defaultImageDuration: document.getElementById("defaultImageDuration"),
+      maxVideoDuration: document.getElementById("maxVideoDuration"),
+      transition: document.getElementById("transition"),
+      titleSafeBottom: document.getElementById("titleSafeBottom"),
+      stylePreset: document.getElementById("stylePreset"),
+      effectStrength: document.getElementById("effectStrength"),
+      sceneList: document.getElementById("sceneList"),
+      emptyState: document.getElementById("emptyState"),
+      playBtn: document.getElementById("playBtn"),
+      stopBtn: document.getElementById("stopBtn"),
+      exportBtn: document.getElementById("exportBtn"),
+      statusText: document.getElementById("statusText"),
+      seekBar: document.getElementById("seekBar"),
+      seekTime: document.getElementById("seekTime"),
+      canvas: document.getElementById("previewCanvas")
+    };
+
+    const ctx = els.canvas.getContext("2d");
+
+    const templateLines = [
+      { title: "书签太乱，找不到", subtitle: "痛点开场：重复、失效、定位慢" },
+      { title: "书签管理器插件", subtitle: "一站式管理、搜索、同步" },
+      { title: "核心能力总览", subtitle: "全局搜索 / 云同步 / 去重 / 失效检测" },
+      { title: "下载安装很简单", subtitle: "加载已解压扩展，3 步完成" },
+      { title: "进入插件主面板", subtitle: "管理、同步、快捷键、主题一页搞定" },
+      { title: "Gitee 仓库配置", subtitle: "新建仓库 + Token + 填写配置" },
+      { title: "首次同步", subtitle: "覆盖保存完成云端备份" },
+      { title: "全局搜索", subtitle: "任意网页快速唤起，关键词直达" },
+      { title: "批量整理与清理", subtitle: "重复检测 + 失效链接检测" },
+      { title: "现在就开始整理书签", subtitle: "下载链接见说明区" }
+    ];
+
+    function uid() {
+      return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }
+
+    function clamp(n, min, max) {
+      return Math.max(min, Math.min(max, n));
+    }
+
+    function easeInOut(t) {
+      return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    }
+
+    function pickTransitionStyle() {
+      const pool = ["fade", "slide", "zoom", "glitch"];
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    function formatTime(seconds) {
+      const s = Math.max(0, seconds);
+      const mm = Math.floor(s / 60).toString().padStart(2, "0");
+      const ss = Math.floor(s % 60).toString().padStart(2, "0");
+      return `${mm}:${ss}`;
+    }
+
+    function updateStatus(text) {
+      els.statusText.textContent = text;
+    }
+
+    function parseSettingsFromUI() {
+      const [w, h] = els.resolution.value.split("x").map(Number);
+      state.settings.width = w;
+      state.settings.height = h;
+      state.settings.fps = clamp(Number(els.fps.value) || 30, 24, 60);
+      state.settings.defaultImageDuration = clamp(Number(els.defaultImageDuration.value) || 4.5, 2, 12);
+      state.settings.maxVideoDuration = clamp(Number(els.maxVideoDuration.value) || 6, 2, 20);
+      state.settings.transition = clamp(Number(els.transition.value) || 0.8, 0, 2);
+      state.settings.titleSafeBottom = clamp(Number(els.titleSafeBottom.value) || 120, 60, 260);
+      state.settings.stylePreset = els.stylePreset.value || "neon";
+      state.settings.effectStrength = clamp((Number(els.effectStrength.value) || 72) / 100, 0, 1);
+      resizeCanvas();
+      initParticles();
+      rebuildTimeline();
+      renderAt(state.preview.currentTime, true);
+    }
+
+    function resizeCanvas() {
+      els.canvas.width = state.settings.width;
+      els.canvas.height = state.settings.height;
+    }
+
+    function initParticles() {
+      const area = state.settings.width * state.settings.height;
+      const baseCount = Math.max(18, Math.min(120, Math.round(area / 65000)));
+      const count = Math.round(baseCount * (0.35 + state.settings.effectStrength * 0.95));
+      const particles = [];
+      for (let i = 0; i < count; i += 1) {
+        particles.push({
+          x: Math.random(),
+          y: Math.random(),
+          vx: (Math.random() - 0.5) * 0.00045,
+          vy: (Math.random() - 0.5) * 0.00045,
+          r: 1 + Math.random() * 3,
+          a: 0.15 + Math.random() * 0.45
+        });
+      }
+      state.fx.particles = particles;
+    }
+
+    function computeSceneStarts() {
+      const starts = [];
+      let acc = 0;
+      for (let i = 0; i < state.scenes.length; i += 1) {
+        starts.push(acc);
+        const cur = state.scenes[i];
+        const next = state.scenes[i + 1];
+        if (next) {
+          const overlap = Math.min(state.settings.transition, cur.duration * 0.8, next.duration * 0.8);
+          acc += cur.duration - overlap;
+        } else {
+          acc += cur.duration;
+        }
+      }
+      return starts;
+    }
+
+    function rebuildTimeline() {
+      const starts = computeSceneStarts();
+      state.timeline = state.scenes.map((scene, i) => {
+        const next = state.scenes[i + 1];
+        const start = starts[i];
+        const end = start + scene.duration;
+        const overlap = next ? Math.min(state.settings.transition, scene.duration * 0.8, next.duration * 0.8) : 0;
+        return { start, end, overlap };
+      });
+      state.totalDuration = state.timeline.length ? state.timeline[state.timeline.length - 1].end : 0;
+      els.seekBar.max = String(Math.max(1, state.totalDuration));
+      updateSeekText();
+    }
+
+    async function createSceneFromFile(file) {
+      const type = file.type.startsWith("video/") ? "video" : "image";
+      const url = URL.createObjectURL(file);
+      const base = {
+        id: uid(),
+        type,
+        fileName: file.name,
+        url,
+        duration: state.settings.defaultImageDuration,
+        title: "",
+        subtitle: "",
+        zoomFrom: 1.04 + Math.random() * 0.06,
+        zoomTo: 1.12 + Math.random() * 0.1,
+        panXFrom: 0.45 + Math.random() * 0.1,
+        panYFrom: 0.45 + Math.random() * 0.1,
+        panXTo: 0.45 + Math.random() * 0.1,
+        panYTo: 0.45 + Math.random() * 0.1,
+        transitionStyle: pickTransitionStyle()
+      };
+
+      if (type === "image") {
+        const img = new Image();
+        img.src = url;
+        await new Promise((resolve) => {
+          img.onload = resolve;
+          img.onerror = resolve;
+        });
+        base.image = img;
+      } else {
+        const video = document.createElement("video");
+        video.src = url;
+        video.preload = "auto";
+        video.muted = true;
+        video.playsInline = true;
+        await new Promise((resolve) => {
+          const done = () => resolve();
+          video.onloadedmetadata = done;
+          video.onerror = done;
+        });
+        const maxDur = state.settings.maxVideoDuration;
+        const available = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : maxDur;
+        base.duration = clamp(Math.min(available, maxDur), 2, maxDur);
+        base.videoStart = 0;
+        base.video = video;
+      }
+
+      return base;
+    }
+
+    function applyTemplateLines() {
+      state.scenes.forEach((scene, i) => {
+        const line = templateLines[i % templateLines.length];
+        if (!scene.title) scene.title = line.title;
+        if (!scene.subtitle) scene.subtitle = line.subtitle;
+      });
+      renderSceneList();
+      renderAt(state.preview.currentTime, true);
+    }
+
+    function removeScene(sceneId) {
+      const idx = state.scenes.findIndex((s) => s.id === sceneId);
+      if (idx >= 0) {
+        const [removed] = state.scenes.splice(idx, 1);
+        if (removed && removed.url) URL.revokeObjectURL(removed.url);
+        renderSceneList();
+        rebuildTimeline();
+        renderAt(Math.min(state.preview.currentTime, state.totalDuration), true);
+      }
+    }
+
+    function moveScene(sceneId, delta) {
+      const idx = state.scenes.findIndex((s) => s.id === sceneId);
+      if (idx < 0) return;
+      const target = idx + delta;
+      if (target < 0 || target >= state.scenes.length) return;
+      const temp = state.scenes[idx];
+      state.scenes[idx] = state.scenes[target];
+      state.scenes[target] = temp;
+      renderSceneList();
+      rebuildTimeline();
+      renderAt(state.preview.currentTime, true);
+    }
+
+    function renderSceneList() {
+      els.sceneList.innerHTML = "";
+      if (!state.scenes.length) {
+        els.emptyState.style.display = "block";
+        return;
+      }
+      els.emptyState.style.display = "none";
+
+      state.scenes.forEach((scene, index) => {
+        const item = document.createElement("article");
+        item.className = "scene-item";
+        item.innerHTML = `
+          <div class="scene-head">
+            <span class="scene-index">${index + 1}</span>
+            <span>${scene.fileName}</span>
+            <span class="scene-kind">(${scene.type === "video" ? "视频" : "图片"})</span>
+            <div class="scene-actions">
+              <button class="secondary move-up">上移</button>
+              <button class="secondary move-down">下移</button>
+              <button class="danger remove">删除</button>
+            </div>
+          </div>
+          <div class="scene-body">
+            <div class="scene-grid">
+              <div>
+                ${scene.type === "video"
+                  ? `<video class="thumb" src="${scene.url}" muted playsinline></video>`
+                  : `<img class="thumb" src="${scene.url}" alt="thumb" />`
+                }
+              </div>
+              <div class="row">
+                <div>
+                  <label>主标题</label>
+                  <input type="text" class="field-title" value="${escapeHtml(scene.title)}" placeholder="例如：Gitee 仓库配置" />
+                </div>
+                <div>
+                  <label>副标题</label>
+                  <textarea class="field-subtitle" placeholder="例如：新建仓库 + Token + 回填配置">${escapeHtml(scene.subtitle)}</textarea>
+                </div>
+              </div>
+            </div>
+            <div class="row two">
+              <div>
+                <label>分镜时长（秒）</label>
+                <input type="number" class="field-duration" min="2" max="20" step="0.5" value="${scene.duration}" />
+              </div>
+              <div>
+                <label>镜头缩放（结束值）</label>
+                <input type="range" class="field-zoom" min="1.05" max="1.35" step="0.01" value="${scene.zoomTo}" />
+              </div>
+            </div>
+          </div>
+        `;
+
+        const titleInput = item.querySelector(".field-title");
+        const subtitleInput = item.querySelector(".field-subtitle");
+        const durationInput = item.querySelector(".field-duration");
+        const zoomInput = item.querySelector(".field-zoom");
+
+        titleInput.addEventListener("input", (e) => {
+          scene.title = e.target.value;
+          renderAt(state.preview.currentTime, true);
+        });
+        subtitleInput.addEventListener("input", (e) => {
+          scene.subtitle = e.target.value;
+          renderAt(state.preview.currentTime, true);
+        });
+        durationInput.addEventListener("input", (e) => {
+          scene.duration = clamp(Number(e.target.value) || scene.duration, 2, 20);
+          rebuildTimeline();
+          renderAt(Math.min(state.preview.currentTime, state.totalDuration), true);
+        });
+        zoomInput.addEventListener("input", (e) => {
+          scene.zoomTo = clamp(Number(e.target.value) || scene.zoomTo, 1.05, 1.35);
+          renderAt(state.preview.currentTime, true);
+        });
+
+        item.querySelector(".remove").addEventListener("click", () => removeScene(scene.id));
+        item.querySelector(".move-up").addEventListener("click", () => moveScene(scene.id, -1));
+        item.querySelector(".move-down").addEventListener("click", () => moveScene(scene.id, +1));
+
+        els.sceneList.appendChild(item);
+      });
+    }
+
+    function escapeHtml(str) {
+      return String(str || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll("\"", "&quot;");
+    }
+
+    function drawBackground() {
+      ctx.save();
+      const g = ctx.createLinearGradient(0, 0, state.settings.width, state.settings.height);
+      g.addColorStop(0, "#0f172a");
+      g.addColorStop(1, "#111827");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, state.settings.width, state.settings.height);
+      ctx.restore();
+    }
+
+    function drawMedia(scene, localProgress, alpha = 1) {
+      const w = state.settings.width;
+      const h = state.settings.height;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+
+      const media = scene.type === "video" ? scene.video : scene.image;
+      if (!media) {
+        ctx.restore();
+        return;
+      }
+
+      if (scene.type === "video") {
+        const duration = Number.isFinite(scene.video.duration) && scene.video.duration > 0 ? scene.video.duration : scene.duration;
+        const targetTime = clamp((scene.videoStart || 0) + localProgress * scene.duration, 0, Math.max(0, duration - 0.04));
+        if (Math.abs(scene.video.currentTime - targetTime) > 0.04) {
+          try {
+            scene.video.currentTime = targetTime;
+          } catch (err) {
+            // Ignore seek sync errors during rapid preview.
+          }
+        }
+      }
+
+      const srcW = media.videoWidth || media.naturalWidth || 1920;
+      const srcH = media.videoHeight || media.naturalHeight || 1080;
+      const baseScale = Math.max(w / srcW, h / srcH);
+      const t = easeInOut(clamp(localProgress, 0, 1));
+      const zoom = scene.zoomFrom + (scene.zoomTo - scene.zoomFrom) * t;
+      const panX = scene.panXFrom + (scene.panXTo - scene.panXFrom) * t;
+      const panY = scene.panYFrom + (scene.panYTo - scene.panYFrom) * t;
+
+      const drawW = srcW * baseScale * zoom;
+      const drawH = srcH * baseScale * zoom;
+      const dx = (w - drawW) * panX;
+      const dy = (h - drawH) * panY;
+      ctx.drawImage(media, dx, dy, drawW, drawH);
+      ctx.restore();
+    }
+
+    function drawTitle(scene, alpha = 1) {
+      const w = state.settings.width;
+      const h = state.settings.height;
+      const safeBottom = state.settings.titleSafeBottom;
+      const titleSize = Math.round(w * 0.036);
+      const subtitleSize = Math.round(w * 0.018);
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+
+      const gradientHeight = Math.round(h * 0.36);
+      const g = ctx.createLinearGradient(0, h - gradientHeight, 0, h);
+      g.addColorStop(0, "rgba(0,0,0,0)");
+      g.addColorStop(1, "rgba(0,0,0,0.62)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, h - gradientHeight, w, gradientHeight);
+
+      ctx.fillStyle = "rgba(255,255,255,0.98)";
+      ctx.font = `700 ${titleSize}px "Poppins", "PingFang SC", sans-serif`;
+      ctx.textBaseline = "alphabetic";
+      const title = scene.title || "";
+      if (title) {
+        ctx.fillText(title, Math.round(w * 0.07), h - safeBottom);
+      }
+
+      ctx.fillStyle = "rgba(226,232,240,0.95)";
+      ctx.font = `500 ${subtitleSize}px "Lora", "PingFang SC", sans-serif`;
+      const subtitle = scene.subtitle || "";
+      if (subtitle) {
+        wrapText(subtitle, Math.round(w * 0.07), h - safeBottom + Math.round(subtitleSize * 1.7), Math.round(w * 0.86), Math.round(subtitleSize * 1.45));
+      }
+
+      ctx.restore();
+    }
+
+    function wrapText(text, x, y, maxWidth, lineHeight) {
+      const chars = String(text).split("");
+      let line = "";
+      let row = 0;
+      for (let i = 0; i < chars.length; i += 1) {
+        const testLine = line + chars[i];
+        if (ctx.measureText(testLine).width > maxWidth && line) {
+          ctx.fillText(line, x, y + row * lineHeight);
+          row += 1;
+          line = chars[i];
+        } else {
+          line = testLine;
+        }
+      }
+      if (line) ctx.fillText(line, x, y + row * lineHeight);
+    }
+
+    function getFrameAt(time) {
+      if (!state.scenes.length) return null;
+      const t = clamp(time, 0, state.totalDuration);
+      for (let i = 0; i < state.scenes.length; i += 1) {
+        const slot = state.timeline[i];
+        if (!slot) continue;
+        if (t >= slot.start && t <= slot.end) {
+          const scene = state.scenes[i];
+          const local = (t - slot.start) / scene.duration;
+          let currentAlpha = 1;
+          let next = null;
+          let nextAlpha = 0;
+
+          const nextScene = state.scenes[i + 1];
+          if (nextScene && slot.overlap > 0) {
+            const transitionStart = slot.end - slot.overlap;
+            if (t >= transitionStart) {
+              const p = clamp((t - transitionStart) / slot.overlap, 0, 1);
+              currentAlpha = 1 - p;
+              nextAlpha = p;
+              const nextSlot = state.timeline[i + 1];
+              const nextLocal = (t - nextSlot.start) / nextScene.duration;
+              next = { scene: nextScene, local: nextLocal, alpha: nextAlpha };
+            }
+          }
+
+          return { current: { scene, local, alpha: currentAlpha }, next };
+        }
+      }
+      const lastScene = state.scenes[state.scenes.length - 1];
+      return { current: { scene: lastScene, local: 1, alpha: 1 }, next: null };
+    }
+
+    function renderAt(time, skipSeekSync = false) {
+      state.preview.currentTime = clamp(time, 0, state.totalDuration || 0);
+      drawBackground();
+      const frame = getFrameAt(state.preview.currentTime);
+      if (frame) {
+        drawMedia(frame.current.scene, clamp(frame.current.local, 0, 1), frame.current.alpha);
+        drawTitle(frame.current.scene, frame.current.alpha);
+        if (frame.next) {
+          drawMedia(frame.next.scene, clamp(frame.next.local, 0, 1), frame.next.alpha);
+          drawTitle(frame.next.scene, frame.next.alpha);
+        }
+      }
+
+      if (!skipSeekSync) {
+        els.seekBar.value = String(state.preview.currentTime);
+      }
+      updateSeekText();
+    }
+
+    function updateSeekText() {
+      const current = formatTime(state.preview.currentTime);
+      const total = formatTime(state.totalDuration);
+      els.seekTime.textContent = `${current} / ${total}`;
+    }
+
+    function stopPreview() {
+      state.preview.playing = false;
+      if (state.preview.raf) cancelAnimationFrame(state.preview.raf);
+      state.preview.raf = 0;
+      if (!state.export.running) updateStatus("已停止");
+    }
+
+    function previewLoop() {
+      if (!state.preview.playing) return;
+      const now = performance.now();
+      const elapsed = (now - state.preview.startTs) / 1000;
+      let t = state.preview.startOffset + elapsed;
+      if (t >= state.totalDuration) {
+        t = state.totalDuration;
+        renderAt(t);
+        stopPreview();
+        if (state.export.running) {
+          updateStatus("导出中：渲染完成，正在封装文件...");
+        }
+        return;
+      }
+      renderAt(t);
+      state.preview.raf = requestAnimationFrame(previewLoop);
+    }
+
+    function playPreview(fromStart = false) {
+      if (!state.scenes.length) {
+        updateStatus("请先上传素材");
+        return;
+      }
+      if (fromStart) {
+        state.preview.currentTime = 0;
+      }
+      stopPreview();
+      state.preview.playing = true;
+      state.preview.startTs = performance.now();
+      state.preview.startOffset = state.preview.currentTime;
+      updateStatus("预览播放中");
+      state.preview.raf = requestAnimationFrame(previewLoop);
+    }
+
+    function getSupportedMimeType() {
+      const candidates = [
+        "video/webm;codecs=vp9",
+        "video/webm;codecs=vp8",
+        "video/webm"
+      ];
+      for (const t of candidates) {
+        if (MediaRecorder.isTypeSupported(t)) return t;
+      }
+      return "";
+    }
+
+    async function exportVideo() {
+      if (state.export.running) return;
+      if (!state.scenes.length) {
+        updateStatus("请先上传素材");
+        return;
+      }
+      const mimeType = getSupportedMimeType();
+      if (!mimeType) {
+        updateStatus("当前浏览器不支持 WebM 录制");
+        return;
+      }
+
+      state.export.running = true;
+      els.exportBtn.disabled = true;
+      els.playBtn.disabled = true;
+      els.stopBtn.disabled = true;
+      updateStatus("导出中：初始化录制...");
+
+      try {
+        const stream = els.canvas.captureStream(state.settings.fps);
+        const chunks = [];
+        const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 10_000_000 });
+        recorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) chunks.push(e.data);
+        };
+
+        const done = new Promise((resolve) => {
+          recorder.onstop = resolve;
+        });
+
+        recorder.start(1000);
+        playPreview(true);
+        updateStatus("导出中：正在录制画面...");
+
+        const exportDuration = Math.max(0.2, state.totalDuration + 0.2);
+        await new Promise((resolve) => setTimeout(resolve, exportDuration * 1000));
+
+        stopPreview();
+        recorder.stop();
+        await done;
+
+        const blob = new Blob(chunks, { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `intro-carousel-${Date.now()}.webm`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+
+        updateStatus(`导出完成：${(blob.size / 1024 / 1024).toFixed(1)}MB`);
+      } catch (err) {
+        console.error(err);
+        updateStatus("导出失败，请重试");
+      } finally {
+        state.export.running = false;
+        els.exportBtn.disabled = false;
+        els.playBtn.disabled = false;
+        els.stopBtn.disabled = false;
+      }
+    }
+
+    async function handleAssetUpload(files) {
+      const arr = Array.from(files || []);
+      if (!arr.length) return;
+
+      updateStatus(`读取素材中：${arr.length} 个`);
+      for (const file of arr) {
+        if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+          continue;
+        }
+        const scene = await createSceneFromFile(file);
+        state.scenes.push(scene);
+      }
+
+      if (state.scenes.length) {
+        applyTemplateLines();
+      } else {
+        renderSceneList();
+      }
+      rebuildTimeline();
+      renderAt(0, true);
+      updateStatus(`就绪：${state.scenes.length} 个分镜`);
+    }
+
+    function clearAllScenes() {
+      stopPreview();
+      state.scenes.forEach((s) => {
+        if (s.url) URL.revokeObjectURL(s.url);
+      });
+      state.scenes = [];
+      state.timeline = [];
+      state.totalDuration = 0;
+      renderSceneList();
+      renderAt(0, true);
+      updateStatus("已清空");
+    }
+
+    function bindEvents() {
+      els.assetInput.addEventListener("change", (e) => {
+        handleAssetUpload(e.target.files);
+        e.target.value = "";
+      });
+
+      els.applyTemplateBtn.addEventListener("click", () => {
+        applyTemplateLines();
+        updateStatus("已套用文案模板");
+      });
+
+      els.clearAllBtn.addEventListener("click", clearAllScenes);
+
+      [els.resolution, els.fps, els.defaultImageDuration, els.maxVideoDuration, els.transition, els.titleSafeBottom]
+        .forEach((el) => el.addEventListener("change", parseSettingsFromUI));
+
+      els.playBtn.addEventListener("click", () => playPreview(false));
+      els.stopBtn.addEventListener("click", stopPreview);
+      els.exportBtn.addEventListener("click", exportVideo);
+
+      els.seekBar.addEventListener("input", (e) => {
+        stopPreview();
+        const t = Number(e.target.value) || 0;
+        renderAt(t, true);
+      });
+    }
+
+    function init() {
+      bindEvents();
+      parseSettingsFromUI();
+      renderSceneList();
+      drawBackground();
+      updateSeekText();
+      updateStatus("就绪");
+    }
+
+    init();
+  </script>
+</body>
+</html>

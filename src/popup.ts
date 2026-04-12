@@ -1,7 +1,7 @@
 import { initLocale, t, setLocale, getLocale, translateDOM } from './i18n/index';
 import type { Locale } from './i18n/index';
 import { initTheme, setupThemeToggle } from './theme';
-import { encrypt, decrypt, decryptSafe } from './crypto';
+import { encrypt, decrypt, decryptSafe, setMasterPassphrase, clearMasterPassphrase, hasMasterPassphrase } from './crypto';
 import { checkForUpdate, getCurrentVersion, getDismissedVersion, setDismissedVersion, downloadDistZip, GITEE_RELEASES_PAGE } from './version-check';
 
 declare const chrome: any;
@@ -76,6 +76,27 @@ async function setConfigToDB(config: Record<string, string>) {
   return new Promise<void>(resolve => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => resolve();
+  });
+}
+async function getRawConfigFromDB(fields: string[]): Promise<any> {
+  const db = await openDB();
+  return new Promise(resolve => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    const result: any = {};
+    let count = fields.length;
+    fields.forEach(f => {
+      const req = store.get(f);
+      req.onsuccess = function() {
+        result[f] = req.result || '';
+        count--;
+        if (count === 0) resolve(result);
+      };
+      req.onerror = function() {
+        count--;
+        if (count === 0) resolve(result);
+      };
+    });
   });
 }
 function isLikelyEncryptedValue(value: string): boolean {
@@ -1286,12 +1307,73 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // == 配置导出/导入逻辑 ==
     const importConfigFileEl = document.getElementById('importConfigFile') as HTMLInputElement;
+    const cryptoMasterPasswordEl = document.getElementById('cryptoMasterPassword') as HTMLInputElement;
+    const cryptoMasterPasswordConfirmEl = document.getElementById('cryptoMasterPasswordConfirm') as HTMLInputElement;
+    const btnSaveCryptoMasterEl = document.getElementById('btnSaveCryptoMaster') as HTMLButtonElement;
+    const btnClearCryptoMasterEl = document.getElementById('btnClearCryptoMaster') as HTMLButtonElement;
+    const cryptoMasterMsgEl = document.getElementById('cryptoMasterMsg');
+    const giteeFieldNames = ['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath'];
+
+    function showCryptoMasterMsg(text: string, isError = false) {
+      if (!cryptoMasterMsgEl) return;
+      cryptoMasterMsgEl.textContent = text;
+      (cryptoMasterMsgEl as HTMLElement).style.color = isError ? 'var(--color-accent-red)' : 'var(--color-accent-green)';
+      setTimeout(() => {
+        if (cryptoMasterMsgEl) cryptoMasterMsgEl.textContent = '';
+      }, 2600);
+    }
+
+    async function migrateGiteeConfigByCurrentKey() {
+      const plainConfig = await getConfigFromDB(giteeFieldNames);
+      await setConfigToDB(plainConfig);
+    }
+
+    if (btnSaveCryptoMasterEl && btnClearCryptoMasterEl && cryptoMasterPasswordEl && cryptoMasterPasswordConfirmEl) {
+      btnSaveCryptoMasterEl.onclick = async function() {
+        const pwd = cryptoMasterPasswordEl.value;
+        const confirmPwd = cryptoMasterPasswordConfirmEl.value;
+        if (!pwd) {
+          showCryptoMasterMsg(t('crypto.masterEmpty'), true);
+          return;
+        }
+        if (pwd !== confirmPwd) {
+          showCryptoMasterMsg(t('crypto.masterMismatch'), true);
+          return;
+        }
+        try {
+          await setMasterPassphrase(pwd);
+          await migrateGiteeConfigByCurrentKey();
+          cryptoMasterPasswordEl.value = '';
+          cryptoMasterPasswordConfirmEl.value = '';
+          showCryptoMasterMsg(t('crypto.masterSaved'));
+        } catch {
+          showCryptoMasterMsg(t('crypto.masterSaveFailed'), true);
+        }
+      };
+
+      btnClearCryptoMasterEl.onclick = async function() {
+        if (!confirm(t('confirm.clearCryptoMaster'))) return;
+        try {
+          // 先读出明文，避免清除后无法解密当前数据
+          const plainConfig = await getConfigFromDB(giteeFieldNames);
+          await clearMasterPassphrase();
+          await setConfigToDB(plainConfig);
+          cryptoMasterPasswordEl.value = '';
+          cryptoMasterPasswordConfirmEl.value = '';
+          showCryptoMasterMsg(t('crypto.masterCleared'));
+        } catch {
+          showCryptoMasterMsg(t('crypto.masterClearFailed'), true);
+        }
+      };
+    }
 
     // 导出配置
     document.getElementById('btnExportConfig')!.onclick = async function() {
       try {
-        // 获取 Gitee 配置（导出明文，导入时再按当前环境加密存储）
-        const plainGiteeConfig = await getConfigFromDB(['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath']);
+        const useEncryptedExport = await hasMasterPassphrase();
+        const giteeConfigData = useEncryptedExport
+          ? await getRawConfigFromDB(giteeFieldNames)
+          : await getConfigFromDB(giteeFieldNames);
 
         // 获取快捷键配置
         const shortcutCfg = await getShortcutConfig();
@@ -1305,12 +1387,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           version: 1,
           exportTime: new Date().toISOString(),
           giteeConfig: {
-            encrypted: false,
-            giteeToken: plainGiteeConfig.giteeToken || '',
-            giteeOwner: plainGiteeConfig.giteeOwner || '',
-            giteeRepo: plainGiteeConfig.giteeRepo || '',
-            giteeBranch: plainGiteeConfig.giteeBranch || '',
-            giteeFilePath: plainGiteeConfig.giteeFilePath || '',
+            encrypted: useEncryptedExport,
+            giteeToken: giteeConfigData.giteeToken || '',
+            giteeOwner: giteeConfigData.giteeOwner || '',
+            giteeRepo: giteeConfigData.giteeRepo || '',
+            giteeBranch: giteeConfigData.giteeBranch || '',
+            giteeFilePath: giteeConfigData.giteeFilePath || '',
             bookmarkDir: bookmarkDirInput.value.trim() || 'bookmarks',
           },
           shortcutConfig: shortcutCfg,
@@ -1359,7 +1441,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // 1. 导入 Gitee 配置到 IndexedDB
-        const giteeFieldNames = ['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath'];
         const giteeFields: Record<string, string> = {};
         giteeFieldNames.forEach(f => {
           if (data.giteeConfig[f] !== undefined) giteeFields[f] = data.giteeConfig[f];

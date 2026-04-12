@@ -350,6 +350,22 @@ export default {
   'lang.zh': '中文',
   'lang.en': 'English',
 
+  // === 跨设备加密主密码 ===
+  'crypto.masterPassword': '跨设备加密主密码',
+  'crypto.masterPasswordPlaceholder': '请输入主密码（用于跨设备解密）',
+  'crypto.masterPasswordConfirm': '确认主密码',
+  'crypto.masterPasswordConfirmPlaceholder': '请再次输入主密码',
+  'crypto.masterSave': '保存主密码',
+  'crypto.masterClear': '清除主密码',
+  'crypto.masterHint': '设置后可在不同设备使用同一主密码解密配置导出文件。',
+  'crypto.masterSaved': '跨设备加密主密码已保存，现有配置已迁移到新密钥。',
+  'crypto.masterCleared': '跨设备加密主密码已清除，现有配置已迁移回本地密钥。',
+  'crypto.masterEmpty': '主密码不能为空',
+  'crypto.masterMismatch': '两次输入的主密码不一致',
+  'crypto.masterSaveFailed': '保存主密码失败',
+  'crypto.masterClearFailed': '清除主密码失败',
+  'confirm.clearCryptoMaster': '确定清除跨设备加密主密码吗？清除后将回退为本地密钥模式。',
+
   // === 配置导出/导入 ===
   'config.export': '📤 导出配置',
   'config.import': '📥 导入配置',
@@ -357,7 +373,7 @@ export default {
   'msg.exportConfigFailed': '配置导出失败',
   'msg.importConfigSuccess': '配置导入成功！页面将自动刷新。',
   'msg.importConfigFailed': '配置导入失败，请检查文件格式',
-  'msg.importConfigDecryptFailed': '导入失败：该文件为旧版加密导出，且当前设备无法解密。请在原设备升级后重新导出再导入。',
+  'msg.importConfigDecryptFailed': '导入失败：无法解密该加密配置。请先设置与导出设备一致的跨设备加密主密码后重试。',
   'msg.importConfigInvalid': '导入文件格式无效，请选择正确的配置文件',
   'confirm.importConfig': '确定要导入配置吗？这将覆盖当前的所有配置（Gitee配置、快捷键、主题、语言）。',
 
