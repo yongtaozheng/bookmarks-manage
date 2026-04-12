@@ -78,28 +78,6 @@ async function setConfigToDB(config: Record<string, string>) {
     tx.onerror = () => resolve();
   });
 }
-// 从 IndexedDB 读取原始加密数据（不解密）
-async function getRawConfigFromDB(fields: string[]): Promise<any> {
-  const db = await openDB();
-  return new Promise(resolve => {
-    const tx = db.transaction(STORE_NAME, 'readonly');
-    const store = tx.objectStore(STORE_NAME);
-    const result: any = {};
-    let count = fields.length;
-    fields.forEach(f => {
-      const req = store.get(f);
-      req.onsuccess = function() {
-        result[f] = req.result || '';
-        count--;
-        if (count === 0) resolve(result);
-      };
-      req.onerror = function() {
-        count--;
-        if (count === 0) resolve(result);
-      };
-    });
-  });
-}
 function isLikelyEncryptedValue(value: string): boolean {
   if (!value || typeof value !== 'string') return false;
   if (value.length % 4 !== 0) return false;
@@ -1312,8 +1290,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 导出配置
     document.getElementById('btnExportConfig')!.onclick = async function() {
       try {
-        // 获取 Gitee 配置（原始加密数据，不解密）
-        const rawGiteeConfig = await getRawConfigFromDB(['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath']);
+        // 获取 Gitee 配置（导出明文，导入时再按当前环境加密存储）
+        const plainGiteeConfig = await getConfigFromDB(['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath']);
 
         // 获取快捷键配置
         const shortcutCfg = await getShortcutConfig();
@@ -1327,12 +1305,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           version: 1,
           exportTime: new Date().toISOString(),
           giteeConfig: {
-            encrypted: true,
-            giteeToken: rawGiteeConfig.giteeToken || '',
-            giteeOwner: rawGiteeConfig.giteeOwner || '',
-            giteeRepo: rawGiteeConfig.giteeRepo || '',
-            giteeBranch: rawGiteeConfig.giteeBranch || '',
-            giteeFilePath: rawGiteeConfig.giteeFilePath || '',
+            encrypted: false,
+            giteeToken: plainGiteeConfig.giteeToken || '',
+            giteeOwner: plainGiteeConfig.giteeOwner || '',
+            giteeRepo: plainGiteeConfig.giteeRepo || '',
+            giteeBranch: plainGiteeConfig.giteeBranch || '',
+            giteeFilePath: plainGiteeConfig.giteeFilePath || '',
             bookmarkDir: bookmarkDirInput.value.trim() || 'bookmarks',
           },
           shortcutConfig: shortcutCfg,
