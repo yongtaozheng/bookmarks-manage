@@ -180,11 +180,57 @@
         background: var(--color-input-bg);
         color: var(--color-text-primary);
       }
-      .gitee-form .msg {
-        color: var(--color-accent-green);
+      .toast {
+        position: fixed;
+        top: 14px;
+        left: 50%;
+        z-index: 20000;
+        display: flex;
+        align-items: center;
+        gap: 0.55em;
+        max-width: calc(100vw - 32px);
+        padding: 0.65em 1em;
+        border: 1px solid rgba(255, 255, 255, 0.24);
+        border-radius: 8px;
+        box-sizing: border-box;
+        color: #fff;
         font-size: var(--font-size-base);
         font-family: var(--font-family-primary);
-        margin-bottom: 0.5em;
+        line-height: 1.4;
+        text-align: left;
+        overflow-wrap: anywhere;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translate(-50%, -10px) scale(0.98);
+        transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+      }
+      .toast::before {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.25em;
+        height: 1.25em;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        font-weight: bold;
+        content: '\2713';
+      }
+      .toast.toast-success {
+        background: #16805a;
+      }
+      .toast.toast-error {
+        background: #c43d3d;
+      }
+      .toast.toast-error::before {
+        content: '!';
+      }
+      .toast.toast-visible {
+        opacity: 1;
+        visibility: visible;
+        transform: translate(-50%, 0) scale(1);
       }
       .sync-btns {
         display: flex;
@@ -274,12 +320,10 @@
         margin-bottom: 0 !important;
         color: var(--color-text-primary) !important;
       }
-      .shortcut-msg {
-        color: var(--color-accent-green);
-        font-size: var(--font-size-base);
-        font-family: var(--font-family-primary);
-        margin-bottom: 0.5em;
-        min-height: 1.5em;
+      @media (prefers-reduced-motion: reduce) {
+        .toast {
+          transition: none;
+        }
       }
       .popup-header {
         width: 100%;
@@ -508,6 +552,7 @@
     </div>
     <!-- 主内容（默认隐藏，密码检查完成后显示） -->
     <div id="popupContent" style="display:none;flex-direction:column;height:100vh;max-height:600px;">
+    <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
     <!-- 固定头部区域 -->
     <div class="popup-fixed-header">
     <div style="position:absolute;top:10px;right:10px;z-index:1000;display:flex;align-items:center;gap:8px;">
@@ -550,7 +595,6 @@
       <button class="my-bookmark-btn" id="openMyBookmarksBtn" data-i18n="popup.myBookmarks">我的书签管理器</button>
     </div>
     <form class="gitee-form" id="giteeForm" autocomplete="off">
-      <div class="msg" id="giteeMsg" style="min-height:1.5em;display:block;"></div>
       <label><span data-i18n="gitee.token">Gitee Token</span>
         <div style="display:flex;align-items:center;gap:0.5em;">
           <input type="password" id="giteeToken" required placeholder="个人访问Token" data-i18n-placeholder="gitee.tokenPlaceholder" style="flex:1;" />
@@ -589,7 +633,6 @@
       <button id="btnImportConfig" type="button" data-i18n="config.import">📥 导入配置</button>
     </div>
     <form class="gitee-form" id="cryptoMasterForm" autocomplete="off" style="margin-top:0.3em;">
-      <div class="msg" id="cryptoMasterMsg" style="min-height:1.2em;display:block;"></div>
       <label><span data-i18n="crypto.masterPassword">跨设备加密主密码</span>
         <input type="password" id="cryptoMasterPassword" data-i18n-placeholder="crypto.masterPasswordPlaceholder" placeholder="请输入主密码（用于跨设备解密）" />
       </label>
@@ -609,7 +652,6 @@
     <div class="popup-tab-panel" id="tabShortcut" data-tab-panel="shortcut">
     <div class="shortcut-form" id="shortcutForm">
       <h3 data-i18n="shortcut.title">⌨️ 快捷键设置</h3>
-      <div class="shortcut-msg" id="shortcutMsg"></div>
       <!-- 全局搜索 -->
       <div style="border-bottom: 1px solid var(--color-border-light); padding-bottom: 0.7em; margin-bottom: 0.7em;">
         <div class="shortcut-toggle">
@@ -668,7 +710,6 @@
     <div class="popup-tab-panel" id="tabPassword" data-tab-panel="password">
     <div class="shortcut-form" id="passwordForm">
       <h3 data-i18n="password.title">🔒 密码设置</h3>
-      <div class="shortcut-msg" id="passwordMsg"></div>
       <div class="shortcut-toggle">
         <input type="checkbox" id="passwordEnabled" />
         <label for="passwordEnabled" data-i18n="password.enable">启用密码保护</label>

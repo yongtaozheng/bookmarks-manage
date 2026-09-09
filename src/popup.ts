@@ -322,9 +322,9 @@ async function putFileContent(apiUrl: string, accessToken: string, encodedConten
     body: JSON.stringify(commitData),
   });
   if (putResponse.ok) {
-    showMsg(t('msg.uploaded'));
+    showToast(t('msg.uploaded'));
   } else {
-    showMsg(t('msg.uploadFailed'), true);
+    showToast(t('msg.uploadFailed'), true);
   }
 }
 function safeBtoa(data: Uint8Array) {
@@ -358,7 +358,7 @@ async function modifyFile(gitInfo: any, modifiedContent: any, isCover: boolean) 
     const encodedContent = safeBtoa(data);
     await putFileContent(apiUrl, accessToken, encodedContent, file.sha);
   } catch (error) {
-    showMsg(t('msg.uploadFailed'), true);
+    showToast(t('msg.uploadFailed'), true);
   }
 }
 async function getFile(gitInfo: any) {
@@ -562,14 +562,31 @@ function mergeBookmarks(arr1: any[], arr2: any[]): any[] {
   return Array.from(map.values());
 }
 
-// == 按钮事件绑定 ==
-function showMsg(text: string, isError = false) {
-  const msg = document.getElementById('giteeMsg');
-  if (msg) {
-    msg.textContent = text;
-    (msg as HTMLElement).style.color = isError ? 'var(--color-accent-red)' : 'var(--color-accent-green)';
-    setTimeout(() => { if (msg) msg.textContent = ''; }, 2000);
+// == 全局 Toast 提示 ==
+let toastTimer: number | undefined;
+
+function showToast(text: string, isError = false) {
+  const toast = document.getElementById('toast');
+  if (!toast || !text) return;
+
+  if (toastTimer !== undefined) {
+    window.clearTimeout(toastTimer);
   }
+
+  toast.classList.remove('toast-visible', 'toast-success', 'toast-error');
+  toast.textContent = text;
+  toast.classList.add(isError ? 'toast-error' : 'toast-success');
+  toast.setAttribute('role', isError ? 'alert' : 'status');
+  toast.setAttribute('aria-live', isError ? 'assertive' : 'polite');
+
+  // 强制重排，让连续提示也能重新播放入场动画。
+  void toast.offsetWidth;
+  toast.classList.add('toast-visible');
+
+  toastTimer = window.setTimeout(() => {
+    toast.classList.remove('toast-visible');
+    toastTimer = undefined;
+  }, isError ? 3600 : 2400);
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -700,7 +717,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Gitee 配置表单逻辑
     // const form = document.getElementById('giteeForm');
-    const msg = document.getElementById('giteeMsg');
     const fields = ['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath'];
     // 自动填充
     getConfigFromDB(fields).then((data) => {
@@ -728,21 +744,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 输入框失焦和输入时自动保存
     fields.forEach(f => {
       const el = document.getElementById(f) as HTMLInputElement;
-      function save() {
+      function save(shouldNotify = false) {
         const config: Record<string, string> = {};
         fields.forEach(ff => {
           const v = (document.getElementById(ff) as HTMLInputElement).value;
           config[ff] = v;
         });
         setConfigToDB(config).then(() => {
-          if (msg) {
-            msg.textContent = t('msg.configSaved');
-            setTimeout(() => { msg.textContent = ''; }, 1200);
-          }
+          if (shouldNotify) showToast(t('msg.configSaved'));
         });
       }
-      el.addEventListener('blur', save);
-      el.addEventListener('input', save);
+      // 输入时静默自动保存，离开字段后再统一给出一次 Toast，避免输入过程中反复打扰。
+      el.addEventListener('blur', () => save(true));
+      el.addEventListener('input', () => save());
     });
 
     const tokenEl = document.getElementById('giteeToken') as HTMLInputElement;
@@ -761,7 +775,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           tokenEl.value = message.token;
           // 触发自动保存
           tokenEl.dispatchEvent(new Event('blur'));
-          showMsg(t('msg.tokenUpdated'));
+          showToast(t('msg.tokenUpdated'));
         }
       }
       // 返回响应表示消息已处理
@@ -777,7 +791,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (tokenEl) {
             tokenEl.value = result.latestToken;
             tokenEl.dispatchEvent(new Event('blur'));
-            showMsg(t('msg.tokenUpdated'));
+            showToast(t('msg.tokenUpdated'));
             // 清除storage中的token，避免重复使用
             chrome.storage.local.remove(['latestToken']);
           }
@@ -931,19 +945,19 @@ document.addEventListener('DOMContentLoaded', async () => {
               // 将隐藏书签合并到当前要保存的书签中
               content = mergeBookmarks(content, hiddenBookmarks);
 
-              showMsg(t('msg.hiddenBookmarksKept'));
+              showToast(t('msg.hiddenBookmarksKept'));
             } else {
-              showMsg(t('msg.cannotGetManagerData'), true);
+              showToast(t('msg.cannotGetManagerData'), true);
             }
           } catch (error) {
-            showMsg(t('msg.getManagerDataFailed'), true);
+            showToast(t('msg.getManagerDataFailed'), true);
           }
         }
 
         await modifyFile(config, content, true);
-        showMsg(t('msg.overwriteSaveSuccess'));
+        showToast(t('msg.overwriteSaveSuccess'));
       } catch (e: any) {
-        showMsg(t('msg.overwriteSaveFailed', e.message), true);
+        showToast(t('msg.overwriteSaveFailed', e.message), true);
       }
     };
 
@@ -956,9 +970,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tree = await getLocalBookmarks();
         const content = tree[0]?.children || [];
         await modifyFile(config, content, false);
-        showMsg(t('msg.mergeSaveSuccess'));
+        showToast(t('msg.mergeSaveSuccess'));
       } catch (e: any) {
-        showMsg(t('msg.mergeSaveFailed', e.message), true);
+        showToast(t('msg.mergeSaveFailed', e.message), true);
       }
     };
 
@@ -989,9 +1003,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         await removeAllBookmarks();
         const bookmarkBarId = await getBookmarkBarId();
         await createBookmarks(visibleBookmarks, bookmarkBarId); // 只写入书签栏（仅可见书签）
-        showMsg(t('msg.overwriteGetSuccess'));
+        showToast(t('msg.overwriteGetSuccess'));
       } catch (e: any) {
-        showMsg(t('msg.overwriteGetFailed', e.message), true);
+        showToast(t('msg.overwriteGetFailed', e.message), true);
       }
     };
 
@@ -1029,9 +1043,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         await removeAllBookmarks();
         const bookmarkBarId = await getBookmarkBarId();
         await createBookmarks(visibleMerged, bookmarkBarId); // 只写入书签栏（仅可见书签）
-        showMsg(t('msg.mergeGetSuccess'));
+        showToast(t('msg.mergeGetSuccess'));
       } catch (e: any) {
-        showMsg(t('msg.mergeGetFailed', e.message), true);
+        showToast(t('msg.mergeGetFailed', e.message), true);
       }
     };
 
@@ -1050,7 +1064,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const dir = bookmarkDirInput.value.trim();
 
       if (!token || !owner || !repo || !branch || !dir) {
-        showMsg(t('msg.fillConfigFirst'), true);
+        showToast(t('msg.fillConfigFirst'), true);
         return;
       }
 
@@ -1075,13 +1089,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         if (response.ok) {
-          showMsg(t('msg.addFileSuccess', finalFileName));
+          showToast(t('msg.addFileSuccess', finalFileName));
           updateFilePathOptions(); // 刷新文件列表
         } else {
-          showMsg(t('msg.addFileFailed'), true);
+          showToast(t('msg.addFileFailed'), true);
         }
       } catch (e: any) {
-        showMsg(t('msg.addFileFailed') + ': ' + e.message, true);
+        showToast(t('msg.addFileFailed') + ': ' + e.message, true);
       }
     };
 
@@ -1089,7 +1103,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('deleteBookmarkFile')!.onclick = async function() {
       const selectedFile = filePathSelect.value;
       if (!selectedFile) {
-        showMsg(t('msg.selectFileFirst'), true);
+        showToast(t('msg.selectFileFirst'), true);
         return;
       }
 
@@ -1103,7 +1117,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const branch = branchSel.value;
 
       if (!token || !owner || !repo || !branch) {
-        showMsg(t('msg.fillConfigFirst'), true);
+        showToast(t('msg.fillConfigFirst'), true);
         return;
       }
 
@@ -1114,7 +1128,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           headers: { 'Authorization': `token ${token}` }
         });
         if (!getResponse.ok) {
-          showMsg(t('msg.fileInfoFailed'), true);
+          showToast(t('msg.fileInfoFailed'), true);
           return;
         }
         const fileInfo = await getResponse.json();
@@ -1136,13 +1150,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         if (deleteResponse.ok) {
-          showMsg(t('msg.deleteFileSuccess', selectedFile.split('/').pop() || ''));
+          showToast(t('msg.deleteFileSuccess', selectedFile.split('/').pop() || ''));
           updateFilePathOptions(); // 刷新文件列表
         } else {
-          showMsg(t('msg.deleteFileFailed'), true);
+          showToast(t('msg.deleteFileFailed'), true);
         }
       } catch (e: any) {
-        showMsg(t('msg.deleteFileFailed') + ': ' + e.message, true);
+        showToast(t('msg.deleteFileFailed') + ': ' + e.message, true);
       }
     };
 
@@ -1154,12 +1168,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       const file = filePathSelect.value;
 
       if (!owner || !repo) {
-        showMsg(t('msg.fillOwnerRepo'), true);
+        showToast(t('msg.fillOwnerRepo'), true);
         return;
       }
 
       if (!file) {
-        showMsg(t('msg.selectBookmarkFile'), true);
+        showToast(t('msg.selectBookmarkFile'), true);
         return;
       }
 
@@ -1175,11 +1189,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (chrome && chrome.tabs && chrome.tabs.create) {
           chrome.tabs.create({ url: 'chrome://bookmarks/' }, function() {
             if (chrome.runtime.lastError) {
-              alert(t('msg.cannotOpenManager'));
+              showToast(t('msg.cannotOpenManager'), true);
             }
           });
         } else {
-          alert(t('msg.pleaseOpenManually'));
+          showToast(t('msg.pleaseOpenManually'), true);
         }
       };
     }
@@ -1193,7 +1207,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           chrome.storage.local.set({ bmAuthTimestamp: Date.now() }, function() {
             chrome.tabs.create({ url: chrome.runtime.getURL('bookmark-manager.html') }, function() {
               if (chrome.runtime.lastError) {
-                alert(t('msg.cannotOpenMyManager'));
+                showToast(t('msg.cannotOpenMyManager'), true);
               }
             });
           });
@@ -1224,8 +1238,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const closeTabEnabledEl = document.getElementById('closeTabEnabled') as HTMLInputElement;
     const closeTabModifierEl = document.getElementById('closeTabModifier') as HTMLSelectElement;
     const closeTabKeyEl = document.getElementById('closeTabKey') as HTMLInputElement;
-    const shortcutMsg = document.getElementById('shortcutMsg');
-
     if (searchEnabledEl && searchTriggerKeyEl && searchPressCountEl && searchTimeWindowEl &&
         closeTabEnabledEl && closeTabModifierEl && closeTabKeyEl) {
 
@@ -1271,10 +1283,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           },
         };
         saveShortcutConfig(config).then(() => {
-          if (shortcutMsg) {
-            shortcutMsg.textContent = t('msg.shortcutSaved');
-            setTimeout(() => { if (shortcutMsg) shortcutMsg.textContent = ''; }, 1200);
-          }
+          showToast(t('msg.shortcutSaved'));
         });
       }
 
@@ -1311,17 +1320,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const cryptoMasterPasswordConfirmEl = document.getElementById('cryptoMasterPasswordConfirm') as HTMLInputElement;
     const btnSaveCryptoMasterEl = document.getElementById('btnSaveCryptoMaster') as HTMLButtonElement;
     const btnClearCryptoMasterEl = document.getElementById('btnClearCryptoMaster') as HTMLButtonElement;
-    const cryptoMasterMsgEl = document.getElementById('cryptoMasterMsg');
     const giteeFieldNames = ['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath'];
-
-    function showCryptoMasterMsg(text: string, isError = false) {
-      if (!cryptoMasterMsgEl) return;
-      cryptoMasterMsgEl.textContent = text;
-      (cryptoMasterMsgEl as HTMLElement).style.color = isError ? 'var(--color-accent-red)' : 'var(--color-accent-green)';
-      setTimeout(() => {
-        if (cryptoMasterMsgEl) cryptoMasterMsgEl.textContent = '';
-      }, 2600);
-    }
 
     async function migrateGiteeConfigByCurrentKey() {
       const plainConfig = await getConfigFromDB(giteeFieldNames);
@@ -1333,11 +1332,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const pwd = cryptoMasterPasswordEl.value;
         const confirmPwd = cryptoMasterPasswordConfirmEl.value;
         if (!pwd) {
-          showCryptoMasterMsg(t('crypto.masterEmpty'), true);
+          showToast(t('crypto.masterEmpty'), true);
           return;
         }
         if (pwd !== confirmPwd) {
-          showCryptoMasterMsg(t('crypto.masterMismatch'), true);
+          showToast(t('crypto.masterMismatch'), true);
           return;
         }
         try {
@@ -1345,9 +1344,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           await migrateGiteeConfigByCurrentKey();
           cryptoMasterPasswordEl.value = '';
           cryptoMasterPasswordConfirmEl.value = '';
-          showCryptoMasterMsg(t('crypto.masterSaved'));
+          showToast(t('crypto.masterSaved'));
         } catch {
-          showCryptoMasterMsg(t('crypto.masterSaveFailed'), true);
+          showToast(t('crypto.masterSaveFailed'), true);
         }
       };
 
@@ -1360,9 +1359,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           await setConfigToDB(plainConfig);
           cryptoMasterPasswordEl.value = '';
           cryptoMasterPasswordConfirmEl.value = '';
-          showCryptoMasterMsg(t('crypto.masterCleared'));
+          showToast(t('crypto.masterCleared'));
         } catch {
-          showCryptoMasterMsg(t('crypto.masterClearFailed'), true);
+          showToast(t('crypto.masterClearFailed'), true);
         }
       };
     }
@@ -1409,9 +1408,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        showMsg(t('msg.exportConfigSuccess'));
+        showToast(t('msg.exportConfigSuccess'));
       } catch (e: any) {
-        showMsg(t('msg.exportConfigFailed'), true);
+        showToast(t('msg.exportConfigFailed'), true);
       }
     };
 
@@ -1430,7 +1429,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 校验文件格式
         if (!data.version || !data.giteeConfig) {
-          showMsg(t('msg.importConfigInvalid'), true);
+          showToast(t('msg.importConfigInvalid'), true);
           this.value = '';
           return;
         }
@@ -1507,12 +1506,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           translateDOM();
         }
 
-        showMsg(t('msg.importConfigSuccess'));
+        showToast(t('msg.importConfigSuccess'));
       } catch (e: any) {
         if (e?.message === 'ENCRYPTED_CONFIG_DECRYPT_FAILED') {
-          showMsg(t('msg.importConfigDecryptFailed'), true);
+          showToast(t('msg.importConfigDecryptFailed'), true);
         } else {
-          showMsg(t('msg.importConfigFailed'), true);
+          showToast(t('msg.importConfigFailed'), true);
         }
       }
 
@@ -1526,16 +1525,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const passwordConfirmEl = document.getElementById('passwordConfirm') as HTMLInputElement;
     const passwordFieldsEl = document.getElementById('passwordFields') as HTMLDivElement;
     const savePasswordBtnEl = document.getElementById('savePasswordBtn') as HTMLButtonElement;
-    const passwordMsg = document.getElementById('passwordMsg');
-
-    function showPasswordMsg(text: string, isError = false) {
-      if (passwordMsg) {
-        passwordMsg.textContent = text;
-        (passwordMsg as HTMLElement).style.color = isError ? 'var(--color-accent-red)' : 'var(--color-accent-green)';
-        setTimeout(() => { if (passwordMsg) passwordMsg.textContent = ''; }, 3000);
-      }
-    }
-
     function updatePasswordFieldsState() {
       if (passwordFieldsEl) {
         const disabled = !passwordEnabledEl.checked;
@@ -1598,7 +1587,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const dir = bookmarkDirInput.value.trim();
 
         if (!token || !owner || !repo || !branch || !dir) {
-          showPasswordMsg(t('password.msg.configFirst'), true);
+          showToast(t('password.msg.configFirst'), true);
           return;
         }
 
@@ -1608,11 +1597,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (enabled) {
           if (!password) {
-            showPasswordMsg(t('password.msg.empty'), true);
+            showToast(t('password.msg.empty'), true);
             return;
           }
           if (password !== confirm) {
-            showPasswordMsg(t('password.msg.mismatch'), true);
+            showToast(t('password.msg.mismatch'), true);
             return;
           }
         }
@@ -1624,9 +1613,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const success = await savePasswordConfig(token, owner, repo, branch, dir, config);
         if (success) {
-          showPasswordMsg(t('password.msg.saved'));
+          showToast(t('password.msg.saved'));
         } else {
-          showPasswordMsg(t('password.msg.saveFailed'), true);
+          showToast(t('password.msg.saveFailed'), true);
         }
       });
 

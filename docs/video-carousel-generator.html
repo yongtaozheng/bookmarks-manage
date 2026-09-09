@@ -712,6 +712,15 @@
                 <input type="range" class="field-zoom" min="1.05" max="1.35" step="0.01" value="${scene.zoomTo}" />
               </div>
             </div>
+            <div>
+              <label>转场风格</label>
+              <select class="field-transition">
+                <option value="fade" ${scene.transitionStyle === "fade" ? "selected" : ""}>淡入淡出</option>
+                <option value="slide" ${scene.transitionStyle === "slide" ? "selected" : ""}>横向滑动</option>
+                <option value="zoom" ${scene.transitionStyle === "zoom" ? "selected" : ""}>爆闪缩放</option>
+                <option value="glitch" ${scene.transitionStyle === "glitch" ? "selected" : ""}>故障闪切</option>
+              </select>
+            </div>
           </div>
         `;
 
@@ -719,6 +728,7 @@
         const subtitleInput = item.querySelector(".field-subtitle");
         const durationInput = item.querySelector(".field-duration");
         const zoomInput = item.querySelector(".field-zoom");
+        const transitionInput = item.querySelector(".field-transition");
 
         titleInput.addEventListener("input", (e) => {
           scene.title = e.target.value;
@@ -735,6 +745,10 @@
         });
         zoomInput.addEventListener("input", (e) => {
           scene.zoomTo = clamp(Number(e.target.value) || scene.zoomTo, 1.05, 1.35);
+          renderAt(state.preview.currentTime, true);
+        });
+        transitionInput.addEventListener("change", (e) => {
+          scene.transitionStyle = e.target.value || "fade";
           renderAt(state.preview.currentTime, true);
         });
 
@@ -754,21 +768,61 @@
         .replaceAll("\"", "&quot;");
     }
 
-    function drawBackground() {
+    function getStyleColors() {
+      if (state.settings.stylePreset === "cyber") {
+        return {
+          bgA: "#0b1025",
+          bgB: "#020617",
+          accent: "0,245,255",
+          accent2: "255,72,173"
+        };
+      }
+      if (state.settings.stylePreset === "clean") {
+        return {
+          bgA: "#111827",
+          bgB: "#0f172a",
+          accent: "99,102,241",
+          accent2: "14,165,233"
+        };
+      }
+      return {
+        bgA: "#0f172a",
+        bgB: "#111827",
+        accent: "34,211,238",
+        accent2: "96,165,250"
+      };
+    }
+
+    function drawBackground(timeSec = 0) {
+      const w = state.settings.width;
+      const h = state.settings.height;
+      const colors = getStyleColors();
+      const pulse = (Math.sin(timeSec * 0.8) + 1) * 0.5;
+      const strength = state.settings.effectStrength;
       ctx.save();
-      const g = ctx.createLinearGradient(0, 0, state.settings.width, state.settings.height);
-      g.addColorStop(0, "#0f172a");
-      g.addColorStop(1, "#111827");
+      const g = ctx.createLinearGradient(0, 0, w, h);
+      g.addColorStop(0, colors.bgA);
+      g.addColorStop(1, colors.bgB);
       ctx.fillStyle = g;
-      ctx.fillRect(0, 0, state.settings.width, state.settings.height);
+      ctx.fillRect(0, 0, w, h);
+
+      const glowR = Math.max(w, h) * (0.22 + pulse * 0.09 + strength * 0.1);
+      const glowX = w * (0.22 + 0.1 * Math.sin(timeSec * 0.32));
+      const glowY = h * (0.14 + 0.1 * Math.cos(timeSec * 0.27));
+      const glow = ctx.createRadialGradient(glowX, glowY, 0, glowX, glowY, glowR);
+      glow.addColorStop(0, `rgba(${colors.accent},${0.16 + strength * 0.14})`);
+      glow.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, w, h);
       ctx.restore();
     }
 
-    function drawMedia(scene, localProgress, alpha = 1) {
+    function drawMedia(scene, localProgress, alpha = 1, transform = {}) {
       const w = state.settings.width;
       const h = state.settings.height;
       ctx.save();
       ctx.globalAlpha = alpha;
+      if (transform.composite) ctx.globalCompositeOperation = transform.composite;
 
       const media = scene.type === "video" ? scene.video : scene.image;
       if (!media) {
@@ -792,27 +846,39 @@
       const srcH = media.videoHeight || media.naturalHeight || 1080;
       const baseScale = Math.max(w / srcW, h / srcH);
       const t = easeInOut(clamp(localProgress, 0, 1));
-      const zoom = scene.zoomFrom + (scene.zoomTo - scene.zoomFrom) * t;
+      const zoomBase = scene.zoomFrom + (scene.zoomTo - scene.zoomFrom) * t;
+      const zoom = zoomBase * (transform.zoom || 1);
       const panX = scene.panXFrom + (scene.panXTo - scene.panXFrom) * t;
       const panY = scene.panYFrom + (scene.panYTo - scene.panYFrom) * t;
 
       const drawW = srcW * baseScale * zoom;
       const drawH = srcH * baseScale * zoom;
-      const dx = (w - drawW) * panX;
-      const dy = (h - drawH) * panY;
+      const dx = (w - drawW) * panX + (transform.offsetX || 0);
+      const dy = (h - drawH) * panY + (transform.offsetY || 0);
       ctx.drawImage(media, dx, dy, drawW, drawH);
+
+      if (transform.tint) {
+        ctx.fillStyle = transform.tint;
+        ctx.fillRect(0, 0, w, h);
+      }
       ctx.restore();
     }
 
-    function drawTitle(scene, alpha = 1) {
+    function drawTitle(scene, localProgress, alpha = 1, transitionP = 0) {
       const w = state.settings.width;
       const h = state.settings.height;
       const safeBottom = state.settings.titleSafeBottom;
       const titleSize = Math.round(w * 0.036);
       const subtitleSize = Math.round(w * 0.018);
+      const strength = state.settings.effectStrength;
+      const colors = getStyleColors();
+      const entry = easeInOut(clamp(localProgress * 2.2, 0, 1));
+      const exit = 1 - easeInOut(clamp((localProgress - 0.78) / 0.22, 0, 1));
+      const reveal = entry * exit;
+      const yLift = Math.round((1 - reveal) * (22 + 20 * strength) + transitionP * 10);
 
       ctx.save();
-      ctx.globalAlpha = alpha;
+      ctx.globalAlpha = alpha * clamp(reveal + 0.24, 0, 1);
 
       const gradientHeight = Math.round(h * 0.36);
       const g = ctx.createLinearGradient(0, h - gradientHeight, 0, h);
@@ -821,21 +887,118 @@
       ctx.fillStyle = g;
       ctx.fillRect(0, h - gradientHeight, w, gradientHeight);
 
+      const lineW = Math.round(w * 0.22 * reveal);
+      ctx.fillStyle = `rgba(${colors.accent},${0.38 + strength * 0.28})`;
+      ctx.fillRect(Math.round(w * 0.07), h - safeBottom - Math.round(titleSize * 1.25), Math.max(0, lineW), 4);
+
       ctx.fillStyle = "rgba(255,255,255,0.98)";
       ctx.font = `700 ${titleSize}px "Poppins", "PingFang SC", sans-serif`;
       ctx.textBaseline = "alphabetic";
       const title = scene.title || "";
       if (title) {
-        ctx.fillText(title, Math.round(w * 0.07), h - safeBottom);
+        if (state.settings.stylePreset !== "clean") {
+          ctx.shadowColor = `rgba(${colors.accent2},${0.4 + strength * 0.35})`;
+          ctx.shadowBlur = 10 + 18 * strength;
+        }
+        ctx.fillText(title, Math.round(w * 0.07), h - safeBottom - yLift);
       }
 
+      ctx.shadowBlur = 0;
       ctx.fillStyle = "rgba(226,232,240,0.95)";
       ctx.font = `500 ${subtitleSize}px "Lora", "PingFang SC", sans-serif`;
       const subtitle = scene.subtitle || "";
       if (subtitle) {
-        wrapText(subtitle, Math.round(w * 0.07), h - safeBottom + Math.round(subtitleSize * 1.7), Math.round(w * 0.86), Math.round(subtitleSize * 1.45));
+        wrapText(
+          subtitle,
+          Math.round(w * 0.07),
+          h - safeBottom + Math.round(subtitleSize * 1.7) - Math.round(yLift * 0.55),
+          Math.round(w * 0.86),
+          Math.round(subtitleSize * 1.45)
+        );
       }
 
+      ctx.restore();
+    }
+
+    function drawParticles(timeSec) {
+      if (state.settings.effectStrength <= 0.02) return;
+      const w = state.settings.width;
+      const h = state.settings.height;
+      const colors = getStyleColors();
+      const strength = state.settings.effectStrength;
+      ctx.save();
+      for (const p of state.fx.particles) {
+        const x = ((((p.x + p.vx * timeSec * 60) % 1) + 1) % 1) * w;
+        const y = ((((p.y + p.vy * timeSec * 60) % 1) + 1) % 1) * h;
+        const r = p.r * (0.6 + strength * 0.9);
+        const a = p.a * (0.4 + strength * 0.9);
+        ctx.fillStyle = `rgba(${colors.accent},${a})`;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function drawSweepLight(timeSec) {
+      if (state.settings.stylePreset === "clean") return;
+      const w = state.settings.width;
+      const h = state.settings.height;
+      const strength = state.settings.effectStrength;
+      const p = ((timeSec * 0.16) % 1 + 1) % 1;
+      const x = -w * 0.35 + p * w * 1.8;
+      ctx.save();
+      ctx.translate(x, 0);
+      ctx.rotate(-0.24);
+      const g = ctx.createLinearGradient(0, 0, w * 0.22, 0);
+      g.addColorStop(0, "rgba(255,255,255,0)");
+      g.addColorStop(0.5, `rgba(255,255,255,${0.02 + strength * 0.07})`);
+      g.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, -h * 0.15, w * 0.24, h * 1.4);
+      ctx.restore();
+    }
+
+    function drawHudAndVignette(timeSec) {
+      const w = state.settings.width;
+      const h = state.settings.height;
+      const strength = state.settings.effectStrength;
+      const colors = getStyleColors();
+      ctx.save();
+
+      const frameAlpha = state.settings.stylePreset === "clean" ? 0.15 : 0.28 + strength * 0.24;
+      ctx.strokeStyle = `rgba(${colors.accent},${frameAlpha})`;
+      ctx.lineWidth = Math.max(1, Math.round(w / 1100));
+      const m = Math.round(w * 0.02);
+      ctx.strokeRect(m, m, w - m * 2, h - m * 2);
+
+      const pulse = 0.18 + 0.15 * Math.sin(timeSec * 2.4);
+      ctx.fillStyle = `rgba(${colors.accent2},${Math.max(0, pulse) * strength})`;
+      ctx.fillRect(m, m, Math.round(w * 0.08), 3);
+      ctx.fillRect(w - m - Math.round(w * 0.08), h - m - 3, Math.round(w * 0.08), 3);
+
+      const vig = ctx.createRadialGradient(w / 2, h / 2, h * 0.22, w / 2, h / 2, Math.max(w, h) * 0.78);
+      vig.addColorStop(0, "rgba(0,0,0,0)");
+      vig.addColorStop(1, `rgba(0,0,0,${0.35 + strength * 0.22})`);
+      ctx.fillStyle = vig;
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+    }
+
+    function drawGrain() {
+      if (state.settings.stylePreset === "clean" && state.settings.effectStrength < 0.35) return;
+      const w = state.settings.width;
+      const h = state.settings.height;
+      const count = Math.round(140 * state.settings.effectStrength + 45);
+      ctx.save();
+      for (let i = 0; i < count; i += 1) {
+        const x = Math.random() * w;
+        const y = Math.random() * h;
+        const s = Math.random() * 1.9 + 0.5;
+        const a = Math.random() * 0.06;
+        ctx.fillStyle = `rgba(255,255,255,${a})`;
+        ctx.fillRect(x, y, s, s);
+      }
       ctx.restore();
     }
 
@@ -868,6 +1031,7 @@
           let currentAlpha = 1;
           let next = null;
           let nextAlpha = 0;
+          let transition = null;
 
           const nextScene = state.scenes[i + 1];
           if (nextScene && slot.overlap > 0) {
@@ -878,29 +1042,81 @@
               nextAlpha = p;
               const nextSlot = state.timeline[i + 1];
               const nextLocal = (t - nextSlot.start) / nextScene.duration;
-              next = { scene: nextScene, local: nextLocal, alpha: nextAlpha };
+              next = { scene: nextScene, local: nextLocal, alpha: nextAlpha, index: i + 1 };
+              transition = { progress: p, style: scene.transitionStyle || "fade", index: i };
             }
           }
 
-          return { current: { scene, local, alpha: currentAlpha }, next };
+          return { current: { scene, local, alpha: currentAlpha, index: i }, next, transition };
         }
       }
       const lastScene = state.scenes[state.scenes.length - 1];
-      return { current: { scene: lastScene, local: 1, alpha: 1 }, next: null };
+      return { current: { scene: lastScene, local: 1, alpha: 1, index: state.scenes.length - 1 }, next: null, transition: null };
     }
 
     function renderAt(time, skipSeekSync = false) {
       state.preview.currentTime = clamp(time, 0, state.totalDuration || 0);
-      drawBackground();
+      const now = state.preview.currentTime;
+      const w = state.settings.width;
+      const strength = state.settings.effectStrength;
+      drawBackground(now);
       const frame = getFrameAt(state.preview.currentTime);
       if (frame) {
-        drawMedia(frame.current.scene, clamp(frame.current.local, 0, 1), frame.current.alpha);
-        drawTitle(frame.current.scene, frame.current.alpha);
-        if (frame.next) {
-          drawMedia(frame.next.scene, clamp(frame.next.local, 0, 1), frame.next.alpha);
-          drawTitle(frame.next.scene, frame.next.alpha);
+        if (frame.next && frame.transition) {
+          const p = frame.transition.progress;
+          const style = frame.transition.style;
+
+          if (style === "slide") {
+            drawMedia(frame.current.scene, clamp(frame.current.local, 0, 1), 1, {
+              offsetX: -w * 0.13 * p,
+              zoom: 1 + p * 0.06 * (0.5 + strength)
+            });
+            drawMedia(frame.next.scene, clamp(frame.next.local, 0, 1), 1, {
+              offsetX: w * 0.13 * (1 - p),
+              zoom: 1.05 + (1 - p) * 0.08 * (0.5 + strength)
+            });
+          } else if (style === "zoom") {
+            drawMedia(frame.current.scene, clamp(frame.current.local, 0, 1), 1 - p * 0.9, {
+              zoom: 1 + p * 0.22 * (0.4 + strength)
+            });
+            drawMedia(frame.next.scene, clamp(frame.next.local, 0, 1), clamp(p * 1.15, 0, 1), {
+              zoom: 1.26 - p * 0.24
+            });
+          } else if (style === "glitch") {
+            drawMedia(frame.current.scene, clamp(frame.current.local, 0, 1), 1 - p * 0.82, {
+              offsetX: (Math.random() - 0.5) * 5 * strength
+            });
+            drawMedia(frame.next.scene, clamp(frame.next.local, 0, 1), clamp(p * 1.1, 0, 1));
+            if (state.settings.stylePreset !== "clean") {
+              const gAmp = 10 * (0.35 + strength) * p;
+              drawMedia(frame.next.scene, clamp(frame.next.local, 0, 1), 0.16 + p * 0.15, {
+                offsetX: -gAmp,
+                composite: "screen",
+                tint: "rgba(0,255,255,0.06)"
+              });
+              drawMedia(frame.next.scene, clamp(frame.next.local, 0, 1), 0.14 + p * 0.12, {
+                offsetX: gAmp,
+                composite: "screen",
+                tint: "rgba(255,0,120,0.05)"
+              });
+            }
+          } else {
+            drawMedia(frame.current.scene, clamp(frame.current.local, 0, 1), frame.current.alpha);
+            drawMedia(frame.next.scene, clamp(frame.next.local, 0, 1), frame.next.alpha);
+          }
+
+          drawTitle(frame.current.scene, clamp(frame.current.local, 0, 1), 1 - p * 0.82, p);
+          drawTitle(frame.next.scene, clamp(frame.next.local, 0, 1), p, 1 - p);
+        } else {
+          drawMedia(frame.current.scene, clamp(frame.current.local, 0, 1), frame.current.alpha);
+          drawTitle(frame.current.scene, clamp(frame.current.local, 0, 1), frame.current.alpha, 0);
         }
       }
+
+      drawParticles(now);
+      drawSweepLight(now);
+      drawHudAndVignette(now);
+      drawGrain();
 
       if (!skipSeekSync) {
         els.seekBar.value = String(state.preview.currentTime);
@@ -1079,8 +1295,18 @@
 
       els.clearAllBtn.addEventListener("click", clearAllScenes);
 
-      [els.resolution, els.fps, els.defaultImageDuration, els.maxVideoDuration, els.transition, els.titleSafeBottom]
+      [
+        els.resolution,
+        els.fps,
+        els.defaultImageDuration,
+        els.maxVideoDuration,
+        els.transition,
+        els.titleSafeBottom,
+        els.stylePreset,
+        els.effectStrength
+      ]
         .forEach((el) => el.addEventListener("change", parseSettingsFromUI));
+      els.effectStrength.addEventListener("input", parseSettingsFromUI);
 
       els.playBtn.addEventListener("click", () => playPreview(false));
       els.stopBtn.addEventListener("click", stopPreview);
