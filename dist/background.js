@@ -3,6 +3,43 @@
   function isChromeExtensionContext() {
     return typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.onMessage && chrome.bookmarks;
   }
+  var GLOBAL_CONTENT_SCRIPT_ID = "bookmark-global-shortcuts";
+  var GLOBAL_SITE_ORIGINS = ["http://*/*", "https://*/*"];
+  function shortcutFeaturesEnabled(rawConfig) {
+    if (!rawConfig) return true;
+    try {
+      const config = JSON.parse(rawConfig);
+      return config?.search?.enabled !== false || config?.closeTab?.enabled !== false;
+    } catch {
+      return true;
+    }
+  }
+  async function syncGlobalContentScriptRegistration() {
+    if (!chrome?.permissions || !chrome?.scripting?.getRegisteredContentScripts) return;
+    const [hasPermission, storage, registered] = await Promise.all([
+      chrome.permissions.contains({ origins: GLOBAL_SITE_ORIGINS }),
+      chrome.storage.local.get(["shortcut_config"]),
+      chrome.scripting.getRegisteredContentScripts({ ids: [GLOBAL_CONTENT_SCRIPT_ID] })
+    ]);
+    const shouldRegister = hasPermission && shortcutFeaturesEnabled(storage.shortcut_config);
+    const isRegistered = registered.length > 0;
+    if (shouldRegister && !isRegistered) {
+      await chrome.scripting.registerContentScripts([{
+        id: GLOBAL_CONTENT_SCRIPT_ID,
+        js: ["content-search.js"],
+        matches: GLOBAL_SITE_ORIGINS,
+        runAt: "document_end",
+        persistAcrossSessions: true
+      }]);
+    } else if (!shouldRegister && isRegistered) {
+      await chrome.scripting.unregisterContentScripts({ ids: [GLOBAL_CONTENT_SCRIPT_ID] });
+    }
+  }
+  function scheduleContentScriptSync() {
+    void syncGlobalContentScriptRegistration().catch((error) => {
+      console.warn("Failed to update global shortcut content script registration:", error);
+    });
+  }
   var BROWSER_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -160,6 +197,16 @@
         chrome.tabs.create({ url: chrome.runtime.getURL("bookmark-manager.html") });
       }
     });
+  }
+  if (isChromeExtensionContext()) {
+    chrome.runtime.onInstalled.addListener(scheduleContentScriptSync);
+    chrome.runtime.onStartup.addListener(scheduleContentScriptSync);
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === "local" && changes.shortcut_config) scheduleContentScriptSync();
+    });
+    chrome.permissions?.onAdded?.addListener(scheduleContentScriptSync);
+    chrome.permissions?.onRemoved?.addListener(scheduleContentScriptSync);
+    scheduleContentScriptSync();
   }
   if (isChromeExtensionContext()) {
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

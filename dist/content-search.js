@@ -39,6 +39,8 @@
     "sync.mergeSave": "\u5408\u5E76\u4FDD\u5B58",
     "sync.overwriteGet": "\u8986\u76D6\u83B7\u53D6",
     "sync.mergeGet": "\u5408\u5E76\u83B7\u53D6",
+    "sync.saving": "\u4FDD\u5B58\u4E2D\u2026",
+    "sync.getting": "\u83B7\u53D6\u4E2D\u2026",
     // === 快捷键设置 ===
     "shortcut.title": "\u2328\uFE0F \u5FEB\u6377\u952E\u8BBE\u7F6E",
     "shortcut.enableSearch": "\u542F\u7528\u5168\u5C40\u4E66\u7B7E\u641C\u7D22",
@@ -56,11 +58,19 @@
     "shortcut.modifier": "\u4FEE\u9970\u952E",
     "shortcut.key": "\u6309\u952E",
     "shortcut.keyPlaceholder": "\u5982\uFF1AW",
+    "shortcut.siteAccessHint": "\u5168\u5C40\u641C\u7D22\u548C\u5173\u95ED\u6807\u7B7E\u9875\u5FEB\u6377\u952E\u9700\u8981\u7F51\u9875\u8BBF\u95EE\u6743\u9650\uFF0C\u53EF\u968F\u65F6\u5728\u6D4F\u89C8\u5668\u6269\u5C55\u8BBE\u7F6E\u4E2D\u64A4\u9500\u3002",
+    "shortcut.grantSiteAccess": "\u6388\u4E88\u7F51\u9875\u5FEB\u6377\u952E\u6743\u9650",
+    "shortcut.siteAccessGranted": "\u7F51\u9875\u5FEB\u6377\u952E\u6743\u9650\u5DF2\u542F\u7528\uFF0C\u8BF7\u5237\u65B0\u5DF2\u6253\u5F00\u7684\u7F51\u9875\u3002",
+    "shortcut.siteAccessDenied": "\u672A\u6388\u4E88\u7F51\u9875\u8BBF\u95EE\u6743\u9650\uFF0C\u5168\u5C40\u5FEB\u6377\u952E\u6682\u4E0D\u53EF\u7528\u3002",
+    "shortcut.siteAccessFailed": "\u8BF7\u6C42\u7F51\u9875\u5FEB\u6377\u952E\u6743\u9650\u5931\u8D25\uFF1A{0}",
     // === 搜索 ===
     "search.placeholder": "\u641C\u7D22\u4E66\u7B7E...",
     // === 消息提示 ===
+    "toast.close": "\u5173\u95ED\u63D0\u793A",
     "msg.configSaved": "Gitee \u914D\u7F6E\u5DF2\u4FDD\u5B58\uFF01",
+    "msg.configSaveFailed": "Gitee \u914D\u7F6E\u4FDD\u5B58\u5931\u8D25\uFF1A{0}",
     "msg.shortcutSaved": "\u5FEB\u6377\u952E\u8BBE\u7F6E\u5DF2\u4FDD\u5B58\uFF01",
+    "msg.shortcutSaveFailed": "\u5FEB\u6377\u952E\u8BBE\u7F6E\u4FDD\u5B58\u5931\u8D25\uFF1A{0}",
     "msg.tokenUpdated": "Token\u5DF2\u81EA\u52A8\u66F4\u65B0",
     "msg.uploaded": "\u5DF2\u4E0A\u4F20\u4E66\u7B7E\u6570\u636E",
     "msg.uploadFailed": "\u4E0A\u4F20\u4E66\u7B7E\u6570\u636E\u5931\u8D25",
@@ -68,6 +78,8 @@
     "msg.cannotGetManagerData": "\u65E0\u6CD5\u83B7\u53D6\u4E66\u7B7E\u7BA1\u7406\u5668\u6570\u636E\uFF0C\u5C06\u76F4\u63A5\u4F7F\u7528\u5F53\u524D\u4E66\u7B7E\u8986\u76D6",
     "msg.getManagerDataFailed": "\u83B7\u53D6\u4E66\u7B7E\u7BA1\u7406\u5668\u6570\u636E\u5931\u8D25\uFF0C\u5C06\u76F4\u63A5\u4F7F\u7528\u5F53\u524D\u4E66\u7B7E\u8986\u76D6",
     "msg.overwriteSaveSuccess": "\u8986\u76D6\u4FDD\u5B58\u6210\u529F\uFF01",
+    "msg.overwriteSaveSuccessWithHidden": "\u8986\u76D6\u4FDD\u5B58\u6210\u529F\uFF0C\u5DF2\u4FDD\u7559\u8FDC\u7A0B\u9690\u85CF\u4E66\u7B7E\uFF01",
+    "msg.overwriteSaveCompletedWithWarning": "\u8986\u76D6\u4FDD\u5B58\u5DF2\u5B8C\u6210\uFF0C\u4F46\u672A\u80FD\u4FDD\u7559\u8FDC\u7A0B\u9690\u85CF\u4E66\u7B7E\u3002",
     "msg.overwriteSaveFailed": "\u8986\u76D6\u4FDD\u5B58\u5931\u8D25: {0}",
     "msg.mergeSaveSuccess": "\u5408\u5E76\u4FDD\u5B58\u6210\u529F\uFF01",
     "msg.mergeSaveFailed": "\u5408\u5E76\u4FDD\u5B58\u5931\u8D25: {0}",
@@ -170,6 +182,10 @@
     "manager.statFolders": "\u6587\u4EF6\u5939",
     "manager.statRecent": "\u6700\u8FD1\u6DFB\u52A0",
     "manager.loading": "\u52A0\u8F7D\u4E2D...",
+    "manager.refreshing": "\u5237\u65B0\u4E2D\u2026",
+    "manager.refreshFailed": "\u5237\u65B0\u5931\u8D25\uFF1A{0}",
+    "manager.localBookmarksLoadFailed": "\u8BFB\u53D6\u672C\u5730\u4E66\u7B7E\u5931\u8D25\uFF1A{0}",
+    "manager.localStateSaveFailed": "\u4FDD\u5B58\u672C\u5730\u4E66\u7B7E\u72B6\u6001\u5931\u8D25\uFF1A{0}",
     "manager.selectFolder": "\u9009\u62E9\u6587\u4EF6\u5939",
     "manager.selectFolderHint": "\u9009\u62E9\u4E00\u4E2A\u6587\u4EF6\u5939",
     "manager.selectFolderDesc": "\u4ECE\u5DE6\u4FA7\u9009\u62E9\u4E00\u4E2A\u6587\u4EF6\u5939\u6765\u67E5\u770B\u5176\u4E2D\u7684\u4E66\u7B7E",
@@ -204,6 +220,11 @@
     "manager.syncConflictInvalidChoice": "\u8F93\u5165\u65E0\u6548\uFF0C\u5C06\u9ED8\u8BA4\u6267\u884C\u201C\u5408\u5E76\u66F4\u65B0\u6570\u636E\u201D",
     "manager.configIncomplete": "\u8BF7\u586B\u5199\u5B8C\u6574\u7684\u914D\u7F6E\u4FE1\u606F",
     "manager.configSaved": "\u914D\u7F6E\u5DF2\u4FDD\u5B58\uFF01",
+    "manager.configSaveFailed": "\u914D\u7F6E\u4FDD\u5B58\u5931\u8D25\uFF1A{0}",
+    "manager.remoteDataInvalid": "\u8FDC\u7A0B\u4E66\u7B7E\u6570\u636E\u683C\u5F0F\u4E0D\u6B63\u786E\uFF0C\u5DF2\u53D6\u6D88\u4FDD\u5B58",
+    "manager.saveToGiteeFailed": "\u4FDD\u5B58\u5230 Gitee \u5931\u8D25",
+    "manager.saveToGiteeFailedDetail": "\u4FDD\u5B58\u5230 Gitee \u5931\u8D25\uFF1A{0}",
+    "manager.browserUpdateFailedDetail": "\u66F4\u65B0\u672C\u5730\u6D4F\u89C8\u5668\u4E66\u7B7E\u5931\u8D25\uFF0C\u5DF2\u5C1D\u8BD5\u6062\u590D\uFF1A{0}",
     "manager.sampleFolder": "\u793A\u4F8B\u6587\u4EF6\u5939",
     "manager.scriptExecution": "\u811A\u672C\u6267\u884C",
     "manager.scriptExecutionResult": "\u811A\u672C\u6267\u884C\u7ED3\u679C\uFF1A",
@@ -225,8 +246,10 @@
     "manager.importOverwrite": "\u8986\u76D6\u5BFC\u5165 - \u7528\u5BFC\u5165\u6570\u636E\u5B8C\u5168\u66FF\u6362\u5F53\u524D\u4E66\u7B7E",
     "manager.importMerge": "\u5408\u5E76\u5BFC\u5165 - \u5C06\u5BFC\u5165\u6570\u636E\u4E0E\u5F53\u524D\u4E66\u7B7E\u5408\u5E76",
     "manager.importConfirm": "\u786E\u8BA4\u5BFC\u5165",
+    "manager.importing": "\u5BFC\u5165\u4E2D\u2026",
     "manager.importSuccess": "\u4E66\u7B7E\u5BFC\u5165\u6210\u529F\uFF01",
     "manager.importFailed": "\u4E66\u7B7E\u5BFC\u5165\u5931\u8D25",
+    "manager.importFailedDetail": "\u4E66\u7B7E\u5BFC\u5165\u5931\u8D25\uFF0C\u5DF2\u5C1D\u8BD5\u6062\u590D\u539F\u4E66\u7B7E\uFF1A{0}",
     "manager.importInvalidFormat": "\u5BFC\u5165\u6587\u4EF6\u683C\u5F0F\u4E0D\u6B63\u786E\uFF0C\u8BF7\u9009\u62E9\u6709\u6548\u7684\u4E66\u7B7EJSON\u6587\u4EF6",
     "manager.importFileEmpty": "\u5BFC\u5165\u6587\u4EF6\u4E3A\u7A7A",
     "manager.importSummary": "\u5373\u5C06\u5BFC\u5165\u7684\u4E66\u7B7E\u6570\u636E\uFF1A",
@@ -279,6 +302,8 @@
     "manager.linkCheckFilterWarning": "\u4EC5\u8B66\u544A",
     "manager.linkCheckFilterOk": "\u4EC5\u53EF\u7528",
     "manager.linkCheckTimeout": "\u8FDE\u63A5\u8D85\u65F6",
+    "manager.linkCheckPermissionDenied": "\u672A\u6388\u4E88\u7F51\u9875\u8BBF\u95EE\u6743\u9650\uFF0C\u65E0\u6CD5\u68C0\u6D4B\u94FE\u63A5\u3002",
+    "manager.linkCheckPermissionFailed": "\u8BF7\u6C42\u7F51\u9875\u8BBF\u95EE\u6743\u9650\u5931\u8D25\uFF1A{0}",
     "manager.linkCheckNetError": "\u7F51\u7EDC\u9519\u8BEF",
     "manager.linkCheckConcurrency": "\u5E76\u53D1\u6570",
     "confirm.deleteBrokenLinks": "\u786E\u5B9A\u8981\u5220\u9664\u9009\u4E2D\u7684 {0} \u4E2A\u5931\u6548\u4E66\u7B7E\u5417\uFF1F\u6B64\u64CD\u4F5C\u4E0D\u53EF\u64A4\u9500\u3002",
@@ -293,8 +318,11 @@
     "password.confirmLabel": "\u786E\u8BA4\u5BC6\u7801",
     "password.confirmPlaceholder": "\u8BF7\u518D\u6B21\u8F93\u5165\u5BC6\u7801",
     "password.save": "\u4FDD\u5B58\u5BC6\u7801\u8BBE\u7F6E",
+    "password.saving": "\u4FDD\u5B58\u4E2D\u2026",
     "password.msg.saved": "\u5BC6\u7801\u8BBE\u7F6E\u5DF2\u4FDD\u5B58\uFF01",
     "password.msg.saveFailed": "\u5BC6\u7801\u8BBE\u7F6E\u4FDD\u5B58\u5931\u8D25",
+    "password.msg.saveFailedDetail": "\u5BC6\u7801\u8BBE\u7F6E\u4FDD\u5B58\u5931\u8D25\uFF1A{0}",
+    "password.msg.loadFailed": "\u5BC6\u7801\u8BBE\u7F6E\u52A0\u8F7D\u5931\u8D25\uFF1A{0}",
     "password.msg.mismatch": "\u4E24\u6B21\u8F93\u5165\u7684\u5BC6\u7801\u4E0D\u4E00\u81F4",
     "password.msg.empty": "\u5BC6\u7801\u4E0D\u80FD\u4E3A\u7A7A",
     "password.msg.configFirst": "\u8BF7\u5148\u914D\u7F6EGitee\u4FE1\u606F\uFF08Token\u3001Owner\u3001Repo\u3001\u5206\u652F\u3001\u4E66\u7B7E\u76EE\u5F55\uFF09",
@@ -305,6 +333,7 @@
     "password.lock.desc": "\u4E66\u7B7E\u7BA1\u7406\u5668\u5DF2\u542F\u7528\u5BC6\u7801\u4FDD\u62A4\uFF0C\u8BF7\u8F93\u5165\u5BC6\u7801\u4EE5\u7EE7\u7EED\u8BBF\u95EE\u3002",
     "password.lock.placeholder": "\u8BF7\u8F93\u5165\u5BC6\u7801",
     "password.lock.submit": "\u89E3\u9501",
+    "password.lock.verifying": "\u9A8C\u8BC1\u4E2D\u2026",
     "password.lock.error": "\u5BC6\u7801\u9519\u8BEF\uFF0C\u8BF7\u91CD\u8BD5",
     "password.lock.noConfig": "Gitee\u914D\u7F6E\u4E0D\u5B8C\u6574\uFF0C\u65E0\u6CD5\u9A8C\u8BC1\u5BC6\u7801",
     // === Tab 标签 ===
@@ -411,6 +440,8 @@
     "sync.mergeSave": "Merge Save",
     "sync.overwriteGet": "Overwrite Get",
     "sync.mergeGet": "Merge Get",
+    "sync.saving": "Saving\u2026",
+    "sync.getting": "Getting\u2026",
     // === Shortcut Settings ===
     "shortcut.title": "\u2328\uFE0F Shortcut Settings",
     "shortcut.enableSearch": "Enable global bookmark search",
@@ -428,11 +459,19 @@
     "shortcut.modifier": "Modifier",
     "shortcut.key": "Key",
     "shortcut.keyPlaceholder": "e.g. W",
+    "shortcut.siteAccessHint": "Global search and close-tab shortcuts require site access. You can revoke it anytime in extension settings.",
+    "shortcut.grantSiteAccess": "Grant site access",
+    "shortcut.siteAccessGranted": "Site access enabled. Refresh already-open pages to activate shortcuts.",
+    "shortcut.siteAccessDenied": "Site access was not granted, so global shortcuts are unavailable.",
+    "shortcut.siteAccessFailed": "Failed to request site access: {0}",
     // === Search ===
     "search.placeholder": "Search bookmarks...",
     // === Messages ===
+    "toast.close": "Dismiss notification",
     "msg.configSaved": "Gitee config saved!",
+    "msg.configSaveFailed": "Failed to save Gitee configuration: {0}",
     "msg.shortcutSaved": "Shortcut settings saved!",
+    "msg.shortcutSaveFailed": "Failed to save shortcut settings: {0}",
     "msg.tokenUpdated": "Token auto-updated",
     "msg.uploaded": "Bookmark data uploaded",
     "msg.uploadFailed": "Failed to upload bookmark data",
@@ -440,6 +479,8 @@
     "msg.cannotGetManagerData": "Unable to get bookmark manager data, will overwrite directly with current bookmarks",
     "msg.getManagerDataFailed": "Failed to get bookmark manager data, will overwrite directly with current bookmarks",
     "msg.overwriteSaveSuccess": "Overwrite save successful!",
+    "msg.overwriteSaveSuccessWithHidden": "Overwrite save successful. Remote hidden bookmarks were preserved!",
+    "msg.overwriteSaveCompletedWithWarning": "Overwrite save completed, but remote hidden bookmarks could not be preserved.",
     "msg.overwriteSaveFailed": "Overwrite save failed: {0}",
     "msg.mergeSaveSuccess": "Merge save successful!",
     "msg.mergeSaveFailed": "Merge save failed: {0}",
@@ -542,6 +583,10 @@
     "manager.statFolders": "Folders",
     "manager.statRecent": "Recently Added",
     "manager.loading": "Loading...",
+    "manager.refreshing": "Refreshing\u2026",
+    "manager.refreshFailed": "Refresh failed: {0}",
+    "manager.localBookmarksLoadFailed": "Failed to load local bookmarks: {0}",
+    "manager.localStateSaveFailed": "Failed to save local bookmark state: {0}",
     "manager.selectFolder": "Select Folder",
     "manager.selectFolderHint": "Select a folder",
     "manager.selectFolderDesc": "Select a folder from the left panel to view its bookmarks",
@@ -576,6 +621,11 @@
     "manager.syncConflictInvalidChoice": 'Invalid input. Defaulting to "Merge and update".',
     "manager.configIncomplete": "Please fill in the complete configuration",
     "manager.configSaved": "Configuration saved!",
+    "manager.configSaveFailed": "Failed to save configuration: {0}",
+    "manager.remoteDataInvalid": "Remote bookmark data is invalid. Save was cancelled.",
+    "manager.saveToGiteeFailed": "Failed to save to Gitee",
+    "manager.saveToGiteeFailedDetail": "Failed to save to Gitee: {0}",
+    "manager.browserUpdateFailedDetail": "Failed to update browser bookmarks; recovery was attempted: {0}",
     "manager.sampleFolder": "Sample Folder",
     "manager.scriptExecution": "Script Execution",
     "manager.scriptExecutionResult": "Script execution result: ",
@@ -597,8 +647,10 @@
     "manager.importOverwrite": "Overwrite - Replace current bookmarks with imported data",
     "manager.importMerge": "Merge - Merge imported data with current bookmarks",
     "manager.importConfirm": "Confirm Import",
+    "manager.importing": "Importing\u2026",
     "manager.importSuccess": "Bookmarks imported successfully!",
     "manager.importFailed": "Failed to import bookmarks",
+    "manager.importFailedDetail": "Bookmark import failed; original bookmarks were restored when possible: {0}",
     "manager.importInvalidFormat": "Invalid file format, please select a valid bookmark JSON file",
     "manager.importFileEmpty": "Import file is empty",
     "manager.importSummary": "Bookmark data to import:",
@@ -651,6 +703,8 @@
     "manager.linkCheckFilterWarning": "Warning Only",
     "manager.linkCheckFilterOk": "Available Only",
     "manager.linkCheckTimeout": "Timeout",
+    "manager.linkCheckPermissionDenied": "Site access was not granted, so links cannot be checked.",
+    "manager.linkCheckPermissionFailed": "Failed to request site access: {0}",
     "manager.linkCheckNetError": "Network error",
     "manager.linkCheckConcurrency": "Concurrency",
     "confirm.deleteBrokenLinks": "Are you sure you want to delete the selected {0} broken bookmarks? This cannot be undone.",
@@ -665,8 +719,11 @@
     "password.confirmLabel": "Confirm Password",
     "password.confirmPlaceholder": "Enter password again",
     "password.save": "Save Password Settings",
+    "password.saving": "Saving\u2026",
     "password.msg.saved": "Password settings saved!",
     "password.msg.saveFailed": "Failed to save password settings",
+    "password.msg.saveFailedDetail": "Failed to save password settings: {0}",
+    "password.msg.loadFailed": "Failed to load password settings: {0}",
     "password.msg.mismatch": "Passwords do not match",
     "password.msg.empty": "Password cannot be empty",
     "password.msg.configFirst": "Please configure Gitee info first (Token, Owner, Repo, Branch, Bookmark Dir)",
@@ -677,6 +734,7 @@
     "password.lock.desc": "This bookmark manager is password protected. Please enter the password to continue.",
     "password.lock.placeholder": "Enter password",
     "password.lock.submit": "Unlock",
+    "password.lock.verifying": "Verifying\u2026",
     "password.lock.error": "Incorrect password, please try again",
     "password.lock.noConfig": "Gitee configuration is incomplete, cannot verify password",
     // === Tabs ===
@@ -853,6 +911,7 @@
   var allBookmarks = [];
   var isComposing = false;
   var keyboardPriority = false;
+  var searchRequestId = 0;
   var heldModifierKeys = /* @__PURE__ */ new Set();
   var modifierUsedInCombo = false;
   async function fetchAllBookmarks() {
@@ -940,51 +999,8 @@
     } catch (error) {
     }
   }, true);
-  if (window.location.href.includes("gitee.com/api/v5/swagger")) {
-    let extractToken = function() {
-      const tokenElement = document.querySelector('input[name="access_token"].ivu-input');
-      if (!tokenElement) return;
-      const token = tokenElement.textContent || tokenElement.value;
-      if (token && token.length > 20 && token !== lastDetectedToken) {
-        lastDetectedToken = token;
-        try {
-          if (chrome && chrome.runtime && chrome.runtime.sendMessage) {
-            chrome.runtime.sendMessage({
-              type: "updateToken",
-              token
-            });
-          }
-        } catch (error) {
-        }
-      }
-    };
-    let lastDetectedToken = "";
-    extractToken();
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === "childList") {
-          extractToken();
-        }
-      });
-    });
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true
-    });
-    setTimeout(extractToken, 1e3);
-  }
   function getContentThemeColors() {
     let isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
-      try {
-        chrome.storage.local.get(["app_theme"], (result) => {
-          if (result.app_theme === "dark") contentIsDark = true;
-          else if (result.app_theme === "light") contentIsDark = false;
-          else contentIsDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-        });
-      } catch {
-      }
-    }
     if (contentIsDark !== void 0) isDark = contentIsDark;
     return isDark ? {
       isDark: true,
@@ -1007,6 +1023,13 @@
     };
   }
   var contentIsDark = void 0;
+  if (typeof chrome !== "undefined" && chrome.storage?.local) {
+    chrome.storage.local.get(["app_theme"], (result) => {
+      if (result.app_theme === "dark") contentIsDark = true;
+      else if (result.app_theme === "light") contentIsDark = false;
+      else contentIsDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    });
+  }
   if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.onChanged) {
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName === "local" && changes.app_theme) {
@@ -1086,22 +1109,21 @@
     });
     inputEl.addEventListener("keydown", onInputKeydown);
     document.addEventListener("mousedown", onDocClick, true);
-    if (!allBookmarks.length) {
-      fetchAllBookmarks().then((tree) => {
-        allBookmarks = [];
-        function flat(nodes, parent) {
-          nodes.forEach((n) => {
-            if (n.url) {
-              allBookmarks.push({ ...n, type: "bookmark", parent });
-            } else if (n.children) {
-              allBookmarks.push({ ...n, type: "folder", parent });
-              flat(n.children, n);
-            }
-          });
-        }
-        flat(tree);
-      });
-    }
+    fetchAllBookmarks().then((tree) => {
+      allBookmarks = [];
+      function flat(nodes, parent) {
+        nodes.forEach((n) => {
+          if (n.url) {
+            allBookmarks.push({ ...n, type: "bookmark", parent });
+          } else if (n.children) {
+            allBookmarks.push({ ...n, type: "folder", parent });
+            flat(n.children, n);
+          }
+        });
+      }
+      flat(tree);
+      if (inputEl?.value.trim()) void onInput();
+    });
   }
   function removeSearchBox() {
     if (searchBox) {
@@ -1112,6 +1134,7 @@
       results = [];
       selectedIdx = -1;
       keyboardPriority = false;
+      searchRequestId += 1;
       document.removeEventListener("mousedown", onDocClick, true);
     }
   }
@@ -1151,6 +1174,7 @@
     await setUsageData(usage);
   }
   async function onInput() {
+    const requestId = ++searchRequestId;
     const val = inputEl.value.trim().toLowerCase();
     if (!val) {
       renderResults([]);
@@ -1172,6 +1196,7 @@
       return;
     }
     const usage = await getUsageData();
+    if (requestId !== searchRequestId || !inputEl) return;
     const scored = allBookmarks.filter((b) => b.type === "bookmark").map((b) => {
       const score = fuzzyScore(val, b.title || "", b.url || "");
       const key = getBookmarkUsageKey(b);

@@ -8,6 +8,48 @@ function isChromeExtensionContext(): boolean {
          chrome.bookmarks;
 }
 
+const GLOBAL_CONTENT_SCRIPT_ID = 'bookmark-global-shortcuts';
+const GLOBAL_SITE_ORIGINS = ['http://*/*', 'https://*/*'];
+
+function shortcutFeaturesEnabled(rawConfig: string | undefined): boolean {
+  if (!rawConfig) return true;
+  try {
+    const config = JSON.parse(rawConfig);
+    return config?.search?.enabled !== false || config?.closeTab?.enabled !== false;
+  } catch {
+    return true;
+  }
+}
+
+async function syncGlobalContentScriptRegistration(): Promise<void> {
+  if (!chrome?.permissions || !chrome?.scripting?.getRegisteredContentScripts) return;
+  const [hasPermission, storage, registered] = await Promise.all([
+    chrome.permissions.contains({ origins: GLOBAL_SITE_ORIGINS }),
+    chrome.storage.local.get(['shortcut_config']),
+    chrome.scripting.getRegisteredContentScripts({ ids: [GLOBAL_CONTENT_SCRIPT_ID] }),
+  ]);
+  const shouldRegister = hasPermission && shortcutFeaturesEnabled(storage.shortcut_config);
+  const isRegistered = registered.length > 0;
+
+  if (shouldRegister && !isRegistered) {
+    await chrome.scripting.registerContentScripts([{
+      id: GLOBAL_CONTENT_SCRIPT_ID,
+      js: ['content-search.js'],
+      matches: GLOBAL_SITE_ORIGINS,
+      runAt: 'document_end',
+      persistAcrossSessions: true,
+    }]);
+  } else if (!shouldRegister && isRegistered) {
+    await chrome.scripting.unregisterContentScripts({ ids: [GLOBAL_CONTENT_SCRIPT_ID] });
+  }
+}
+
+function scheduleContentScriptSync() {
+  void syncGlobalContentScriptRegistration().catch(error => {
+    console.warn('Failed to update global shortcut content script registration:', error);
+  });
+}
+
 // ========== 失效链接检测 ==========
 
 /** 模拟真实浏览器的请求头，避免被服务器拒绝 */
@@ -212,6 +254,17 @@ if (typeof chrome !== 'undefined' && chrome.contextMenus) {
   });
 }
 
+if (isChromeExtensionContext()) {
+  chrome.runtime.onInstalled.addListener(scheduleContentScriptSync);
+  chrome.runtime.onStartup.addListener(scheduleContentScriptSync);
+  chrome.storage.onChanged.addListener((changes: any, areaName: string) => {
+    if (areaName === 'local' && changes.shortcut_config) scheduleContentScriptSync();
+  });
+  chrome.permissions?.onAdded?.addListener(scheduleContentScriptSync);
+  chrome.permissions?.onRemoved?.addListener(scheduleContentScriptSync);
+  scheduleContentScriptSync();
+}
+
 // ========== 消息监听 ==========
 
 if (isChromeExtensionContext()) {
@@ -277,4 +330,4 @@ if (isChromeExtensionContext()) {
 
     sendResponse({ success: true });
   });
-} 
+}

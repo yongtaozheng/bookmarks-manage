@@ -1,7 +1,7 @@
 {
   "name": "bookmarks-manage",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.1",
   "license": "MIT",
   "description": "现代浏览器书签管理器插件，基于 Vue 3 + TypeScript + Vite，支持本地书签树管理、Gitee 云同步、智能搜索、批量操作等功能。",
   "author": "JYeontu <jyeontu@163.com>",
@@ -14,6 +14,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
+    "lint": "vue-tsc -b && node --check src/bookmark-manager.js && node scripts/check-project.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check": "npm run lint && npm test && npm run build",
     "preview": "vite preview",
     "zip": "node zip-dist.js",
     "bzip": "vue-tsc -b && vite build && node zip-dist.js"

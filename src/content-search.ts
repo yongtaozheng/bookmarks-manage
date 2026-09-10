@@ -109,6 +109,7 @@ let selectedIdx = -1;
 let allBookmarks: any[] = [];
 let isComposing = false;
 let keyboardPriority = false; // 键盘优先标记
+let searchRequestId = 0;
 // 修饰键追踪状态（用于可靠检测修饰键连按）
 const heldModifierKeys = new Set<string>();
 let modifierUsedInCombo = false;
@@ -227,67 +228,9 @@ window.addEventListener('keyup', (e) => {
   }
 }, true);
 
-// 监听Gitee API页面，检测token生成
-if (window.location.href.includes('gitee.com/api/v5/swagger')) {
-  let lastDetectedToken = '';
-  
-  // 提取token的通用函数
-  function extractToken() {
-    const tokenElement = document.querySelector('input[name="access_token"].ivu-input');
-    if(!tokenElement) return;
-    const token = tokenElement.textContent || (tokenElement as HTMLInputElement).value;
-    if (token && token.length > 20 && token !== lastDetectedToken) {
-      lastDetectedToken = token;
-      try {
-        if (chrome && chrome.runtime && chrome.runtime.sendMessage) {
-          chrome.runtime.sendMessage({ 
-            type: 'updateToken', 
-            token: token 
-          });
-        }
-      } catch (error) {
-        // 静默处理错误
-      }
-    }
-  }
-  
-  // 初始化时先提取一次token
-  extractToken();
-  
-  // 监听页面变化，检测token生成
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      if (mutation.type === 'childList') {
-       // 页面变化时提取token
-       extractToken();
-      }
-    });
-  });
-  
-  // 开始监听页面变化
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
-  
-  // 延迟再次检查，确保页面完全加载
-  setTimeout(extractToken, 1000);
-}
-
 // 获取当前生效的主题（内容脚本无法使用 CSS 变量，需自带配色）
 function getContentThemeColors(): { isDark: boolean; bg: string; border: string; text: string; textMuted: string; selectedBg: string; selectedText: string; shadow: string; } {
-  // 先从 storage 读取用户偏好
   let isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  // 同步读取缓存的主题（异步更新见下方 listener）
-  if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-    try {
-      chrome.storage.local.get(['app_theme'], (result: any) => {
-        if (result.app_theme === 'dark') contentIsDark = true;
-        else if (result.app_theme === 'light') contentIsDark = false;
-        else contentIsDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      });
-    } catch {}
-  }
   if (contentIsDark !== undefined) isDark = contentIsDark;
   return isDark ? {
     isDark: true,
@@ -311,6 +254,14 @@ function getContentThemeColors(): { isDark: boolean; bg: string; border: string;
 }
 
 let contentIsDark: boolean | undefined = undefined;
+
+if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+  chrome.storage.local.get(['app_theme'], (result: any) => {
+    if (result.app_theme === 'dark') contentIsDark = true;
+    else if (result.app_theme === 'light') contentIsDark = false;
+    else contentIsDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+}
 
 // 监听主题变更
 if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
@@ -397,23 +348,22 @@ function showSearchBox() {
   
   document.addEventListener('mousedown', onDocClick, true);
   
-  // 预加载所有书签
-  if (!allBookmarks.length) {
-    fetchAllBookmarks().then((tree) => {
-      allBookmarks = [];
-      function flat(nodes: any[], parent?: any) {
-        nodes.forEach(n => {
-          if (n.url) {
-            allBookmarks.push({ ...n, type: 'bookmark', parent });
-          } else if (n.children) {
-            allBookmarks.push({ ...n, type: 'folder', parent });
-            flat(n.children, n);
-          }
-        });
-      }
-      flat(tree);
-    });
-  }
+  // 每次打开时刷新书签，避免长时间打开的网页使用过期缓存。
+  fetchAllBookmarks().then((tree) => {
+    allBookmarks = [];
+    function flat(nodes: any[], parent?: any) {
+      nodes.forEach(n => {
+        if (n.url) {
+          allBookmarks.push({ ...n, type: 'bookmark', parent });
+        } else if (n.children) {
+          allBookmarks.push({ ...n, type: 'folder', parent });
+          flat(n.children, n);
+        }
+      });
+    }
+    flat(tree);
+    if (inputEl?.value.trim()) void onInput();
+  });
 }
 
 function removeSearchBox() {
@@ -425,6 +375,7 @@ function removeSearchBox() {
     results = [];
     selectedIdx = -1;
     keyboardPriority = false;
+    searchRequestId += 1;
     document.removeEventListener('mousedown', onDocClick, true);
   }
 }
@@ -467,6 +418,7 @@ async function recordBookmarkUsage(bookmark: any): Promise<void> {
 }
 
 async function onInput() {
+  const requestId = ++searchRequestId;
   const val = inputEl!.value.trim().toLowerCase();
   if (!val) {
     renderResults([]);
@@ -491,6 +443,7 @@ async function onInput() {
   }
   // 模糊匹配并排序（书签）+ 最近最常用加权
   const usage = await getUsageData();
+  if (requestId !== searchRequestId || !inputEl) return;
   const scored = allBookmarks
     .filter((b: any) => b.type === 'bookmark')
     .map((b: any) => {
@@ -636,4 +589,4 @@ function onDocClick(e: MouseEvent) {
 // 挂载异步 onInput
 if (typeof window !== 'undefined') {
   (window as any).onInputAsync = onInput;
-} 
+}

@@ -181,15 +181,16 @@
         color: var(--color-text-primary);
       }
       .toast {
-        position: fixed;
-        top: 14px;
+        position: absolute;
+        top: calc(100% + 8px);
         left: 50%;
-        z-index: 20000;
+        z-index: 200;
         display: flex;
         align-items: center;
         gap: 0.55em;
+        width: max-content;
         max-width: calc(100vw - 32px);
-        padding: 0.65em 1em;
+        padding: 0.65em 0.7em 0.65em 0.9em;
         border: 1px solid rgba(255, 255, 255, 0.24);
         border-radius: 8px;
         box-sizing: border-box;
@@ -206,7 +207,7 @@
         transform: translate(-50%, -10px) scale(0.98);
         transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
       }
-      .toast::before {
+      .toast-icon {
         flex: 0 0 auto;
         display: inline-flex;
         align-items: center;
@@ -216,7 +217,9 @@
         border-radius: 50%;
         background: rgba(255, 255, 255, 0.2);
         font-weight: bold;
-        content: '\2713';
+      }
+      .toast-message {
+        min-width: 0;
       }
       .toast.toast-success {
         background: #16805a;
@@ -224,12 +227,40 @@
       .toast.toast-error {
         background: #c43d3d;
       }
-      .toast.toast-error::before {
-        content: '!';
+      .toast.toast-warning {
+        background: #a45b0a;
+      }
+      .toast.toast-info {
+        background: #1769aa;
+      }
+      .toast-close {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.5em;
+        height: 1.5em;
+        padding: 0;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        font-size: 1.1em;
+        line-height: 1;
+        cursor: pointer;
+        opacity: 0.72;
+      }
+      .toast-close:hover,
+      .toast-close:focus-visible {
+        background: rgba(255, 255, 255, 0.16);
+        opacity: 1;
+        outline: none;
       }
       .toast.toast-visible {
         opacity: 1;
         visibility: visible;
+        pointer-events: auto;
         transform: translate(-50%, 0) scale(1);
       }
       .sync-btns {
@@ -255,6 +286,14 @@
         transition: background 0.2s;
       }
       .sync-btns button:hover { background: var(--color-accent-blue-dark); }
+      .sync-btns button:disabled {
+        cursor: not-allowed;
+        opacity: 0.58;
+      }
+      .sync-btns button.is-loading {
+        cursor: wait;
+        opacity: 0.72;
+      }
       /* 快捷键设置 */
       .shortcut-form {
         width: 580px;
@@ -544,14 +583,13 @@
       <div style="text-align:center;padding:2em;">
         <h2 style="color:var(--color-accent-blue);font-family:var(--font-family-primary);margin-bottom:0.3em;" data-i18n="password.lock.title">🔒 密码保护</h2>
         <p style="color:var(--color-text-secondary);font-size:var(--font-size-base);font-family:var(--font-family-primary);margin-bottom:1.2em;" data-i18n="password.lock.desc">书签管理器已启用密码保护，请输入密码以继续访问。</p>
-        <input type="password" id="lockPasswordInput" placeholder="请输入密码" data-i18n-placeholder="password.lock.placeholder" style="width:260px;padding:0.5em 0.8em;border:1px solid var(--color-border);border-radius:6px;font-size:var(--font-size-md);font-family:var(--font-family-primary);text-align:center;margin-bottom:0.5em;background:var(--color-input-bg);color:var(--color-text-primary);" />
+        <input type="password" id="lockPasswordInput" maxlength="1024" placeholder="请输入密码" data-i18n-placeholder="password.lock.placeholder" style="width:260px;padding:0.5em 0.8em;border:1px solid var(--color-border);border-radius:6px;font-size:var(--font-size-md);font-family:var(--font-family-primary);text-align:center;margin-bottom:0.5em;background:var(--color-input-bg);color:var(--color-text-primary);" />
         <div id="lockPasswordError" style="color:var(--color-accent-red);font-size:var(--font-size-sm);font-family:var(--font-family-primary);min-height:1.5em;margin-bottom:0.5em;"></div>
         <button type="button" id="lockPasswordSubmit" style="width:260px;padding:0.5em 0;background:var(--color-accent-blue);color:#fff;border:none;border-radius:6px;font-size:var(--font-size-md);font-family:var(--font-family-primary);cursor:pointer;transition:background 0.2s;" data-i18n="password.lock.submit">解锁</button>
       </div>
     </div>
     <!-- 主内容（默认隐藏，密码检查完成后显示） -->
     <div id="popupContent" style="display:none;flex-direction:column;height:100vh;max-height:600px;">
-    <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
     <!-- 固定头部区域 -->
     <div class="popup-fixed-header">
     <div style="position:absolute;top:10px;right:10px;z-index:1000;display:flex;align-items:center;gap:8px;">
@@ -583,6 +621,11 @@
       <button class="popup-tab-btn" data-tab="password" data-i18n="tab.password">🔒 密码</button>
       <button class="popup-tab-btn" data-tab="feedback" data-i18n="tab.feedback">💬 反馈</button>
     </div>
+    <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true">
+      <span id="toastIcon" class="toast-icon" aria-hidden="true"></span>
+      <span id="toastMessage" class="toast-message"></span>
+      <button id="toastClose" class="toast-close" type="button">&times;</button>
+    </div>
     </div><!-- /popup-fixed-header -->
 
     <!-- 可滚动的 Tab 内容区域 -->
@@ -597,7 +640,7 @@
       <label><span data-i18n="gitee.token">Gitee Token</span>
         <div style="display:flex;align-items:center;gap:0.5em;">
           <input type="password" id="giteeToken" required placeholder="个人访问Token" data-i18n-placeholder="gitee.tokenPlaceholder" style="flex:1;" />
-          <a href="https://gitee.com/oauth/authorize?client_id=8ac7a94ff19ddb4b9d267d525c048e2845f589cf3b1e8d09ef2568ca63f74603&redirect_uri=https%3A%2F%2Fgitee.com%2Fapi%2Fv5%2Fswagger&response_type=code" target="_blank" style="color:var(--color-accent-blue);font-size:0.9em;text-decoration:none;white-space:nowrap;" data-i18n="gitee.getToken">获取Token →</a>
+          <a href="https://gitee.com/oauth/authorize?client_id=8ac7a94ff19ddb4b9d267d525c048e2845f589cf3b1e8d09ef2568ca63f74603&redirect_uri=https%3A%2F%2Fgitee.com%2Fapi%2Fv5%2Fswagger&response_type=code" target="_blank" rel="noopener noreferrer" style="color:var(--color-accent-blue);font-size:0.9em;text-decoration:none;white-space:nowrap;" data-i18n="gitee.getToken">获取Token →</a>
         </div>
       </label>
       <label><span data-i18n="gitee.owner">仓库所有者（owner）</span>
@@ -633,10 +676,10 @@
     </div>
     <form class="gitee-form" id="cryptoMasterForm" autocomplete="off" style="margin-top:0.3em;">
       <label><span data-i18n="crypto.masterPassword">跨设备加密主密码</span>
-        <input type="password" id="cryptoMasterPassword" data-i18n-placeholder="crypto.masterPasswordPlaceholder" placeholder="请输入主密码（用于跨设备解密）" />
+        <input type="password" id="cryptoMasterPassword" maxlength="1024" data-i18n-placeholder="crypto.masterPasswordPlaceholder" placeholder="请输入主密码（用于跨设备解密）" />
       </label>
       <label><span data-i18n="crypto.masterPasswordConfirm">确认主密码</span>
-        <input type="password" id="cryptoMasterPasswordConfirm" data-i18n-placeholder="crypto.masterPasswordConfirmPlaceholder" placeholder="请再次输入主密码" />
+        <input type="password" id="cryptoMasterPasswordConfirm" maxlength="1024" data-i18n-placeholder="crypto.masterPasswordConfirmPlaceholder" placeholder="请再次输入主密码" />
       </label>
       <div style="display:flex;gap:0.5em;margin-bottom:0.6em;">
         <button type="button" id="btnSaveCryptoMaster" style="flex:1;padding:0.3em 0.6em;background:var(--color-accent-green);color:#fff;border:none;border-radius:4px;font-size:var(--font-size-base);font-family:var(--font-family-primary);cursor:pointer;" data-i18n="crypto.masterSave">保存主密码</button>
@@ -651,6 +694,10 @@
     <div class="popup-tab-panel" id="tabShortcut" data-tab-panel="shortcut">
     <div class="shortcut-form" id="shortcutForm">
       <h3 data-i18n="shortcut.title">⌨️ 快捷键设置</h3>
+      <div id="siteAccessPanel" style="display:none;margin-bottom:0.8em;padding:0.7em;border:1px solid var(--color-border-light);border-radius:6px;background:var(--color-bg-hover);">
+        <div style="font-size:var(--font-size-sm);color:var(--color-text-secondary);margin-bottom:0.55em;" data-i18n="shortcut.siteAccessHint">全局搜索和关闭标签页快捷键需要网页访问权限，可随时在浏览器扩展设置中撤销。</div>
+        <button id="requestSiteAccessBtn" type="button" style="width:100%;padding:0.45em 0.7em;border:0;border-radius:5px;background:var(--color-accent-blue);color:#fff;font:inherit;cursor:pointer;" data-i18n="shortcut.grantSiteAccess">授予网页快捷键权限</button>
+      </div>
       <!-- 全局搜索 -->
       <div style="border-bottom: 1px solid var(--color-border-light); padding-bottom: 0.7em; margin-bottom: 0.7em;">
         <div class="shortcut-toggle">
@@ -715,10 +762,10 @@
       </div>
       <div id="passwordFields">
         <label><span data-i18n="password.label">密码</span>
-          <input type="password" id="passwordInput" placeholder="请输入密码" data-i18n-placeholder="password.placeholder" style="width:98%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid var(--color-border);border-radius:4px;font-size:var(--font-size-md);font-family:var(--font-family-primary);background:var(--color-input-bg);color:var(--color-text-primary);" />
+          <input type="password" id="passwordInput" maxlength="1024" placeholder="请输入密码" data-i18n-placeholder="password.placeholder" style="width:98%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid var(--color-border);border-radius:4px;font-size:var(--font-size-md);font-family:var(--font-family-primary);background:var(--color-input-bg);color:var(--color-text-primary);" />
         </label>
         <label><span data-i18n="password.confirmLabel">确认密码</span>
-          <input type="password" id="passwordConfirm" placeholder="请再次输入密码" data-i18n-placeholder="password.confirmPlaceholder" style="width:98%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid var(--color-border);border-radius:4px;font-size:var(--font-size-md);font-family:var(--font-family-primary);background:var(--color-input-bg);color:var(--color-text-primary);" />
+          <input type="password" id="passwordConfirm" maxlength="1024" placeholder="请再次输入密码" data-i18n-placeholder="password.confirmPlaceholder" style="width:98%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid var(--color-border);border-radius:4px;font-size:var(--font-size-md);font-family:var(--font-family-primary);background:var(--color-input-bg);color:var(--color-text-primary);" />
         </label>
         <button type="button" id="savePasswordBtn" style="width:100%;padding:0.5em 0;background:var(--color-accent-blue);color:#fff;border:none;border-radius:6px;font-size:var(--font-size-md);font-family:var(--font-family-primary);cursor:pointer;transition:background 0.2s;" data-i18n="password.save">保存密码设置</button>
       </div>
@@ -732,14 +779,14 @@
       <div style="margin-bottom:1em;">
         <p style="font-size:var(--font-size-md);color:var(--color-text-secondary);margin:0 0 0.8em 0;" data-i18n="feedback.desc">如果您在使用中遇到问题或有功能建议，欢迎通过以下渠道反馈：</p>
         <div style="display:flex;flex-direction:column;gap:0.6em;">
-          <a href="https://gitee.com/zheng_yongtao/bookmarks-manage/issues" target="_blank" style="display:flex;align-items:center;gap:0.5em;padding:0.6em 1em;background:var(--color-bg-hover);border:1px solid var(--color-border-light);border-radius:6px;text-decoration:none;color:var(--color-text-primary);transition:background 0.2s;">
+          <a href="https://gitee.com/zheng_yongtao/bookmarks-manage/issues" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:0.5em;padding:0.6em 1em;background:var(--color-bg-hover);border:1px solid var(--color-border-light);border-radius:6px;text-decoration:none;color:var(--color-text-primary);transition:background 0.2s;">
             <span style="font-size:1.2em;">🟠</span>
             <span>
               <b data-i18n="feedback.giteeIssue">Gitee Issue</b>
               <span style="display:block;font-size:var(--font-size-xs);color:var(--color-text-muted);" data-i18n="feedback.giteeIssueDesc">在 Gitee 上提交问题或建议</span>
             </span>
           </a>
-          <a href="https://github.com/yongtaozheng/bookmarks-manage/issues" target="_blank" style="display:flex;align-items:center;gap:0.5em;padding:0.6em 1em;background:var(--color-bg-hover);border:1px solid var(--color-border-light);border-radius:6px;text-decoration:none;color:var(--color-text-primary);transition:background 0.2s;">
+          <a href="https://github.com/yongtaozheng/bookmarks-manage/issues" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:0.5em;padding:0.6em 1em;background:var(--color-bg-hover);border:1px solid var(--color-border-light);border-radius:6px;text-decoration:none;color:var(--color-text-primary);transition:background 0.2s;">
             <span style="font-size:1.2em;">⚫</span>
             <span>
               <b data-i18n="feedback.githubIssue">GitHub Issue</b>
@@ -751,7 +798,7 @@
       <div style="border-top:1px solid var(--color-border-light);padding-top:1em;">
         <p style="font-size:var(--font-size-md);color:var(--color-accent-blue);font-weight:bold;margin:0 0 0.6em 0;" data-i18n="feedback.wechatOA">微信公众号</p>
         <p style="font-size:var(--font-size-sm);color:var(--color-text-muted);margin:0 0 0.5em 0;" data-i18n="feedback.wechatOADesc">关注公众号获取最新动态和使用技巧</p>
-        <a href="https://mp.weixin.qq.com/s/B0ahLbzpZUSH0ClPbySdcQ" target="_blank" style="display:block;text-align:center;text-decoration:none;color:var(--color-accent-blue);font-size:var(--font-size-lg);font-weight:bold;margin:0 0 1em 0;" data-i18n="feedback.wechatOAName">前端也能这么有趣</a>
+        <a href="https://mp.weixin.qq.com/s/B0ahLbzpZUSH0ClPbySdcQ" target="_blank" rel="noopener noreferrer" style="display:block;text-align:center;text-decoration:none;color:var(--color-accent-blue);font-size:var(--font-size-lg);font-weight:bold;margin:0 0 1em 0;" data-i18n="feedback.wechatOAName">前端也能这么有趣</a>
       </div>
       <div style="border-top:1px solid var(--color-border-light);padding-top:1em;">
         <p style="font-size:var(--font-size-md);color:var(--color-accent-blue);font-weight:bold;margin:0 0 0.6em 0;" data-i18n="feedback.wechatGroup">微信交流群</p>
@@ -800,8 +847,8 @@
         <h3 data-i18n="help.contactTitle">联系作者</h3>
         <ul>
           <li><b data-i18n="help.wechat">微信公众号：</b><span data-i18n="help.wechatName">前端也能这么有趣</span></li>
-          <li><b data-i18n="help.github">GitHub：</b><a href="https://github.com/yongtaozheng/bookmarks-manage" target="_blank" style="color:var(--color-accent-blue);" data-i18n="help.projectLink">项目地址</a></li>
-          <li><b data-i18n="help.gitee">Gitee：</b><a href="https://gitee.com/zheng_yongtao/bookmarks-manage" target="_blank" style="color:var(--color-accent-blue);" data-i18n="help.projectLink">项目地址</a></li>
+          <li><b data-i18n="help.github">GitHub：</b><a href="https://github.com/yongtaozheng/bookmarks-manage" target="_blank" rel="noopener noreferrer" style="color:var(--color-accent-blue);" data-i18n="help.projectLink">项目地址</a></li>
+          <li><b data-i18n="help.gitee">Gitee：</b><a href="https://gitee.com/zheng_yongtao/bookmarks-manage" target="_blank" rel="noopener noreferrer" style="color:var(--color-accent-blue);" data-i18n="help.projectLink">项目地址</a></li>
         </ul>
       </div>
     </div>

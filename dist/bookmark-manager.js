@@ -1,136 +1,4 @@
 (() => {
-  // src/crypto.ts
-  var CRYPTO_KEY_NAME = "_bm_encryption_key";
-  var CRYPTO_MASTER_PASSPHRASE_NAME = "_bm_encryption_master_passphrase";
-  var MASTER_KEY_SALT = "bookmarks-manage-master-key-v1";
-  var PBKDF2_ITERATIONS = 25e4;
-  var cachedKeyContext = null;
-  function storageGet(keys) {
-    return new Promise((resolve) => {
-      chrome.storage.local.get(keys, (result) => resolve(result || {}));
-    });
-  }
-  function storageSet(values) {
-    return new Promise((resolve) => {
-      chrome.storage.local.set(values, () => resolve());
-    });
-  }
-  async function deriveKeyFromPassphrase(passphrase) {
-    const encoder = new TextEncoder();
-    const keyMaterial = await crypto.subtle.importKey(
-      "raw",
-      encoder.encode(passphrase),
-      { name: "PBKDF2" },
-      false,
-      ["deriveKey"]
-    );
-    return crypto.subtle.deriveKey(
-      {
-        name: "PBKDF2",
-        salt: encoder.encode(MASTER_KEY_SALT),
-        iterations: PBKDF2_ITERATIONS,
-        hash: "SHA-256"
-      },
-      keyMaterial,
-      { name: "AES-GCM", length: 256 },
-      true,
-      ["encrypt", "decrypt"]
-    );
-  }
-  async function getLegacyKey(generateIfMissing) {
-    const result = await storageGet([CRYPTO_KEY_NAME]);
-    const existing = result[CRYPTO_KEY_NAME];
-    if (existing) {
-      return crypto.subtle.importKey(
-        "jwk",
-        existing,
-        { name: "AES-GCM" },
-        true,
-        ["encrypt", "decrypt"]
-      );
-    }
-    if (!generateIfMissing) {
-      throw new Error("LEGACY_KEY_NOT_FOUND");
-    }
-    const key = await crypto.subtle.generateKey(
-      { name: "AES-GCM", length: 256 },
-      true,
-      ["encrypt", "decrypt"]
-    );
-    const jwk = await crypto.subtle.exportKey("jwk", key);
-    await storageSet({ [CRYPTO_KEY_NAME]: jwk });
-    return key;
-  }
-  async function getKeyContext() {
-    if (cachedKeyContext) return cachedKeyContext;
-    const result = await storageGet([CRYPTO_MASTER_PASSPHRASE_NAME]);
-    const passphrase = result[CRYPTO_MASTER_PASSPHRASE_NAME];
-    if (passphrase && typeof passphrase === "string") {
-      const key2 = await deriveKeyFromPassphrase(passphrase);
-      cachedKeyContext = { key: key2, mode: "master" };
-      return cachedKeyContext;
-    }
-    const key = await getLegacyKey(true);
-    cachedKeyContext = { key, mode: "legacy" };
-    return cachedKeyContext;
-  }
-  async function decryptWithKey(encryptedBase64, key) {
-    const binaryStr = atob(encryptedBase64);
-    const combined = new Uint8Array(binaryStr.length);
-    for (let i = 0; i < binaryStr.length; i++) {
-      combined[i] = binaryStr.charCodeAt(i);
-    }
-    const iv = combined.slice(0, 12);
-    const ciphertext = combined.slice(12);
-    const decrypted = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv },
-      key,
-      ciphertext
-    );
-    return new TextDecoder().decode(decrypted);
-  }
-  async function encrypt(plaintext) {
-    if (!plaintext) return plaintext;
-    const { key } = await getKeyContext();
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const encoded = new TextEncoder().encode(plaintext);
-    const ciphertext = await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv },
-      key,
-      encoded
-    );
-    const ciphertextArray = new Uint8Array(ciphertext);
-    const combined = new Uint8Array(iv.length + ciphertextArray.length);
-    combined.set(iv);
-    combined.set(ciphertextArray, iv.length);
-    let binary = "";
-    for (const byte of combined) {
-      binary += String.fromCharCode(byte);
-    }
-    return btoa(binary);
-  }
-  async function decrypt(encryptedBase64) {
-    if (!encryptedBase64) return encryptedBase64;
-    const { key } = await getKeyContext();
-    return decryptWithKey(encryptedBase64, key);
-  }
-  async function decryptSafe(value) {
-    if (!value) return value;
-    try {
-      return await decrypt(value);
-    } catch {
-      try {
-        const { mode } = await getKeyContext();
-        if (mode === "master") {
-          const legacyKey = await getLegacyKey(false);
-          return await decryptWithKey(value, legacyKey);
-        }
-      } catch {
-      }
-      return value;
-    }
-  }
-
   // src/i18n/zh-CN.ts
   var zh_CN_default = {
     // === 通用 ===
@@ -171,6 +39,8 @@
     "sync.mergeSave": "\u5408\u5E76\u4FDD\u5B58",
     "sync.overwriteGet": "\u8986\u76D6\u83B7\u53D6",
     "sync.mergeGet": "\u5408\u5E76\u83B7\u53D6",
+    "sync.saving": "\u4FDD\u5B58\u4E2D\u2026",
+    "sync.getting": "\u83B7\u53D6\u4E2D\u2026",
     // === 快捷键设置 ===
     "shortcut.title": "\u2328\uFE0F \u5FEB\u6377\u952E\u8BBE\u7F6E",
     "shortcut.enableSearch": "\u542F\u7528\u5168\u5C40\u4E66\u7B7E\u641C\u7D22",
@@ -188,11 +58,19 @@
     "shortcut.modifier": "\u4FEE\u9970\u952E",
     "shortcut.key": "\u6309\u952E",
     "shortcut.keyPlaceholder": "\u5982\uFF1AW",
+    "shortcut.siteAccessHint": "\u5168\u5C40\u641C\u7D22\u548C\u5173\u95ED\u6807\u7B7E\u9875\u5FEB\u6377\u952E\u9700\u8981\u7F51\u9875\u8BBF\u95EE\u6743\u9650\uFF0C\u53EF\u968F\u65F6\u5728\u6D4F\u89C8\u5668\u6269\u5C55\u8BBE\u7F6E\u4E2D\u64A4\u9500\u3002",
+    "shortcut.grantSiteAccess": "\u6388\u4E88\u7F51\u9875\u5FEB\u6377\u952E\u6743\u9650",
+    "shortcut.siteAccessGranted": "\u7F51\u9875\u5FEB\u6377\u952E\u6743\u9650\u5DF2\u542F\u7528\uFF0C\u8BF7\u5237\u65B0\u5DF2\u6253\u5F00\u7684\u7F51\u9875\u3002",
+    "shortcut.siteAccessDenied": "\u672A\u6388\u4E88\u7F51\u9875\u8BBF\u95EE\u6743\u9650\uFF0C\u5168\u5C40\u5FEB\u6377\u952E\u6682\u4E0D\u53EF\u7528\u3002",
+    "shortcut.siteAccessFailed": "\u8BF7\u6C42\u7F51\u9875\u5FEB\u6377\u952E\u6743\u9650\u5931\u8D25\uFF1A{0}",
     // === 搜索 ===
     "search.placeholder": "\u641C\u7D22\u4E66\u7B7E...",
     // === 消息提示 ===
+    "toast.close": "\u5173\u95ED\u63D0\u793A",
     "msg.configSaved": "Gitee \u914D\u7F6E\u5DF2\u4FDD\u5B58\uFF01",
+    "msg.configSaveFailed": "Gitee \u914D\u7F6E\u4FDD\u5B58\u5931\u8D25\uFF1A{0}",
     "msg.shortcutSaved": "\u5FEB\u6377\u952E\u8BBE\u7F6E\u5DF2\u4FDD\u5B58\uFF01",
+    "msg.shortcutSaveFailed": "\u5FEB\u6377\u952E\u8BBE\u7F6E\u4FDD\u5B58\u5931\u8D25\uFF1A{0}",
     "msg.tokenUpdated": "Token\u5DF2\u81EA\u52A8\u66F4\u65B0",
     "msg.uploaded": "\u5DF2\u4E0A\u4F20\u4E66\u7B7E\u6570\u636E",
     "msg.uploadFailed": "\u4E0A\u4F20\u4E66\u7B7E\u6570\u636E\u5931\u8D25",
@@ -200,6 +78,8 @@
     "msg.cannotGetManagerData": "\u65E0\u6CD5\u83B7\u53D6\u4E66\u7B7E\u7BA1\u7406\u5668\u6570\u636E\uFF0C\u5C06\u76F4\u63A5\u4F7F\u7528\u5F53\u524D\u4E66\u7B7E\u8986\u76D6",
     "msg.getManagerDataFailed": "\u83B7\u53D6\u4E66\u7B7E\u7BA1\u7406\u5668\u6570\u636E\u5931\u8D25\uFF0C\u5C06\u76F4\u63A5\u4F7F\u7528\u5F53\u524D\u4E66\u7B7E\u8986\u76D6",
     "msg.overwriteSaveSuccess": "\u8986\u76D6\u4FDD\u5B58\u6210\u529F\uFF01",
+    "msg.overwriteSaveSuccessWithHidden": "\u8986\u76D6\u4FDD\u5B58\u6210\u529F\uFF0C\u5DF2\u4FDD\u7559\u8FDC\u7A0B\u9690\u85CF\u4E66\u7B7E\uFF01",
+    "msg.overwriteSaveCompletedWithWarning": "\u8986\u76D6\u4FDD\u5B58\u5DF2\u5B8C\u6210\uFF0C\u4F46\u672A\u80FD\u4FDD\u7559\u8FDC\u7A0B\u9690\u85CF\u4E66\u7B7E\u3002",
     "msg.overwriteSaveFailed": "\u8986\u76D6\u4FDD\u5B58\u5931\u8D25: {0}",
     "msg.mergeSaveSuccess": "\u5408\u5E76\u4FDD\u5B58\u6210\u529F\uFF01",
     "msg.mergeSaveFailed": "\u5408\u5E76\u4FDD\u5B58\u5931\u8D25: {0}",
@@ -302,6 +182,10 @@
     "manager.statFolders": "\u6587\u4EF6\u5939",
     "manager.statRecent": "\u6700\u8FD1\u6DFB\u52A0",
     "manager.loading": "\u52A0\u8F7D\u4E2D...",
+    "manager.refreshing": "\u5237\u65B0\u4E2D\u2026",
+    "manager.refreshFailed": "\u5237\u65B0\u5931\u8D25\uFF1A{0}",
+    "manager.localBookmarksLoadFailed": "\u8BFB\u53D6\u672C\u5730\u4E66\u7B7E\u5931\u8D25\uFF1A{0}",
+    "manager.localStateSaveFailed": "\u4FDD\u5B58\u672C\u5730\u4E66\u7B7E\u72B6\u6001\u5931\u8D25\uFF1A{0}",
     "manager.selectFolder": "\u9009\u62E9\u6587\u4EF6\u5939",
     "manager.selectFolderHint": "\u9009\u62E9\u4E00\u4E2A\u6587\u4EF6\u5939",
     "manager.selectFolderDesc": "\u4ECE\u5DE6\u4FA7\u9009\u62E9\u4E00\u4E2A\u6587\u4EF6\u5939\u6765\u67E5\u770B\u5176\u4E2D\u7684\u4E66\u7B7E",
@@ -336,6 +220,11 @@
     "manager.syncConflictInvalidChoice": "\u8F93\u5165\u65E0\u6548\uFF0C\u5C06\u9ED8\u8BA4\u6267\u884C\u201C\u5408\u5E76\u66F4\u65B0\u6570\u636E\u201D",
     "manager.configIncomplete": "\u8BF7\u586B\u5199\u5B8C\u6574\u7684\u914D\u7F6E\u4FE1\u606F",
     "manager.configSaved": "\u914D\u7F6E\u5DF2\u4FDD\u5B58\uFF01",
+    "manager.configSaveFailed": "\u914D\u7F6E\u4FDD\u5B58\u5931\u8D25\uFF1A{0}",
+    "manager.remoteDataInvalid": "\u8FDC\u7A0B\u4E66\u7B7E\u6570\u636E\u683C\u5F0F\u4E0D\u6B63\u786E\uFF0C\u5DF2\u53D6\u6D88\u4FDD\u5B58",
+    "manager.saveToGiteeFailed": "\u4FDD\u5B58\u5230 Gitee \u5931\u8D25",
+    "manager.saveToGiteeFailedDetail": "\u4FDD\u5B58\u5230 Gitee \u5931\u8D25\uFF1A{0}",
+    "manager.browserUpdateFailedDetail": "\u66F4\u65B0\u672C\u5730\u6D4F\u89C8\u5668\u4E66\u7B7E\u5931\u8D25\uFF0C\u5DF2\u5C1D\u8BD5\u6062\u590D\uFF1A{0}",
     "manager.sampleFolder": "\u793A\u4F8B\u6587\u4EF6\u5939",
     "manager.scriptExecution": "\u811A\u672C\u6267\u884C",
     "manager.scriptExecutionResult": "\u811A\u672C\u6267\u884C\u7ED3\u679C\uFF1A",
@@ -357,8 +246,10 @@
     "manager.importOverwrite": "\u8986\u76D6\u5BFC\u5165 - \u7528\u5BFC\u5165\u6570\u636E\u5B8C\u5168\u66FF\u6362\u5F53\u524D\u4E66\u7B7E",
     "manager.importMerge": "\u5408\u5E76\u5BFC\u5165 - \u5C06\u5BFC\u5165\u6570\u636E\u4E0E\u5F53\u524D\u4E66\u7B7E\u5408\u5E76",
     "manager.importConfirm": "\u786E\u8BA4\u5BFC\u5165",
+    "manager.importing": "\u5BFC\u5165\u4E2D\u2026",
     "manager.importSuccess": "\u4E66\u7B7E\u5BFC\u5165\u6210\u529F\uFF01",
     "manager.importFailed": "\u4E66\u7B7E\u5BFC\u5165\u5931\u8D25",
+    "manager.importFailedDetail": "\u4E66\u7B7E\u5BFC\u5165\u5931\u8D25\uFF0C\u5DF2\u5C1D\u8BD5\u6062\u590D\u539F\u4E66\u7B7E\uFF1A{0}",
     "manager.importInvalidFormat": "\u5BFC\u5165\u6587\u4EF6\u683C\u5F0F\u4E0D\u6B63\u786E\uFF0C\u8BF7\u9009\u62E9\u6709\u6548\u7684\u4E66\u7B7EJSON\u6587\u4EF6",
     "manager.importFileEmpty": "\u5BFC\u5165\u6587\u4EF6\u4E3A\u7A7A",
     "manager.importSummary": "\u5373\u5C06\u5BFC\u5165\u7684\u4E66\u7B7E\u6570\u636E\uFF1A",
@@ -411,6 +302,8 @@
     "manager.linkCheckFilterWarning": "\u4EC5\u8B66\u544A",
     "manager.linkCheckFilterOk": "\u4EC5\u53EF\u7528",
     "manager.linkCheckTimeout": "\u8FDE\u63A5\u8D85\u65F6",
+    "manager.linkCheckPermissionDenied": "\u672A\u6388\u4E88\u7F51\u9875\u8BBF\u95EE\u6743\u9650\uFF0C\u65E0\u6CD5\u68C0\u6D4B\u94FE\u63A5\u3002",
+    "manager.linkCheckPermissionFailed": "\u8BF7\u6C42\u7F51\u9875\u8BBF\u95EE\u6743\u9650\u5931\u8D25\uFF1A{0}",
     "manager.linkCheckNetError": "\u7F51\u7EDC\u9519\u8BEF",
     "manager.linkCheckConcurrency": "\u5E76\u53D1\u6570",
     "confirm.deleteBrokenLinks": "\u786E\u5B9A\u8981\u5220\u9664\u9009\u4E2D\u7684 {0} \u4E2A\u5931\u6548\u4E66\u7B7E\u5417\uFF1F\u6B64\u64CD\u4F5C\u4E0D\u53EF\u64A4\u9500\u3002",
@@ -425,8 +318,11 @@
     "password.confirmLabel": "\u786E\u8BA4\u5BC6\u7801",
     "password.confirmPlaceholder": "\u8BF7\u518D\u6B21\u8F93\u5165\u5BC6\u7801",
     "password.save": "\u4FDD\u5B58\u5BC6\u7801\u8BBE\u7F6E",
+    "password.saving": "\u4FDD\u5B58\u4E2D\u2026",
     "password.msg.saved": "\u5BC6\u7801\u8BBE\u7F6E\u5DF2\u4FDD\u5B58\uFF01",
     "password.msg.saveFailed": "\u5BC6\u7801\u8BBE\u7F6E\u4FDD\u5B58\u5931\u8D25",
+    "password.msg.saveFailedDetail": "\u5BC6\u7801\u8BBE\u7F6E\u4FDD\u5B58\u5931\u8D25\uFF1A{0}",
+    "password.msg.loadFailed": "\u5BC6\u7801\u8BBE\u7F6E\u52A0\u8F7D\u5931\u8D25\uFF1A{0}",
     "password.msg.mismatch": "\u4E24\u6B21\u8F93\u5165\u7684\u5BC6\u7801\u4E0D\u4E00\u81F4",
     "password.msg.empty": "\u5BC6\u7801\u4E0D\u80FD\u4E3A\u7A7A",
     "password.msg.configFirst": "\u8BF7\u5148\u914D\u7F6EGitee\u4FE1\u606F\uFF08Token\u3001Owner\u3001Repo\u3001\u5206\u652F\u3001\u4E66\u7B7E\u76EE\u5F55\uFF09",
@@ -437,6 +333,7 @@
     "password.lock.desc": "\u4E66\u7B7E\u7BA1\u7406\u5668\u5DF2\u542F\u7528\u5BC6\u7801\u4FDD\u62A4\uFF0C\u8BF7\u8F93\u5165\u5BC6\u7801\u4EE5\u7EE7\u7EED\u8BBF\u95EE\u3002",
     "password.lock.placeholder": "\u8BF7\u8F93\u5165\u5BC6\u7801",
     "password.lock.submit": "\u89E3\u9501",
+    "password.lock.verifying": "\u9A8C\u8BC1\u4E2D\u2026",
     "password.lock.error": "\u5BC6\u7801\u9519\u8BEF\uFF0C\u8BF7\u91CD\u8BD5",
     "password.lock.noConfig": "Gitee\u914D\u7F6E\u4E0D\u5B8C\u6574\uFF0C\u65E0\u6CD5\u9A8C\u8BC1\u5BC6\u7801",
     // === Tab 标签 ===
@@ -543,6 +440,8 @@
     "sync.mergeSave": "Merge Save",
     "sync.overwriteGet": "Overwrite Get",
     "sync.mergeGet": "Merge Get",
+    "sync.saving": "Saving\u2026",
+    "sync.getting": "Getting\u2026",
     // === Shortcut Settings ===
     "shortcut.title": "\u2328\uFE0F Shortcut Settings",
     "shortcut.enableSearch": "Enable global bookmark search",
@@ -560,11 +459,19 @@
     "shortcut.modifier": "Modifier",
     "shortcut.key": "Key",
     "shortcut.keyPlaceholder": "e.g. W",
+    "shortcut.siteAccessHint": "Global search and close-tab shortcuts require site access. You can revoke it anytime in extension settings.",
+    "shortcut.grantSiteAccess": "Grant site access",
+    "shortcut.siteAccessGranted": "Site access enabled. Refresh already-open pages to activate shortcuts.",
+    "shortcut.siteAccessDenied": "Site access was not granted, so global shortcuts are unavailable.",
+    "shortcut.siteAccessFailed": "Failed to request site access: {0}",
     // === Search ===
     "search.placeholder": "Search bookmarks...",
     // === Messages ===
+    "toast.close": "Dismiss notification",
     "msg.configSaved": "Gitee config saved!",
+    "msg.configSaveFailed": "Failed to save Gitee configuration: {0}",
     "msg.shortcutSaved": "Shortcut settings saved!",
+    "msg.shortcutSaveFailed": "Failed to save shortcut settings: {0}",
     "msg.tokenUpdated": "Token auto-updated",
     "msg.uploaded": "Bookmark data uploaded",
     "msg.uploadFailed": "Failed to upload bookmark data",
@@ -572,6 +479,8 @@
     "msg.cannotGetManagerData": "Unable to get bookmark manager data, will overwrite directly with current bookmarks",
     "msg.getManagerDataFailed": "Failed to get bookmark manager data, will overwrite directly with current bookmarks",
     "msg.overwriteSaveSuccess": "Overwrite save successful!",
+    "msg.overwriteSaveSuccessWithHidden": "Overwrite save successful. Remote hidden bookmarks were preserved!",
+    "msg.overwriteSaveCompletedWithWarning": "Overwrite save completed, but remote hidden bookmarks could not be preserved.",
     "msg.overwriteSaveFailed": "Overwrite save failed: {0}",
     "msg.mergeSaveSuccess": "Merge save successful!",
     "msg.mergeSaveFailed": "Merge save failed: {0}",
@@ -674,6 +583,10 @@
     "manager.statFolders": "Folders",
     "manager.statRecent": "Recently Added",
     "manager.loading": "Loading...",
+    "manager.refreshing": "Refreshing\u2026",
+    "manager.refreshFailed": "Refresh failed: {0}",
+    "manager.localBookmarksLoadFailed": "Failed to load local bookmarks: {0}",
+    "manager.localStateSaveFailed": "Failed to save local bookmark state: {0}",
     "manager.selectFolder": "Select Folder",
     "manager.selectFolderHint": "Select a folder",
     "manager.selectFolderDesc": "Select a folder from the left panel to view its bookmarks",
@@ -708,6 +621,11 @@
     "manager.syncConflictInvalidChoice": 'Invalid input. Defaulting to "Merge and update".',
     "manager.configIncomplete": "Please fill in the complete configuration",
     "manager.configSaved": "Configuration saved!",
+    "manager.configSaveFailed": "Failed to save configuration: {0}",
+    "manager.remoteDataInvalid": "Remote bookmark data is invalid. Save was cancelled.",
+    "manager.saveToGiteeFailed": "Failed to save to Gitee",
+    "manager.saveToGiteeFailedDetail": "Failed to save to Gitee: {0}",
+    "manager.browserUpdateFailedDetail": "Failed to update browser bookmarks; recovery was attempted: {0}",
     "manager.sampleFolder": "Sample Folder",
     "manager.scriptExecution": "Script Execution",
     "manager.scriptExecutionResult": "Script execution result: ",
@@ -729,8 +647,10 @@
     "manager.importOverwrite": "Overwrite - Replace current bookmarks with imported data",
     "manager.importMerge": "Merge - Merge imported data with current bookmarks",
     "manager.importConfirm": "Confirm Import",
+    "manager.importing": "Importing\u2026",
     "manager.importSuccess": "Bookmarks imported successfully!",
     "manager.importFailed": "Failed to import bookmarks",
+    "manager.importFailedDetail": "Bookmark import failed; original bookmarks were restored when possible: {0}",
     "manager.importInvalidFormat": "Invalid file format, please select a valid bookmark JSON file",
     "manager.importFileEmpty": "Import file is empty",
     "manager.importSummary": "Bookmark data to import:",
@@ -783,6 +703,8 @@
     "manager.linkCheckFilterWarning": "Warning Only",
     "manager.linkCheckFilterOk": "Available Only",
     "manager.linkCheckTimeout": "Timeout",
+    "manager.linkCheckPermissionDenied": "Site access was not granted, so links cannot be checked.",
+    "manager.linkCheckPermissionFailed": "Failed to request site access: {0}",
     "manager.linkCheckNetError": "Network error",
     "manager.linkCheckConcurrency": "Concurrency",
     "confirm.deleteBrokenLinks": "Are you sure you want to delete the selected {0} broken bookmarks? This cannot be undone.",
@@ -797,8 +719,11 @@
     "password.confirmLabel": "Confirm Password",
     "password.confirmPlaceholder": "Enter password again",
     "password.save": "Save Password Settings",
+    "password.saving": "Saving\u2026",
     "password.msg.saved": "Password settings saved!",
     "password.msg.saveFailed": "Failed to save password settings",
+    "password.msg.saveFailedDetail": "Failed to save password settings: {0}",
+    "password.msg.loadFailed": "Failed to load password settings: {0}",
     "password.msg.mismatch": "Passwords do not match",
     "password.msg.empty": "Password cannot be empty",
     "password.msg.configFirst": "Please configure Gitee info first (Token, Owner, Repo, Branch, Bookmark Dir)",
@@ -809,6 +734,7 @@
     "password.lock.desc": "This bookmark manager is password protected. Please enter the password to continue.",
     "password.lock.placeholder": "Enter password",
     "password.lock.submit": "Unlock",
+    "password.lock.verifying": "Verifying\u2026",
     "password.lock.error": "Incorrect password, please try again",
     "password.lock.noConfig": "Gitee configuration is incomplete, cannot verify password",
     // === Tabs ===
@@ -1031,6 +957,642 @@
     });
   }
 
+  // src/crypto.ts
+  var CRYPTO_KEY_NAME = "_bm_encryption_key";
+  var CRYPTO_MASTER_PASSPHRASE_NAME = "_bm_encryption_master_passphrase";
+  var CRYPTO_MASTER_KEY_NAME = "_bm_encryption_master_key";
+  var MASTER_KEY_SALT = "bookmarks-manage-master-key-v1";
+  var PBKDF2_ITERATIONS = 25e4;
+  var cachedKeyContext = null;
+  function storageGet(keys) {
+    return new Promise((resolve, reject) => {
+      chrome.storage.local.get(keys, (result) => {
+        if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+        else resolve(result || {});
+      });
+    });
+  }
+  function storageSet(values) {
+    return new Promise((resolve, reject) => {
+      chrome.storage.local.set(values, () => {
+        if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+        else resolve();
+      });
+    });
+  }
+  function storageRemove(keys) {
+    return new Promise((resolve, reject) => {
+      chrome.storage.local.remove(keys, () => {
+        if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+        else resolve();
+      });
+    });
+  }
+  async function deriveKeyFromPassphrase(passphrase) {
+    const encoder = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(passphrase),
+      { name: "PBKDF2" },
+      false,
+      ["deriveKey"]
+    );
+    return crypto.subtle.deriveKey(
+      {
+        name: "PBKDF2",
+        salt: encoder.encode(MASTER_KEY_SALT),
+        iterations: PBKDF2_ITERATIONS,
+        hash: "SHA-256"
+      },
+      keyMaterial,
+      { name: "AES-GCM", length: 256 },
+      true,
+      ["encrypt", "decrypt"]
+    );
+  }
+  async function getLegacyKey(generateIfMissing) {
+    const result = await storageGet([CRYPTO_KEY_NAME]);
+    const existing = result[CRYPTO_KEY_NAME];
+    if (existing) {
+      return crypto.subtle.importKey(
+        "jwk",
+        existing,
+        { name: "AES-GCM" },
+        true,
+        ["encrypt", "decrypt"]
+      );
+    }
+    if (!generateIfMissing) {
+      throw new Error("LEGACY_KEY_NOT_FOUND");
+    }
+    const key = await crypto.subtle.generateKey(
+      { name: "AES-GCM", length: 256 },
+      true,
+      ["encrypt", "decrypt"]
+    );
+    const jwk = await crypto.subtle.exportKey("jwk", key);
+    await storageSet({ [CRYPTO_KEY_NAME]: jwk });
+    return key;
+  }
+  async function getKeyContext() {
+    if (cachedKeyContext) return cachedKeyContext;
+    const result = await storageGet([CRYPTO_MASTER_KEY_NAME, CRYPTO_MASTER_PASSPHRASE_NAME]);
+    const storedMasterKey = result[CRYPTO_MASTER_KEY_NAME];
+    if (storedMasterKey) {
+      const key2 = await crypto.subtle.importKey("jwk", storedMasterKey, { name: "AES-GCM" }, true, ["encrypt", "decrypt"]);
+      cachedKeyContext = { key: key2, mode: "master" };
+      return cachedKeyContext;
+    }
+    const passphrase = result[CRYPTO_MASTER_PASSPHRASE_NAME];
+    if (passphrase && typeof passphrase === "string") {
+      const key2 = await deriveKeyFromPassphrase(passphrase);
+      const jwk = await crypto.subtle.exportKey("jwk", key2);
+      await storageSet({ [CRYPTO_MASTER_KEY_NAME]: jwk });
+      await storageRemove([CRYPTO_MASTER_PASSPHRASE_NAME]);
+      cachedKeyContext = { key: key2, mode: "master" };
+      return cachedKeyContext;
+    }
+    const key = await getLegacyKey(true);
+    cachedKeyContext = { key, mode: "legacy" };
+    return cachedKeyContext;
+  }
+  async function decryptWithKey(encryptedBase64, key) {
+    const binaryStr = atob(encryptedBase64);
+    const combined = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) {
+      combined[i] = binaryStr.charCodeAt(i);
+    }
+    const iv = combined.slice(0, 12);
+    const ciphertext = combined.slice(12);
+    const decrypted = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv },
+      key,
+      ciphertext
+    );
+    return new TextDecoder().decode(decrypted);
+  }
+  async function encrypt(plaintext) {
+    if (!plaintext) return plaintext;
+    const { key } = await getKeyContext();
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encoded = new TextEncoder().encode(plaintext);
+    const ciphertext = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      key,
+      encoded
+    );
+    const ciphertextArray = new Uint8Array(ciphertext);
+    const combined = new Uint8Array(iv.length + ciphertextArray.length);
+    combined.set(iv);
+    combined.set(ciphertextArray, iv.length);
+    let binary = "";
+    for (const byte of combined) {
+      binary += String.fromCharCode(byte);
+    }
+    return btoa(binary);
+  }
+  async function decrypt(encryptedBase64) {
+    if (!encryptedBase64) return encryptedBase64;
+    const { key } = await getKeyContext();
+    return decryptWithKey(encryptedBase64, key);
+  }
+  async function decryptSafe(value) {
+    if (!value) return value;
+    try {
+      return await decrypt(value);
+    } catch {
+      try {
+        const { mode } = await getKeyContext();
+        if (mode === "master") {
+          const legacyKey = await getLegacyKey(false);
+          return await decryptWithKey(value, legacyKey);
+        }
+      } catch {
+      }
+      return value;
+    }
+  }
+
+  // src/config-repository.ts
+  var DB_NAME = "bookmarks-plus";
+  var STORE_NAME = "gitee-config";
+  function openConfigDB() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(DB_NAME, 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error("Failed to open config database"));
+    });
+  }
+  async function getRawConfig(fields) {
+    if (fields.length === 0) return {};
+    const db = await openConfigDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, "readonly");
+      const store = transaction.objectStore(STORE_NAME);
+      const result = {};
+      let remaining = fields.length;
+      fields.forEach((field) => {
+        const request = store.get(field);
+        request.onsuccess = () => {
+          result[field] = request.result || "";
+          remaining -= 1;
+          if (remaining === 0) resolve(result);
+        };
+        request.onerror = () => reject(request.error || new Error(`Failed to read config field: ${field}`));
+      });
+      transaction.onabort = () => reject(transaction.error || new Error("Config read transaction aborted"));
+    });
+  }
+  async function getConfig(fields) {
+    const rawConfig = await getRawConfig(fields);
+    const config = {};
+    for (const field of fields) config[field] = await decryptSafe(rawConfig[field] || "");
+    return config;
+  }
+  async function setConfig(config) {
+    const encryptedConfig = {};
+    for (const [field, value] of Object.entries(config)) {
+      encryptedConfig[field] = value ? await encrypt(value) : value;
+    }
+    const db = await openConfigDB();
+    const transaction = db.transaction(STORE_NAME, "readwrite");
+    const store = transaction.objectStore(STORE_NAME);
+    Object.entries(encryptedConfig).forEach(([field, value]) => store.put(value, field));
+    return new Promise((resolve, reject) => {
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error || new Error("Config write transaction failed"));
+      transaction.onabort = () => reject(transaction.error || new Error("Config write transaction aborted"));
+    });
+  }
+
+  // src/bookmark-service.ts
+  var RESTORE_POINT_KEY = "bookmark_replace_restore_point";
+  var MAX_BOOKMARK_NODES = 5e4;
+  var MAX_BOOKMARK_DEPTH = 64;
+  function chromeError(fallback) {
+    return new Error(chrome?.runtime?.lastError?.message || fallback);
+  }
+  function prepareBookmarkNodes(nodes, depth = 0, counter = { value: 0 }) {
+    if (!Array.isArray(nodes)) throw new Error("Bookmark data must be an array");
+    if (depth > MAX_BOOKMARK_DEPTH) throw new Error(`Bookmark tree exceeds ${MAX_BOOKMARK_DEPTH} levels`);
+    return nodes.map((node, index) => {
+      if (!node || typeof node !== "object") throw new Error(`Invalid bookmark at index ${index}`);
+      counter.value += 1;
+      if (counter.value > MAX_BOOKMARK_NODES) throw new Error(`Bookmark data exceeds ${MAX_BOOKMARK_NODES} items`);
+      const item = node;
+      if (typeof item.title !== "string") throw new Error(`Bookmark title at index ${index} must be a string`);
+      if (item.title.length > 1e4) throw new Error(`Bookmark title at index ${index} is too long`);
+      if (item.url !== void 0) {
+        if (typeof item.url !== "string" || item.url.length === 0) throw new Error(`Bookmark URL at index ${index} is invalid`);
+        if (item.url.length > 1e5) throw new Error(`Bookmark URL at index ${index} is too long`);
+        return { title: item.title, url: item.url };
+      }
+      return {
+        title: item.title,
+        children: prepareBookmarkNodes(item.children || [], depth + 1, counter)
+      };
+    });
+  }
+  function getChromeBookmarksTree() {
+    return new Promise((resolve, reject) => {
+      chrome.bookmarks.getTree((tree) => {
+        if (chrome.runtime.lastError) reject(chromeError("Failed to read local bookmarks"));
+        else resolve(tree || []);
+      });
+    });
+  }
+  function removeTree(id) {
+    return new Promise((resolve, reject) => {
+      chrome.bookmarks.removeTree(id, () => {
+        if (chrome.runtime.lastError) reject(chromeError("Failed to remove bookmark tree"));
+        else resolve();
+      });
+    });
+  }
+  function createBookmark(node, parentId) {
+    return new Promise((resolve, reject) => {
+      const details = node.url ? { parentId, title: node.title, url: node.url } : { parentId, title: node.title };
+      chrome.bookmarks.create(details, (created) => {
+        if (chrome.runtime.lastError || !created?.id) reject(chromeError("Failed to create bookmark"));
+        else resolve(created);
+      });
+    });
+  }
+  async function createBookmarkNodes(nodes, parentId) {
+    for (const node of nodes) {
+      const created = await createBookmark(node, parentId);
+      if (!node.url && node.children?.length) await createBookmarkNodes(node.children, created.id);
+    }
+  }
+  async function clearBookmarkBar(bookmarkBar) {
+    const children = Array.isArray(bookmarkBar?.children) ? bookmarkBar.children : [];
+    for (const child of children) await removeTree(child.id);
+  }
+  function saveRestorePoint(nodes) {
+    return new Promise((resolve, reject) => {
+      chrome.storage.local.set({
+        [RESTORE_POINT_KEY]: { createdAt: Date.now(), nodes }
+      }, () => {
+        if (chrome.runtime.lastError) reject(chromeError("Failed to save bookmark restore point"));
+        else resolve();
+      });
+    });
+  }
+  function findBookmarkBar(tree) {
+    const rootChildren = tree?.[0]?.children || [];
+    return rootChildren.find((item) => item.id === "1") || rootChildren[0];
+  }
+  async function replaceBookmarkBarSafely(nodes) {
+    const prepared = prepareBookmarkNodes(nodes);
+    const tree = await getChromeBookmarksTree();
+    const bookmarkBar = findBookmarkBar(tree);
+    if (!bookmarkBar?.id) throw new Error("Bookmark bar was not found");
+    const backup = prepareBookmarkNodes(bookmarkBar.children || []);
+    try {
+      await saveRestorePoint(backup);
+    } catch (error) {
+      console.warn("Could not persist bookmark restore point; in-memory rollback remains available.", error);
+    }
+    try {
+      await clearBookmarkBar(bookmarkBar);
+      await createBookmarkNodes(prepared, bookmarkBar.id);
+    } catch (replaceError) {
+      try {
+        const currentTree = await getChromeBookmarksTree();
+        const currentBar = findBookmarkBar(currentTree);
+        if (currentBar?.id) {
+          await clearBookmarkBar(currentBar);
+          await createBookmarkNodes(backup, currentBar.id);
+        }
+      } catch (rollbackError) {
+        throw new Error(`Bookmark replacement failed (${String(replaceError)}) and rollback failed: ${String(rollbackError)}`);
+      }
+      throw replaceError;
+    }
+  }
+
+  // src/http.ts
+  var DEFAULT_REQUEST_TIMEOUT_MS = 15e3;
+  var HttpError = class extends Error {
+    status;
+    constructor(message, status) {
+      super(message);
+      this.name = "HttpError";
+      this.status = status;
+    }
+  };
+  function getErrorMessage(error) {
+    if (error instanceof Error && error.message) return error.message;
+    if (typeof error === "string" && error) return error;
+    return "Unknown error";
+  }
+  async function readErrorDetail(response) {
+    try {
+      const body = await response.clone().json();
+      return body?.message || body?.error_description || body?.error || "";
+    } catch {
+      try {
+        return (await response.clone().text()).trim();
+      } catch {
+        return "";
+      }
+    }
+  }
+  async function assertResponseOk(response, fallbackMessage) {
+    if (response.ok) return;
+    const detail = await readErrorDetail(response);
+    const status = `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ""}`;
+    throw new HttpError(detail ? `${status}: ${detail}` : `${fallbackMessage} (${status})`, response.status);
+  }
+  async function fetchWithTimeout(input, init = {}, timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS) {
+    const controller = new AbortController();
+    const externalSignal = init.signal;
+    const abortFromExternal = () => controller.abort(externalSignal?.reason);
+    if (externalSignal) {
+      if (externalSignal.aborted) abortFromExternal();
+      else externalSignal.addEventListener("abort", abortFromExternal, { once: true });
+    }
+    const timer = window.setTimeout(() => controller.abort(new Error("Request timed out")), timeoutMs);
+    try {
+      return await fetch(input, { ...init, signal: controller.signal });
+    } catch (error) {
+      if (controller.signal.aborted && !externalSignal?.aborted) {
+        throw new Error(`Request timed out after ${timeoutMs}ms`);
+      }
+      throw error;
+    } finally {
+      window.clearTimeout(timer);
+      externalSignal?.removeEventListener("abort", abortFromExternal);
+    }
+  }
+  async function fetchJson(input, init = {}, options = {}) {
+    const response = await fetchWithTimeout(input, init, options.timeoutMs);
+    await assertResponseOk(response, options.fallbackMessage || "Request failed");
+    return response.json();
+  }
+
+  // src/sanitize.ts
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+  function escapeRegExp(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+  function safeExternalUrl(value) {
+    const raw = String(value ?? "");
+    try {
+      const url = new URL(raw);
+      const allowedProtocols = ["http:", "https:", "ftp:", "file:", "chrome:", "edge:", "about:", "mailto:", "tel:"];
+      return allowedProtocols.includes(url.protocol) ? raw : "";
+    } catch {
+      return "";
+    }
+  }
+
+  // src/toast.ts
+  var toastTimer;
+  var toastRemainingMs = 0;
+  var toastTimerStartedAt = 0;
+  function createToastElement() {
+    const style = document.createElement("style");
+    style.id = "appToastStyles";
+    style.textContent = `
+    .toast{position:fixed;top:18px;left:50%;z-index:20000;display:flex;align-items:center;gap:.55em;width:max-content;max-width:calc(100vw - 32px);padding:.65em .7em .65em .9em;border:1px solid rgba(255,255,255,.24);border-radius:8px;box-sizing:border-box;color:#fff;font:500 14px/1.4 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;text-align:left;overflow-wrap:anywhere;box-shadow:0 8px 24px rgba(0,0,0,.24);opacity:0;visibility:hidden;pointer-events:none;transform:translate(-50%,-10px) scale(.98);transition:opacity .18s ease,transform .18s ease,visibility .18s ease}
+    .toast-icon{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:1.25em;height:1.25em;border-radius:50%;background:rgba(255,255,255,.2);font-weight:700}
+    .toast-message{min-width:0}.toast-success{background:#16805a}.toast-error{background:#c43d3d}.toast-warning{background:#a45b0a}.toast-info{background:#1769aa}
+    .toast-close{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:1.5em;height:1.5em;padding:0;border:0;border-radius:4px;background:transparent;color:inherit;font:inherit;font-size:1.1em;line-height:1;cursor:pointer;opacity:.72}
+    .toast-close:hover,.toast-close:focus-visible{background:rgba(255,255,255,.16);opacity:1;outline:none}.toast-visible{opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,0) scale(1)}
+    @media(prefers-reduced-motion:reduce){.toast{transition:none}}
+  `;
+    document.head.appendChild(style);
+    const toast = document.createElement("div");
+    toast.id = "toast";
+    toast.className = "toast";
+    toast.setAttribute("role", "status");
+    toast.setAttribute("aria-live", "polite");
+    toast.setAttribute("aria-atomic", "true");
+    const icon = document.createElement("span");
+    icon.id = "toastIcon";
+    icon.className = "toast-icon";
+    icon.setAttribute("aria-hidden", "true");
+    const message = document.createElement("span");
+    message.id = "toastMessage";
+    message.className = "toast-message";
+    const closeButton = document.createElement("button");
+    closeButton.id = "toastClose";
+    closeButton.className = "toast-close";
+    closeButton.type = "button";
+    closeButton.textContent = "\xD7";
+    toast.append(icon, message, closeButton);
+    document.body.appendChild(toast);
+    return toast;
+  }
+  function getToast() {
+    return document.getElementById("toast") || createToastElement();
+  }
+  function clearToastTimer() {
+    if (toastTimer !== void 0) {
+      window.clearTimeout(toastTimer);
+      toastTimer = void 0;
+    }
+  }
+  function hideToast() {
+    clearToastTimer();
+    toastRemainingMs = 0;
+    document.getElementById("toast")?.classList.remove("toast-visible");
+  }
+  function startToastTimer(duration) {
+    clearToastTimer();
+    toastRemainingMs = duration;
+    toastTimerStartedAt = Date.now();
+    toastTimer = window.setTimeout(hideToast, duration);
+  }
+  function pauseToastTimer() {
+    if (toastTimer === void 0) return;
+    toastRemainingMs = Math.max(0, toastRemainingMs - (Date.now() - toastTimerStartedAt));
+    clearToastTimer();
+  }
+  function resumeToastTimer() {
+    const toast = document.getElementById("toast");
+    if (!toast?.classList.contains("toast-visible") || toastTimer !== void 0 || toastRemainingMs <= 0) return;
+    startToastTimer(toastRemainingMs);
+  }
+  function showToast(text, type = "success") {
+    if (!text) return;
+    const toast = getToast();
+    const message = toast.querySelector(".toast-message");
+    const icon = toast.querySelector(".toast-icon");
+    const closeButton = toast.querySelector(".toast-close");
+    clearToastTimer();
+    toast.classList.remove("toast-visible", "toast-success", "toast-error", "toast-warning", "toast-info");
+    toast.classList.add(`toast-${type}`);
+    toast.setAttribute("role", type === "error" ? "alert" : "status");
+    toast.setAttribute("aria-live", type === "error" ? "assertive" : "polite");
+    message.textContent = text;
+    icon.textContent = type === "success" ? "\u2713" : type === "info" ? "i" : "!";
+    closeButton.setAttribute("aria-label", t("toast.close"));
+    closeButton.title = t("toast.close");
+    closeButton.onclick = hideToast;
+    toast.onmouseenter = pauseToastTimer;
+    toast.onmouseleave = resumeToastTimer;
+    void toast.offsetWidth;
+    toast.classList.add("toast-visible");
+    const minimumDuration = {
+      success: 2600,
+      info: 3200,
+      warning: 4600,
+      error: 5600
+    };
+    const readingDuration = Math.min(9e3, 1400 + Array.from(text).length * 70);
+    startToastTimer(Math.max(minimumDuration[type], readingDuration));
+  }
+
+  // src/password-service.ts
+  var PASSWORD_FILE_NAME = "\u5BC6\u7801.json";
+  var PASSWORD_POLICY_STORAGE_KEY = "password_protection_policy_v2";
+  var PASSWORD_ITERATIONS = 6e5;
+  function bytesToBase64(bytes) {
+    let binary = "";
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary);
+  }
+  function base64ToBytes(value) {
+    const binary = atob(value);
+    return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  }
+  async function deriveVerifier(password, salt, iterations) {
+    const material = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(password),
+      { name: "PBKDF2" },
+      false,
+      ["deriveBits"]
+    );
+    const bits = await crypto.subtle.deriveBits(
+      { name: "PBKDF2", hash: "SHA-256", salt, iterations },
+      material,
+      256
+    );
+    return new Uint8Array(bits);
+  }
+  async function createPasswordPolicy(password, enabled = true) {
+    if (!enabled) {
+      return { version: 2, enabled: false, algorithm: "PBKDF2-SHA256", iterations: PASSWORD_ITERATIONS, salt: "", verifier: "" };
+    }
+    if (!password) throw new Error("Password cannot be empty");
+    if (password.length > 1024) throw new Error("Password is too long");
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const verifier = await deriveVerifier(password, salt, PASSWORD_ITERATIONS);
+    return {
+      version: 2,
+      enabled: true,
+      algorithm: "PBKDF2-SHA256",
+      iterations: PASSWORD_ITERATIONS,
+      salt: bytesToBase64(salt),
+      verifier: bytesToBase64(verifier)
+    };
+  }
+  async function verifyPassword(password, policy) {
+    if (!policy.enabled || !password || password.length > 1024 || !policy.salt || !policy.verifier) return false;
+    const actual = await deriveVerifier(password, base64ToBytes(policy.salt), policy.iterations);
+    const expected = base64ToBytes(policy.verifier);
+    if (actual.length !== expected.length) return false;
+    let difference = 0;
+    for (let index = 0; index < actual.length; index += 1) difference |= actual[index] ^ expected[index];
+    return difference === 0;
+  }
+  function isPasswordPolicy(value) {
+    return value?.version === 2 && typeof value.enabled === "boolean" && value.algorithm === "PBKDF2-SHA256" && Number.isInteger(value.iterations) && typeof value.salt === "string" && typeof value.verifier === "string";
+  }
+  async function normalizePasswordPolicy(value) {
+    if (isPasswordPolicy(value)) return value;
+    if (value?.enabled && typeof value.password === "string" && value.password) {
+      return createPasswordPolicy(value.password);
+    }
+    return createPasswordPolicy("", false);
+  }
+  function storageGet2(key) {
+    return new Promise((resolve, reject) => {
+      chrome.storage.local.get([key], (result) => {
+        if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+        else resolve(result?.[key]);
+      });
+    });
+  }
+  function storageSet2(key, value) {
+    return new Promise((resolve, reject) => {
+      chrome.storage.local.set({ [key]: value }, () => {
+        if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+        else resolve();
+      });
+    });
+  }
+  async function getLocalPasswordPolicy() {
+    const value = await storageGet2(PASSWORD_POLICY_STORAGE_KEY);
+    return isPasswordPolicy(value) ? value : null;
+  }
+  function setLocalPasswordPolicy(policy) {
+    return storageSet2(PASSWORD_POLICY_STORAGE_KEY, policy);
+  }
+  function passwordFileUrl(location) {
+    const path = `${location.bookmarkDir ? `${location.bookmarkDir}/` : ""}${PASSWORD_FILE_NAME}`;
+    const encodedPath = path.split("/").map(encodeURIComponent).join("/");
+    return `https://gitee.com/api/v5/repos/${encodeURIComponent(location.owner)}/${encodeURIComponent(location.repo)}/contents/${encodedPath}`;
+  }
+  function encodePolicy(policy) {
+    return bytesToBase64(new TextEncoder().encode(JSON.stringify(policy, null, 2)));
+  }
+  async function decodeRemotePolicy(content) {
+    const decoded = new TextDecoder().decode(base64ToBytes(content));
+    const rawPolicy = JSON.parse(decoded);
+    return {
+      policy: await normalizePasswordPolicy(rawPolicy),
+      legacy: !isPasswordPolicy(rawPolicy)
+    };
+  }
+  async function fetchRemotePasswordPolicy(location) {
+    const response = await fetchWithTimeout(`${passwordFileUrl(location)}?ref=${encodeURIComponent(location.branch)}`, {
+      headers: { Authorization: `token ${location.token}` }
+    }, 5e3);
+    if (response.status === 404) return null;
+    await assertResponseOk(response, "Failed to load password policy");
+    const file = await response.json();
+    const { policy, legacy } = await decodeRemotePolicy(file.content || "");
+    await setLocalPasswordPolicy(policy);
+    if (legacy && file.sha) {
+      const migrationResponse = await fetchWithTimeout(passwordFileUrl(location), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `token ${location.token}` },
+        body: JSON.stringify({
+          access_token: location.token,
+          content: encodePolicy(policy),
+          message: "\u8FC1\u79FB\u5BC6\u7801\u914D\u7F6E\u4E3A\u5B89\u5168\u6821\u9A8C\u683C\u5F0F",
+          branch: location.branch,
+          sha: file.sha
+        })
+      });
+      await assertResponseOk(migrationResponse, "Failed to migrate password policy");
+    }
+    return policy;
+  }
+  async function resolvePasswordPolicy(location) {
+    const localPolicy = await getLocalPasswordPolicy();
+    if (!location?.token || !location.owner || !location.repo || !location.branch) return localPolicy;
+    try {
+      const remotePolicy = await fetchRemotePasswordPolicy(location);
+      const resolved = remotePolicy || await createPasswordPolicy("", false);
+      await setLocalPasswordPolicy(resolved);
+      return resolved;
+    } catch (error) {
+      if (localPolicy) return localPolicy;
+      throw error;
+    }
+  }
+
   // src/bookmark-manager.js
   var t2 = (key, ...args) => t(key, ...args);
   var BookmarkManager = class {
@@ -1059,7 +1621,9 @@
         branch: "master",
         filePath: "hidden-bookmarks.json"
       };
-      this.init();
+      void this.init().catch((error) => {
+        showToast(t2("manager.localBookmarksLoadFailed", getErrorMessage(error)), "error");
+      });
     }
     async init() {
       await this.loadConfigFromIndexedDB();
@@ -1096,7 +1660,7 @@
         this.bookmarks = resolvedBookmarks;
         this.saveBookmarksToStorage();
       } catch (error) {
-        this.bookmarks = [];
+        throw error;
       }
     }
     isGiteeConfigured() {
@@ -1138,7 +1702,7 @@
       if (["1", "local", "l"].includes(value)) return "local";
       if (["2", "remote", "r"].includes(value)) return "remote";
       if (["3", "merge", "m"].includes(value)) return "merge";
-      alert(t2("manager.syncConflictInvalidChoice"));
+      showToast(t2("manager.syncConflictInvalidChoice"), "warning");
       return "merge";
     }
     async resolveInitialSyncConflict(localBookmarks, remoteBookmarks) {
@@ -1266,6 +1830,9 @@
     saveBookmarksToStorage() {
       if (typeof chrome !== "undefined" && chrome.storage) {
         chrome.storage.local.set({ "bookmarkManagerData": this.bookmarks }, () => {
+          if (chrome.runtime.lastError) {
+            showToast(t2("manager.localStateSaveFailed", chrome.runtime.lastError.message), "error");
+          }
         });
       }
     }
@@ -1276,12 +1843,21 @@
       document.getElementById("filterSelect").addEventListener("change", (e) => {
         this.applyFilter(e.target.value);
       });
-      document.getElementById("refreshBtn").addEventListener("click", () => {
-        this.loadBookmarks().then(() => {
+      document.getElementById("refreshBtn").addEventListener("click", async (event) => {
+        const button = event.currentTarget;
+        button.disabled = true;
+        button.textContent = t2("manager.refreshing");
+        try {
+          await this.loadBookmarks();
           this.renderFolderTree();
           this.renderBookmarks();
           this.updateStats();
-        });
+        } catch (error) {
+          showToast(t2("manager.refreshFailed", getErrorMessage(error)), "error");
+        } finally {
+          button.disabled = false;
+          button.textContent = button.dataset.i18n ? t2(button.dataset.i18n) : t2("btn.refresh");
+        }
       });
       document.getElementById("exportBtn").addEventListener("click", () => {
         this.exportBookmarks();
@@ -1727,14 +2303,14 @@
               }).then(() => {
                 chrome.tabs.update(targetTab.id, { active: true });
               }).catch((error) => {
-                alert(t2("manager.scriptExecutionFailed") + error.message);
+                showToast(t2("manager.scriptExecutionFailed") + error.message, "error");
               });
             } else {
-              alert(t2("manager.noWebPageTab") || "\u8BF7\u5148\u6253\u5F00\u4E00\u4E2A\u7F51\u9875\u6807\u7B7E\u9875\uFF0C\u518D\u6267\u884C\u811A\u672C\u4E66\u7B7E");
+              showToast(t2("manager.noWebPageTab") || "\u8BF7\u5148\u6253\u5F00\u4E00\u4E2A\u7F51\u9875\u6807\u7B7E\u9875\uFF0C\u518D\u6267\u884C\u811A\u672C\u4E66\u7B7E", "warning");
             }
           });
         } catch (error) {
-          alert(t2("manager.scriptExecutionFailed") + error.message);
+          showToast(t2("manager.scriptExecutionFailed") + error.message, "error");
         }
       } else if (scriptUrl.startsWith("data:")) {
         window.open(scriptUrl, "_blank");
@@ -1748,10 +2324,10 @@
         const hiddenClass = isHidden ? " hidden-folder" : "";
         const hasChildren = folder.children && folder.children.length > 0;
         html += `
-        <div class="folder-item${hiddenClass}" data-folder-id="${folder.id}" style="padding-left: ${16 + level * 16}px;">
+        <div class="folder-item${hiddenClass}" data-folder-id="${this.escapeHtml(folder.id)}" style="padding-left: ${16 + level * 16}px;">
           ${hasChildren ? '<div class="folder-toggle">\u25BC</div>' : '<div class="folder-toggle" style="visibility: hidden;">\u25BC</div>'}
           <div class="folder-icon">\u{1F4C1}</div>
-          <div class="folder-name">${folder.title} ${hiddenIcon}</div>
+          <div class="folder-name">${this.escapeHtml(folder.title)} ${hiddenIcon}</div>
         </div>
         ${hasChildren ? `
           <div class="folder-children" style="display: block;">
@@ -1928,7 +2504,7 @@
         this.bookmarkTree.innerHTML = `
         <div class="empty-state">
           <h3>${t2("manager.noSearchResults")}</h3>
-          <p>${t2("manager.searchNoResult", searchTerm)}</p>
+          <p>${this.escapeHtml(t2("manager.searchNoResult", searchTerm))}</p>
         </div>
       `;
         document.querySelectorAll(".folder-item").forEach((item) => {
@@ -1960,19 +2536,20 @@
           } else {
             faviconUrl = this.getFaviconUrl(bookmark.url);
             displayUrl = bookmark.url;
-            clickHandler = `href="${bookmark.url}" target="_blank"`;
+            const safeUrl = safeExternalUrl(bookmark.url);
+            clickHandler = safeUrl ? `href="${this.escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer"` : 'href="#" aria-disabled="true"';
           }
           html += `
-          <div class="bookmark-item${hiddenClass}" data-bookmark-id="${bookmark.id}" draggable="true">
+          <div class="bookmark-item${hiddenClass}" data-bookmark-id="${this.escapeHtml(bookmark.id)}" draggable="true">
             <div class="drag-handle">\u22EE\u22EE</div>
             <img class="bookmark-icon" src="${faviconUrl}" alt="${t2("manager.statBookmarks")}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIgMkgxNFYxNEgyVjJaIiBzdHJva2U9IiM2NjYiIHN0cm9rZS13aWR0aD0iMS41IiBmaWxsPSJub25lIi8+CjxwYXRoIGQ9Ik0yIDZIMTRWNkg2VjJaIiBmaWxsPSIjNjY2Ii8+Cjwvc3ZnPgo='">
             <div class="bookmark-content">
               <a ${clickHandler} class="bookmark-title">${this.highlightSearchTerm(bookmark.title, searchTerm)} ${hiddenIcon}</a>
-              <div class="bookmark-url">${displayUrl}</div>
+              <div class="bookmark-url">${this.escapeHtml(displayUrl)}</div>
               <div class="bookmark-actions">
-                <button class="action-btn action-btn-edit" data-bookmark-id="${bookmark.id}">${t2("btn.edit")}</button>
-                <button class="action-btn action-btn-hide" data-bookmark-id="${bookmark.id}">${isHidden ? t2("btn.show") : t2("btn.hide")}</button>
-                <button class="action-btn action-btn-delete" data-bookmark-id="${bookmark.id}">${t2("btn.delete")}</button>
+                <button class="action-btn action-btn-edit" data-bookmark-id="${this.escapeHtml(bookmark.id)}">${t2("btn.edit")}</button>
+                <button class="action-btn action-btn-hide" data-bookmark-id="${this.escapeHtml(bookmark.id)}">${isHidden ? t2("btn.show") : t2("btn.hide")}</button>
+                <button class="action-btn action-btn-delete" data-bookmark-id="${this.escapeHtml(bookmark.id)}">${t2("btn.delete")}</button>
               </div>
             </div>
           </div>
@@ -1984,9 +2561,10 @@
       return html;
     }
     highlightSearchTerm(text, searchTerm) {
-      if (!searchTerm) return text;
-      const regex = new RegExp(`(${searchTerm})`, "gi");
-      return text.replace(regex, "<mark>$1</mark>");
+      const escapedText = this.escapeHtml(text);
+      if (!searchTerm) return escapedText;
+      const regex = new RegExp(`(${escapeRegExp(this.escapeHtml(searchTerm))})`, "gi");
+      return escapedText.replace(regex, "<mark>$1</mark>");
     }
     renderSearchResultsInFolder(folder, searchTerm) {
       const searchResults = this.searchInBookmarks(folder.children || [], searchTerm.toLowerCase());
@@ -1994,7 +2572,7 @@
         this.bookmarkTree.innerHTML = `
         <div class="empty-state">
           <h3>${t2("manager.noMatchInFolder")}</h3>
-          <p>${t2("manager.noSearchResultInFolder", folder.title, searchTerm)}</p>
+          <p>${this.escapeHtml(t2("manager.noSearchResultInFolder", folder.title, searchTerm))}</p>
         </div>
       `;
         this.panelTitle.textContent = `${folder.title} - ${t2("manager.searchResults")} (0 ${t2("manager.items")})`;
@@ -2020,19 +2598,20 @@
           } else {
             faviconUrl = this.getFaviconUrl(bookmark.url);
             displayUrl = bookmark.url;
-            clickHandler = `href="${bookmark.url}" target="_blank"`;
+            const safeUrl = safeExternalUrl(bookmark.url);
+            clickHandler = safeUrl ? `href="${this.escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer"` : 'href="#" aria-disabled="true"';
           }
           html += `
-          <div class="bookmark-item${hiddenClass}" data-bookmark-id="${bookmark.id}" draggable="true">
+          <div class="bookmark-item${hiddenClass}" data-bookmark-id="${this.escapeHtml(bookmark.id)}" draggable="true">
             <div class="drag-handle">\u22EE\u22EE</div>
             <img class="bookmark-icon" src="${faviconUrl}" alt="${t2("manager.statBookmarks")}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIgMkgxNFYxNEgyVjJaIiBzdHJva2U9IiM2NjYiIHN0cm9rZS13aWR0aD0iMS41IiBmaWxsPSJub25lIi8+CjxwYXRoIGQ9Ik0yIDZIMTRWNkg2VjJaIiBmaWxsPSIjNjY2Ii8+Cjwvc3ZnPgo='">
             <div class="bookmark-content">
-              <a ${clickHandler} class="bookmark-title">${bookmark.title} ${hiddenIcon}</a>
-              <div class="bookmark-url">${displayUrl}</div>
+              <a ${clickHandler} class="bookmark-title">${this.escapeHtml(bookmark.title)} ${hiddenIcon}</a>
+              <div class="bookmark-url">${this.escapeHtml(displayUrl)}</div>
               <div class="bookmark-actions">
-                <button class="action-btn action-btn-edit" data-bookmark-id="${bookmark.id}">${t2("btn.edit")}</button>
-                <button class="action-btn action-btn-hide" data-bookmark-id="${bookmark.id}">${isHidden ? t2("btn.show") : t2("btn.hide")}</button>
-                <button class="action-btn action-btn-delete" data-bookmark-id="${bookmark.id}">${t2("btn.delete")}</button>
+                <button class="action-btn action-btn-edit" data-bookmark-id="${this.escapeHtml(bookmark.id)}">${t2("btn.edit")}</button>
+                <button class="action-btn action-btn-hide" data-bookmark-id="${this.escapeHtml(bookmark.id)}">${isHidden ? t2("btn.show") : t2("btn.hide")}</button>
+                <button class="action-btn action-btn-delete" data-bookmark-id="${this.escapeHtml(bookmark.id)}">${t2("btn.delete")}</button>
               </div>
             </div>
           </div>
@@ -2041,16 +2620,16 @@
           const hiddenClass = isHidden ? " hidden-bookmark" : "";
           const hiddenIcon = isHidden ? "\u{1F441}\uFE0F\u200D\u{1F5E8}\uFE0F" : "";
           html += `
-          <div class="bookmark-item folder-item${hiddenClass}" data-folder-id="${bookmark.id}" data-bookmark-id="${bookmark.id}" draggable="true">
+          <div class="bookmark-item folder-item${hiddenClass}" data-folder-id="${this.escapeHtml(bookmark.id)}" data-bookmark-id="${this.escapeHtml(bookmark.id)}" draggable="true">
             <div class="drag-handle">\u22EE\u22EE</div>
             <div class="folder-icon">\u{1F4C1}</div>
             <div class="bookmark-content">
-              <div class="bookmark-title">${bookmark.title} ${hiddenIcon}</div>
+              <div class="bookmark-title">${this.escapeHtml(bookmark.title)} ${hiddenIcon}</div>
               <div class="bookmark-url">${t2("manager.folderItems", String(bookmark.children.length))}</div>
               <div class="bookmark-actions">
-                <button class="action-btn action-btn-edit" data-bookmark-id="${bookmark.id}">${t2("btn.edit")}</button>
-                <button class="action-btn action-btn-hide" data-bookmark-id="${bookmark.id}">${isHidden ? t2("btn.show") : t2("btn.hide")}</button>
-                <button class="action-btn action-btn-delete" data-bookmark-id="${bookmark.id}">${t2("btn.delete")}</button>
+                <button class="action-btn action-btn-edit" data-bookmark-id="${this.escapeHtml(bookmark.id)}">${t2("btn.edit")}</button>
+                <button class="action-btn action-btn-hide" data-bookmark-id="${this.escapeHtml(bookmark.id)}">${isHidden ? t2("btn.show") : t2("btn.hide")}</button>
+                <button class="action-btn action-btn-delete" data-bookmark-id="${this.escapeHtml(bookmark.id)}">${t2("btn.delete")}</button>
               </div>
             </div>
           </div>
@@ -2089,7 +2668,7 @@
     editBookmark(id) {
       const bookmark = this.findBookmarkById(id);
       if (!bookmark) {
-        alert(t2("manager.editNotFound"));
+        showToast(t2("manager.editNotFound"), "warning");
         return;
       }
       const isFolder = !!bookmark.children;
@@ -2113,12 +2692,12 @@
       const newTitle = document.getElementById("editBookmarkTitle").value.trim();
       const newUrl = document.getElementById("editBookmarkUrl").value.trim().replace(/[\r\n]/g, "");
       if (!newTitle) {
-        alert(t2("manager.editTitleRequired"));
+        showToast(t2("manager.editTitleRequired"), "warning");
         return;
       }
       const bookmark = this.findBookmarkById(id);
       if (!bookmark) {
-        alert(t2("manager.editNotFound"));
+        showToast(t2("manager.editNotFound"), "warning");
         return;
       }
       const isFolder = !!bookmark.children;
@@ -2128,7 +2707,9 @@
           bookmark.url = newUrl;
         }
         this.saveBookmarksToStorage();
-        this.saveBookmarkTreeToGitee(this.bookmarks);
+        void this.saveBookmarkTreeToGitee(this.bookmarks).catch((error) => {
+          showToast(t2("manager.saveToGiteeFailedDetail", getErrorMessage(error)), "error");
+        });
         this.updateSystemBookmarks();
         this.hideEditModal();
         this.renderFolderTree();
@@ -2148,7 +2729,7 @@
           updateLocalData();
         }
       } catch (error) {
-        alert(t2("manager.editFailed"));
+        showToast(t2("manager.editFailed"), "error");
       }
     }
     removeBookmarkById(bookmarks, id) {
@@ -2173,11 +2754,13 @@
         try {
           const removed = this.removeBookmarkById(this.bookmarks, id);
           if (!removed) {
-            alert(t2("manager.editNotFound"));
+            showToast(t2("manager.editNotFound"), "warning");
             return;
           }
           this.saveBookmarksToStorage();
-          this.saveBookmarkTreeToGitee(this.bookmarks);
+          void this.saveBookmarkTreeToGitee(this.bookmarks).catch((error) => {
+            showToast(t2("manager.saveToGiteeFailedDetail", getErrorMessage(error)), "error");
+          });
           this.updateSystemBookmarks();
           this.renderFolderTree();
           if (this.currentFolder && !this.findFolderById(this.bookmarks, this.currentFolder.id)) {
@@ -2187,7 +2770,7 @@
           }
           this.updateStats();
         } catch (error) {
-          alert(t2("manager.deleteBookmarkFailed"));
+          showToast(t2("manager.deleteBookmarkFailed"), "error");
         }
       }
     }
@@ -2227,18 +2810,18 @@
         try {
           const data = JSON.parse(e.target.result);
           if (!Array.isArray(data) || data.length === 0) {
-            alert(t2("manager.importInvalidFormat"));
+            showToast(t2("manager.importInvalidFormat"), "warning");
             return;
           }
           if (!this.validateImportData(data)) {
-            alert(t2("manager.importInvalidFormat"));
+            showToast(t2("manager.importInvalidFormat"), "warning");
             return;
           }
           const stats = this.analyzeImportData(data);
           this.pendingImportData = data;
           this.showImportModal(stats);
         } catch (error) {
-          alert(t2("manager.importInvalidFormat"));
+          showToast(t2("manager.importInvalidFormat"), "warning");
         }
       };
       reader.readAsText(file);
@@ -2303,25 +2886,40 @@
       this.pendingImportData = null;
     }
     // 确认导入书签
-    confirmImport() {
+    async confirmImport() {
       if (!this.pendingImportData) return;
       const importMode = document.querySelector('input[name="importMode"]:checked').value;
+      const previousBookmarks = this.cloneBookmarks(this.bookmarks);
+      const confirmButton = document.getElementById("confirmImportBtn");
+      const originalLabel = confirmButton.textContent;
+      confirmButton.disabled = true;
+      confirmButton.textContent = t2("manager.importing");
       try {
         if (importMode === "overwrite") {
           this.bookmarks = this.processImportedBookmarks(this.pendingImportData);
         } else {
           this.bookmarks = this.mergeImportedBookmarks(this.bookmarks, this.pendingImportData);
         }
+        await this.applyBookmarksToBrowser(this.bookmarks);
+        if (this.isGiteeConfigured()) await this.saveBookmarkTreeToGitee(this.bookmarks);
         this.saveBookmarksToStorage();
-        this.saveBookmarkTreeToGitee(this.bookmarks);
-        this.updateSystemBookmarks();
         this.renderFolderTree();
         this.renderBookmarks();
         this.updateStats();
         this.hideImportModal();
-        alert(t2("manager.importSuccess"));
+        showToast(t2("manager.importSuccess"));
       } catch (error) {
-        alert(t2("manager.importFailed"));
+        this.bookmarks = previousBookmarks;
+        this.saveBookmarksToStorage();
+        try {
+          await this.applyBookmarksToBrowser(previousBookmarks);
+        } catch (rollbackError) {
+          console.error("Failed to restore bookmarks after import error:", rollbackError);
+        }
+        showToast(t2("manager.importFailedDetail", getErrorMessage(error)), "error");
+      } finally {
+        confirmButton.disabled = false;
+        confirmButton.textContent = confirmButton.dataset.i18n ? t2(confirmButton.dataset.i18n) : originalLabel;
       }
     }
     // 处理导入的书签数据，确保 hidden 字段被正确识别
@@ -2384,7 +2982,9 @@
         if (bookmark.children && bookmark.children.length > 0) {
           this.toggleFolderVisibility(bookmark, bookmark.hidden);
         }
-        this.saveBookmarkTreeToGitee(this.bookmarks);
+        void this.saveBookmarkTreeToGitee(this.bookmarks).catch((error) => {
+          showToast(t2("manager.saveToGiteeFailedDetail", getErrorMessage(error)), "error");
+        });
         this.saveBookmarksToStorage();
         this.updateSystemBookmarks();
         this.renderFolderTree();
@@ -2412,44 +3012,14 @@
       const root = Array.isArray(bookmarksTree) ? bookmarksTree.find((item) => item && (item.title === "\u4E66\u7B7E\u680F" || item.title === "Bookmarks bar")) || bookmarksTree[0] : null;
       const sourceChildren = root?.children || [];
       const visibleBookmarks = this.filterVisibleBookmarks(this.cloneBookmarks(sourceChildren));
-      await this.removeAllBookmarks();
-      const bookmarkBarId = await this.getBookmarkBarId();
-      await this.createBookmarks(visibleBookmarks, bookmarkBarId);
+      await replaceBookmarkBarSafely(visibleBookmarks);
     }
     updateSystemBookmarks() {
       if (typeof chrome !== "undefined" && chrome.bookmarks) {
-        this.applyBookmarksToBrowser(this.bookmarks).catch(() => {
+        void this.applyBookmarksToBrowser(this.bookmarks).catch((error) => {
+          showToast(t2("manager.browserUpdateFailedDetail", getErrorMessage(error)), "error");
         });
       }
-    }
-    getBookmarkBarId() {
-      return new Promise((resolve) => {
-        chrome.bookmarks.getTree((nodes) => {
-          const bookmarkBarId = nodes?.[0]?.children?.[0]?.id;
-          resolve(bookmarkBarId || "1");
-        });
-      });
-    }
-    removeAllBookmarks() {
-      return new Promise((resolve) => {
-        chrome.bookmarks.getTree((nodes) => {
-          const rootChildren = nodes[0]?.children || [];
-          let toDelete = [];
-          rootChildren.forEach((node) => {
-            if (node.children && node.children.length) {
-              node.children.forEach((child) => toDelete.push(child.id));
-            }
-          });
-          let count = toDelete.length;
-          if (count === 0) return resolve();
-          toDelete.forEach((id) => {
-            chrome.bookmarks.removeTree(id, () => {
-              count--;
-              if (count === 0) resolve();
-            });
-          });
-        });
-      });
     }
     filterVisibleBookmarks(bookmarks) {
       if (!Array.isArray(bookmarks)) return [];
@@ -2470,73 +3040,16 @@
         return result;
       }, []);
     }
-    createBookmarks(nodes, parentId = "1") {
-      if (!Array.isArray(nodes) || nodes.length === 0 || !parentId) {
-        return Promise.resolve();
-      }
-      return Promise.all(nodes.map((node) => {
-        if (!node) {
-          return Promise.resolve();
-        }
-        if (node.url) {
-          return new Promise((res) => {
-            chrome.bookmarks.create({
-              parentId,
-              title: node.title,
-              url: node.url
-            }, (bookmark) => {
-              if (chrome.runtime.lastError) {
-              } else {
-              }
-              res(void 0);
-            });
-          });
-        } else {
-          return new Promise((res) => {
-            chrome.bookmarks.create({
-              parentId,
-              title: node.title
-            }, (folder) => {
-              if (chrome.runtime.lastError || !folder || !folder.id) {
-                res(void 0);
-              } else {
-                if (node.children && node.children.length > 0) {
-                  this.createBookmarks(node.children, folder.id).then(() => res(void 0));
-                } else {
-                  res(void 0);
-                }
-              }
-            });
-          });
-        }
-      })).then(() => {
-      });
-    }
-    loadBookmarksFromGitee() {
-      return new Promise((resolve, reject) => {
-        if (!this.giteeConfig || !this.giteeConfig.owner || !this.giteeConfig.repo || !this.giteeConfig.token) {
-          reject(new Error(t2("manager.giteeConfigIncomplete")));
-          return;
-        }
-        const encodedPath = this.giteeConfig.filePath.split("/").map(encodeURIComponent).join("/");
-        const url = `https://gitee.com/api/v5/repos/${this.giteeConfig.owner}/${this.giteeConfig.repo}/contents/${encodedPath}?ref=${encodeURIComponent(this.giteeConfig.branch)}`;
-        fetch(url, {
-          method: "GET",
-          headers: {
-            "Authorization": `token ${this.giteeConfig.token}`
-          }
-        }).then((response) => response.json()).then((data) => {
-          if (data.content) {
-            const content = decodeURIComponent(escape(atob(data.content)));
-            const bookmarks = JSON.parse(content);
-            resolve(bookmarks);
-          } else {
-            reject(new Error(t2("manager.cannotGetFileContent")));
-          }
-        }).catch((error) => {
-          reject(error);
-        });
-      });
+    async loadBookmarksFromGitee() {
+      if (!this.isGiteeConfigured()) throw new Error(t2("manager.giteeConfigIncomplete"));
+      const encodedPath = this.giteeConfig.filePath.split("/").map(encodeURIComponent).join("/");
+      const url = `https://gitee.com/api/v5/repos/${encodeURIComponent(this.giteeConfig.owner)}/${encodeURIComponent(this.giteeConfig.repo)}/contents/${encodedPath}?ref=${encodeURIComponent(this.giteeConfig.branch)}`;
+      const data = await fetchJson(url, {
+        headers: { Authorization: `token ${this.giteeConfig.token}` }
+      }, { fallbackMessage: t2("manager.cannotGetFileContent") });
+      if (!data?.content) throw new Error(t2("manager.cannotGetFileContent"));
+      const content = decodeURIComponent(escape(atob(data.content)));
+      return JSON.parse(content);
     }
     filterHiddenBookmarks(bookmarks) {
       const filterBookmarks = (items) => {
@@ -2603,111 +3116,50 @@
     }
     async saveBookmarkTreeToGitee(bookmarks, options = {}) {
       if (!this.isGiteeConfigured()) {
-        return false;
+        throw new Error(t2("manager.giteeConfigIncomplete"));
       }
       const mode = options.mode === "overwrite" ? "overwrite" : "merge";
       const commitMessage = options.message || (mode === "overwrite" ? "Update bookmark tree - overwrite" : "Update bookmark tree - merge hidden attributes");
       const encodedPath = this.giteeConfig.filePath.split("/").map(encodeURIComponent).join("/");
-      const apiUrl = `https://gitee.com/api/v5/repos/${this.giteeConfig.owner}/${this.giteeConfig.repo}/contents/${encodedPath}`;
+      const apiUrl = `https://gitee.com/api/v5/repos/${encodeURIComponent(this.giteeConfig.owner)}/${encodeURIComponent(this.giteeConfig.repo)}/contents/${encodedPath}`;
       const refUrl = `${apiUrl}?ref=${encodeURIComponent(this.giteeConfig.branch)}`;
-      try {
-        const getResp = await fetch(refUrl, {
-          method: "GET",
-          headers: {
-            "Authorization": `token ${this.giteeConfig.token}`
-          }
-        });
-        const data = await getResp.json();
-        const sha = data?.sha;
-        let finalBookmarks = bookmarks;
-        if (mode === "merge" && data?.content) {
-          try {
-            const remoteContent = decodeURIComponent(escape(atob(data.content)));
-            const remoteBookmarks = JSON.parse(remoteContent);
-            finalBookmarks = this.mergeBookmarks(bookmarks, remoteBookmarks);
-          } catch (e) {
-            console.warn("\u8FDC\u7A0B\u4E66\u7B7E\u6570\u636E\u89E3\u6790\u5931\u8D25\uFF0C\u5C06\u76F4\u63A5\u4F7F\u7528\u672C\u5730\u6570\u636E\u4FDD\u5B58:", e);
-          }
-        }
-        const content = JSON.stringify(finalBookmarks, null, 2);
-        const encodedContent = btoa(unescape(encodeURIComponent(content)));
-        const payload = {
-          message: commitMessage,
-          content: encodedContent,
-          sha
-        };
-        const putResp = await fetch(apiUrl, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `token ${this.giteeConfig.token}`
-          },
-          body: JSON.stringify(payload)
-        });
-        const putData = await putResp.json();
-        return !!putData.content;
-      } catch (error) {
-        console.error("\u4E66\u7B7E\u4FDD\u5B58\u5230Gitee\u51FA\u9519:", error);
-        return false;
-      }
-    }
-    // IndexedDB 相关方法
-    async openDB() {
-      return new Promise((resolve, reject) => {
-        const req = indexedDB.open("bookmarks-plus", 1);
-        req.onupgradeneeded = function(e) {
-          const db = e.target.result;
-          if (!db.objectStoreNames.contains("gitee-config")) {
-            db.createObjectStore("gitee-config");
-          }
-        };
-        req.onsuccess = function(e) {
-          resolve(e.target.result);
-        };
-        req.onerror = function(e) {
-          reject(e);
-        };
+      const getResp = await fetchWithTimeout(refUrl, {
+        method: "GET",
+        headers: { Authorization: `token ${this.giteeConfig.token}` }
       });
+      await assertResponseOk(getResp, t2("manager.cannotGetFileContent"));
+      const data = await getResp.json();
+      const sha = data?.sha;
+      if (!sha) throw new Error(t2("manager.cannotGetFileContent"));
+      let finalBookmarks = bookmarks;
+      if (mode === "merge" && data?.content) {
+        try {
+          const remoteContent = decodeURIComponent(escape(atob(data.content)));
+          const remoteBookmarks = JSON.parse(remoteContent);
+          finalBookmarks = this.mergeBookmarks(bookmarks, remoteBookmarks);
+        } catch (error) {
+          console.warn("Remote bookmark data could not be parsed:", error);
+          throw new Error(t2("manager.remoteDataInvalid"));
+        }
+      }
+      const content = JSON.stringify(finalBookmarks, null, 2);
+      const encodedContent = btoa(unescape(encodeURIComponent(content)));
+      const putResp = await fetchWithTimeout(apiUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `token ${this.giteeConfig.token}`
+        },
+        body: JSON.stringify({ message: commitMessage, content: encodedContent, sha })
+      });
+      await assertResponseOk(putResp, t2("manager.saveToGiteeFailed"));
+      return true;
     }
     async getConfigFromIndexedDB(fields) {
-      const db = await this.openDB();
-      const rawResult = await new Promise((resolve) => {
-        const tx = db.transaction("gitee-config", "readonly");
-        const store = tx.objectStore("gitee-config");
-        const result = {};
-        let count = fields.length;
-        fields.forEach((f) => {
-          const req = store.get(f);
-          req.onsuccess = function() {
-            result[f] = req.result || "";
-            count--;
-            if (count === 0) resolve(result);
-          };
-          req.onerror = function() {
-            count--;
-            if (count === 0) resolve(result);
-          };
-        });
-      });
-      const decrypted = {};
-      for (const f of fields) {
-        decrypted[f] = await decryptSafe(rawResult[f]);
-      }
-      return decrypted;
+      return getConfig(fields);
     }
     async setConfigToIndexedDB(config) {
-      const encryptedConfig = {};
-      for (const [k, v] of Object.entries(config)) {
-        encryptedConfig[k] = v ? await encrypt(v) : v;
-      }
-      const db = await this.openDB();
-      const tx = db.transaction("gitee-config", "readwrite");
-      const store = tx.objectStore("gitee-config");
-      Object.entries(encryptedConfig).forEach(([k, v]) => store.put(v, k));
-      return new Promise((resolve) => {
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => resolve();
-      });
+      return setConfig(config);
     }
     async loadConfigFromIndexedDB() {
       const fields = ["giteeToken", "giteeOwner", "giteeRepo", "giteeBranch", "giteeFilePath"];
@@ -2720,17 +3172,14 @@
     }
     async getFileSha() {
       try {
-        const apiUrl = `https://gitee.com/api/v5/repos/${this.giteeConfig.owner}/${this.giteeConfig.repo}/contents/${this.giteeConfig.filePath}?ref=${this.giteeConfig.branch}`;
-        const response = await fetch(apiUrl, {
-          headers: {
-            "Authorization": `token ${this.giteeConfig.token}`
-          }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          return data.sha;
-        }
+        const encodedPath = this.giteeConfig.filePath.split("/").map(encodeURIComponent).join("/");
+        const apiUrl = `https://gitee.com/api/v5/repos/${encodeURIComponent(this.giteeConfig.owner)}/${encodeURIComponent(this.giteeConfig.repo)}/contents/${encodedPath}?ref=${encodeURIComponent(this.giteeConfig.branch)}`;
+        const data = await fetchJson(apiUrl, {
+          headers: { Authorization: `token ${this.giteeConfig.token}` }
+        }, { fallbackMessage: t2("manager.cannotGetFileContent") });
+        return data?.sha || null;
       } catch (error) {
+        console.warn("Failed to load Gitee file SHA:", error);
       }
       return null;
     }
@@ -2751,7 +3200,7 @@
       const repo = document.getElementById("giteeRepo").value.trim();
       const token = document.getElementById("giteeToken").value.trim();
       if (!owner || !repo || !token) {
-        alert(t2("manager.configIncomplete"));
+        showToast(t2("manager.configIncomplete"), "warning");
         return;
       }
       this.giteeConfig.owner = owner;
@@ -2765,10 +3214,11 @@
           giteeBranch: this.giteeConfig.branch,
           giteeFilePath: this.giteeConfig.filePath
         });
+        this.hideConfigModal();
+        showToast(t2("manager.configSaved"));
       } catch (error) {
+        showToast(t2("manager.configSaveFailed", getErrorMessage(error)), "error");
       }
-      this.hideConfigModal();
-      alert(t2("manager.configSaved"));
     }
     // ========== 重复书签检测 ==========
     /**
@@ -2964,7 +3414,7 @@
           <div class="duplicate-item">
             <input type="checkbox" class="duplicate-checkbox"
                    data-group="${groupIdx}" data-item="${itemIdx}"
-                   data-bookmark-id="${item.id}" ${checked}>
+                   data-bookmark-id="${this.escapeHtml(item.id)}" ${checked}>
             <div class="duplicate-item-info">
               <div class="duplicate-item-title">
                 ${this.escapeHtml(item.title)}
@@ -2990,9 +3440,7 @@
      * HTML 转义（防 XSS）
      */
     escapeHtml(text) {
-      const div = document.createElement("div");
-      div.textContent = text;
-      return div.innerHTML;
+      return escapeHtml(text);
     }
     /**
      * 更新删除按钮上的选中计数
@@ -3045,11 +3493,15 @@
         this.renderBookmarks();
         this.updateStats();
         this.hideDuplicateModal();
-        alert(t2("manager.duplicateDeleteSuccess", String(ids.length)));
+        showToast(t2("manager.duplicateDeleteSuccess", String(ids.length)));
       } catch (error) {
         console.error("Delete duplicates failed:", error);
-        alert(t2("manager.duplicateDeleteFailed"));
+        showToast(t2("manager.duplicateDeleteFailed"), "error");
         this.runDuplicateDetection();
+      } finally {
+        if (document.getElementById("duplicateModal").style.display !== "none") {
+          this.updateDuplicateSelectedCount();
+        }
       }
     }
     // ========== 失效链接检测 ==========
@@ -3164,6 +3616,18 @@
      */
     async startLinkCheck() {
       if (this.linkCheckRunning) return;
+      if (typeof chrome !== "undefined" && chrome.permissions?.request) {
+        try {
+          const granted = await chrome.permissions.request({ origins: ["http://*/*", "https://*/*"] });
+          if (!granted) {
+            showToast(t2("manager.linkCheckPermissionDenied"), "warning");
+            return;
+          }
+        } catch (error) {
+          showToast(t2("manager.linkCheckPermissionFailed", getErrorMessage(error)), "error");
+          return;
+        }
+      }
       this.linkCheckRunning = true;
       this.linkCheckResults = [];
       this.linkCheckCurrentFilter = "all";
@@ -3289,7 +3753,7 @@
         }
         html += `
         <div class="linkcheck-item">
-          ${showCheckbox ? `<input type="checkbox" class="linkcheck-checkbox" data-bookmark-id="${item.id}" ${checked}>` : `<div style="width:17px;flex-shrink:0;"></div>`}
+          ${showCheckbox ? `<input type="checkbox" class="linkcheck-checkbox" data-bookmark-id="${this.escapeHtml(item.id)}" ${checked}>` : `<div style="width:17px;flex-shrink:0;"></div>`}
           <div class="linkcheck-item-info">
             <div class="linkcheck-item-title">${this.escapeHtml(item.title)}</div>
             <div class="linkcheck-item-url" title="${this.escapeHtml(item.url)}">${this.escapeHtml(item.url)}</div>
@@ -3363,10 +3827,12 @@
         this.renderBookmarks();
         this.updateStats();
         this.renderLinkCheckResults();
-        alert(t2("manager.linkCheckDeleteSuccess", String(ids.length)));
+        showToast(t2("manager.linkCheckDeleteSuccess", String(ids.length)));
       } catch (error) {
         console.error("Delete broken links failed:", error);
-        alert(t2("manager.linkCheckDeleteFailed"));
+        showToast(t2("manager.linkCheckDeleteFailed"), "error");
+      } finally {
+        this.updateLinkCheckSelectedCount();
       }
     }
   };
@@ -3409,113 +3875,71 @@
       initManager();
       return;
     }
-    try {
-      const db = await new Promise((resolve, reject) => {
-        const req = indexedDB.open("bookmarks-plus", 1);
-        req.onupgradeneeded = (e) => {
-          const db2 = e.target.result;
-          if (!db2.objectStoreNames.contains("gitee-config")) {
-            db2.createObjectStore("gitee-config");
-          }
-        };
-        req.onsuccess = (e) => resolve(e.target.result);
-        req.onerror = (e) => reject(e);
-      });
-      const getConfig = (fields) => new Promise((resolve) => {
-        const tx = db.transaction("gitee-config", "readonly");
-        const store = tx.objectStore("gitee-config");
-        const result = {};
-        let count = fields.length;
-        fields.forEach((f) => {
-          const req = store.get(f);
-          req.onsuccess = () => {
-            result[f] = req.result || "";
-            count--;
-            if (count === 0) resolve(result);
-          };
-          req.onerror = () => {
-            count--;
-            if (count === 0) resolve(result);
-          };
-        });
-      });
-      const rawConfig = await getConfig(["giteeToken", "giteeOwner", "giteeRepo", "giteeBranch", "giteeFilePath"]);
-      const pToken = await decryptSafe(rawConfig.giteeToken || "");
-      const pOwner = await decryptSafe(rawConfig.giteeOwner || "");
-      const pRepo = await decryptSafe(rawConfig.giteeRepo || "");
-      const pBranch = await decryptSafe(rawConfig.giteeBranch || "") || "master";
-      const pFilePath = await decryptSafe(rawConfig.giteeFilePath || "");
-      const pDir = pFilePath.includes("/") ? pFilePath.substring(0, pFilePath.lastIndexOf("/")) : "";
-      let needLock = false;
-      if (pToken && pOwner && pRepo && pBranch && pDir) {
-        const passwordFileName = "\u5BC6\u7801.json";
-        const passwordFilePath = pDir ? `${pDir}/${passwordFileName}` : passwordFileName;
-        const encodedPath = passwordFilePath.split("/").map(encodeURIComponent).join("/");
-        const apiUrl = `https://gitee.com/api/v5/repos/${pOwner}/${pRepo}/contents/${encodedPath}?ref=${pBranch}`;
-        try {
-          const response = await fetch(apiUrl, {
-            headers: { "Authorization": `token ${pToken}` }
-          });
-          if (response.ok) {
-            const fileData = await response.json();
-            const decodedContent = atob(fileData.content);
-            const decoder = new TextDecoder();
-            const decodedData = decoder.decode(
-              new Uint8Array([...decodedContent].map((char) => char.charCodeAt(0)))
-            );
-            const pwdConfig = JSON.parse(decodedData);
-            if (pwdConfig && pwdConfig.enabled && pwdConfig.password) {
-              needLock = true;
-              mainContent.remove();
-              lockOverlay.style.display = "flex";
-              let unlocked = false;
-              const protectObserver = new MutationObserver(() => {
-                if (!unlocked) {
-                  if (lockOverlay.style.display !== "flex") {
-                    lockOverlay.style.display = "flex";
-                  }
-                  if (document.getElementById("mainContent")) {
-                    document.getElementById("mainContent").remove();
-                  }
-                }
-              });
-              protectObserver.observe(lockOverlay, { attributes: true, attributeFilter: ["style", "class"] });
-              protectObserver.observe(document.body, { childList: true });
-              const lockInput = document.getElementById("lockPasswordInput");
-              const lockSubmit = document.getElementById("lockPasswordSubmit");
-              const lockError = document.getElementById("lockPasswordError");
-              const doUnlock = () => {
-                const inputVal = lockInput.value;
-                if (!inputVal) {
-                  lockError.textContent = t2("password.msg.empty");
-                  return;
-                }
-                if (inputVal === pwdConfig.password) {
-                  unlocked = true;
-                  protectObserver.disconnect();
-                  lockOverlay.style.display = "none";
-                  initManager();
-                } else {
-                  lockError.textContent = t2("password.lock.error");
-                  lockInput.value = "";
-                  lockInput.focus();
-                }
-              };
-              lockSubmit.addEventListener("click", doUnlock);
-              lockInput.addEventListener("keydown", (e) => {
-                if (e.key === "Enter") doUnlock();
-              });
-              setTimeout(() => lockInput.focus(), 50);
-            }
-          }
-        } catch (error) {
+    const lockInput = document.getElementById("lockPasswordInput");
+    const lockSubmit = document.getElementById("lockPasswordSubmit");
+    const lockError = document.getElementById("lockPasswordError");
+    function activatePasswordLock(policy) {
+      mainContent.remove();
+      lockOverlay.style.display = "flex";
+      let unlocked = false;
+      const protectObserver = new MutationObserver(() => {
+        if (!unlocked) {
+          if (lockOverlay.style.display !== "flex") lockOverlay.style.display = "flex";
+          document.getElementById("mainContent")?.remove();
         }
-      }
-      if (!needLock) {
-        initManager();
-      }
-    } catch (e) {
-      initManager();
+      });
+      protectObserver.observe(lockOverlay, { attributes: true, attributeFilter: ["style", "class"] });
+      protectObserver.observe(document.body, { childList: true });
+      const doUnlock = async () => {
+        const inputValue = lockInput.value;
+        if (!inputValue) {
+          lockError.textContent = t2("password.msg.empty");
+          return;
+        }
+        lockSubmit.disabled = true;
+        lockSubmit.textContent = t2("password.lock.verifying");
+        try {
+          if (await verifyPassword(inputValue, policy)) {
+            unlocked = true;
+            protectObserver.disconnect();
+            lockOverlay.style.display = "none";
+            initManager();
+          } else {
+            lockError.textContent = t2("password.lock.error");
+            lockInput.value = "";
+            lockInput.focus();
+          }
+        } finally {
+          lockSubmit.disabled = false;
+          lockSubmit.textContent = t2("password.lock.submit");
+        }
+      };
+      lockSubmit.addEventListener("click", () => {
+        void doUnlock();
+      });
+      lockInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") void doUnlock();
+      });
+      setTimeout(() => lockInput.focus(), 50);
+    }
+    try {
+      const config = await getConfig(["giteeToken", "giteeOwner", "giteeRepo", "giteeBranch", "giteeFilePath"]);
+      const filePath = config.giteeFilePath || "";
+      const bookmarkDir = filePath.includes("/") ? filePath.substring(0, filePath.lastIndexOf("/")) : "";
+      const location = config.giteeToken && config.giteeOwner && config.giteeRepo ? {
+        token: config.giteeToken,
+        owner: config.giteeOwner,
+        repo: config.giteeRepo,
+        branch: config.giteeBranch || "master",
+        bookmarkDir
+      } : void 0;
+      const policy = await resolvePasswordPolicy(location);
+      if (policy?.enabled) activatePasswordLock(policy);
+      else initManager();
+    } catch (error) {
+      const localPolicy = await getLocalPasswordPolicy().catch(() => null);
+      if (localPolicy?.enabled) activatePasswordLock(localPolicy);
+      else initManager();
     }
   });
 })();

@@ -1,8 +1,21 @@
 import { initLocale, t, setLocale, getLocale, translateDOM } from './i18n/index';
 import type { Locale } from './i18n/index';
 import { initTheme, setupThemeToggle } from './theme';
-import { encrypt, decrypt, decryptSafe, setMasterPassphrase, clearMasterPassphrase, hasMasterPassphrase } from './crypto';
+import { decrypt, setMasterPassphrase, clearMasterPassphrase, hasMasterPassphrase } from './crypto';
 import { checkForUpdate, getCurrentVersion, getDismissedVersion, setDismissedVersion, downloadDistZip, GITEE_RELEASES_PAGE } from './version-check';
+import { getConfig as getConfigFromDB, getRawConfig as getRawConfigFromDB, setConfig as setConfigToDB } from './config-repository';
+import { assertResponseOk, fetchJson, fetchWithTimeout, getErrorMessage } from './http';
+import { getChromeBookmarksTree as getLocalBookmarks, replaceBookmarkBarSafely } from './bookmark-service';
+import { showToast } from './toast';
+import {
+  PASSWORD_FILE_NAME,
+  createPasswordPolicy,
+  getLocalPasswordPolicy,
+  resolvePasswordPolicy,
+  saveRemotePasswordPolicy,
+  verifyPassword,
+} from './password-service';
+import type { PasswordPolicy } from './password-service';
 
 declare const chrome: any;
 
@@ -14,91 +27,6 @@ function isChromeExtensionContext(): boolean {
          chrome.bookmarks;
 }
 
-// == indexDB 工具 ==
-const DB_NAME = 'bookmarks-plus';
-const STORE_NAME = 'gitee-config';
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = function(e) {
-      const db = (e.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME);
-      }
-    };
-    req.onsuccess = function(e) {
-      resolve((e.target as IDBOpenDBRequest).result);
-    };
-    req.onerror = function(e) {
-      reject(e);
-    };
-  });
-}
-async function getConfigFromDB(fields: string[]): Promise<any> {
-  const db = await openDB();
-  // 1. 从 IndexedDB 读取原始（加密后的）数据
-  const rawResult: any = await new Promise(resolve => {
-    const tx = db.transaction(STORE_NAME, 'readonly');
-    const store = tx.objectStore(STORE_NAME);
-    const result: any = {};
-    let count = fields.length;
-    fields.forEach(f => {
-      const req = store.get(f);
-      req.onsuccess = function() {
-        result[f] = req.result || '';
-        count--;
-        if (count === 0) resolve(result);
-      };
-      req.onerror = function() {
-        count--;
-        if (count === 0) resolve(result);
-      };
-    });
-  });
-  // 2. 解密每个字段（兼容未加密的旧数据）
-  const decrypted: any = {};
-  for (const f of fields) {
-    decrypted[f] = await decryptSafe(rawResult[f]);
-  }
-  return decrypted;
-}
-async function setConfigToDB(config: Record<string, string>) {
-  // 1. 先加密所有配置值
-  const encryptedConfig: Record<string, string> = {};
-  for (const [k, v] of Object.entries(config)) {
-    encryptedConfig[k] = v ? await encrypt(v) : v;
-  }
-  // 2. 写入 IndexedDB
-  const db = await openDB();
-  const tx = db.transaction(STORE_NAME, 'readwrite');
-  const store = tx.objectStore(STORE_NAME);
-  Object.entries(encryptedConfig).forEach(([k, v]) => store.put(v, k));
-  return new Promise<void>(resolve => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => resolve();
-  });
-}
-async function getRawConfigFromDB(fields: string[]): Promise<any> {
-  const db = await openDB();
-  return new Promise(resolve => {
-    const tx = db.transaction(STORE_NAME, 'readonly');
-    const store = tx.objectStore(STORE_NAME);
-    const result: any = {};
-    let count = fields.length;
-    fields.forEach(f => {
-      const req = store.get(f);
-      req.onsuccess = function() {
-        result[f] = req.result || '';
-        count--;
-        if (count === 0) resolve(result);
-      };
-      req.onerror = function() {
-        count--;
-        if (count === 0) resolve(result);
-      };
-    });
-  });
-}
 function isLikelyEncryptedValue(value: string): boolean {
   if (!value || typeof value !== 'string') return false;
   if (value.length % 4 !== 0) return false;
@@ -137,102 +65,6 @@ async function normalizeImportedGiteeConfig(
   }
   return normalized;
 }
-// == 密码文件工具 ==
-const PASSWORD_FILE_NAME = '密码.json';
-
-// 获取密码文件路径（原始路径）
-function getPasswordFilePath(bookmarkDir: string): string {
-  return bookmarkDir ? `${bookmarkDir}/${PASSWORD_FILE_NAME}` : PASSWORD_FILE_NAME;
-}
-
-// 对路径逐段编码，保留 / 分隔符
-function encodeFilePath(filePath: string): string {
-  return filePath.split('/').map(encodeURIComponent).join('/');
-}
-
-// 从Gitee读取密码配置
-async function getPasswordConfig(token: string, owner: string, repo: string, branch: string, bookmarkDir: string): Promise<{enabled: boolean, password: string} | null> {
-  const filePath = getPasswordFilePath(bookmarkDir);
-  const apiUrl = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeFilePath(filePath)}?ref=${branch}`;
-  try {
-    const response = await fetch(apiUrl, {
-      headers: { 'Authorization': `token ${token}` }
-    });
-    if (!response.ok) {
-      // 文件不存在，返回null
-      return null;
-    }
-    const fileData = await response.json();
-    const decodedContent = atob(fileData.content);
-    const decoder = new TextDecoder();
-    const decodedData = decoder.decode(
-      new Uint8Array([...decodedContent].map((char) => char.charCodeAt(0)))
-    );
-    return JSON.parse(decodedData);
-  } catch (error) {
-    return null;
-  }
-}
-
-// 保存密码配置到Gitee（创建或更新密码.json）
-async function savePasswordConfig(token: string, owner: string, repo: string, branch: string, bookmarkDir: string, config: {enabled: boolean, password: string}): Promise<boolean> {
-  const filePath = getPasswordFilePath(bookmarkDir);
-  const content = JSON.stringify(config, null, 2);
-  const encoder = new TextEncoder();
-  const data = encoder.encode(content);
-  const encodedContent = safeBtoa(data);
-
-  const apiUrl = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeFilePath(filePath)}`;
-
-  try {
-    // 先尝试获取文件（获取SHA用于更新）
-    const getUrl = `${apiUrl}?ref=${branch}`;
-    const getResponse = await fetch(getUrl, {
-      headers: { 'Authorization': `token ${token}` }
-    });
-    let sha = '';
-
-    if (getResponse.ok) {
-      const fileInfo = await getResponse.json();
-      // 确保返回的是文件对象（有sha），而非目录列表（数组）
-      if (fileInfo && !Array.isArray(fileInfo) && fileInfo.sha) {
-        sha = fileInfo.sha;
-      }
-    }
-
-    if (sha) {
-      // 文件已存在且获取到SHA，更新文件
-      const putResponse = await fetch(apiUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          access_token: token,
-          content: encodedContent,
-          message: '更新密码配置',
-          sha: sha,
-          branch: branch
-        })
-      });
-      return putResponse.ok;
-    } else {
-      // 文件不存在或无法获取SHA，创建文件
-      const postResponse = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          access_token: token,
-          content: encodedContent,
-          message: '新增密码配置文件',
-          branch: branch
-        })
-      });
-      return postResponse.ok;
-    }
-  } catch (error) {
-    return false;
-  }
-}
-
 // == 快捷键配置工具 ==
 const DEFAULT_SHORTCUT_CONFIG = {
   search: {
@@ -273,9 +105,12 @@ function getShortcutConfig(): Promise<any> {
 }
 
 function saveShortcutConfig(config: any): Promise<void> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.set({ shortcut_config: JSON.stringify(config) }, () => resolve());
+      chrome.storage.local.set({ shortcut_config: JSON.stringify(config) }, () => {
+        if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+        else resolve();
+      });
     } else {
       resolve();
     }
@@ -298,13 +133,11 @@ async function getDecodedContent(content: string) {
   return JSON.parse(decodedData);
 }
 async function fetchFileContent(apiUrl: string, accessToken: string) {
-  const response = await fetch(apiUrl, {
+  return fetchJson<any>(apiUrl, {
     headers: {
       Authorization: "token " + accessToken,
     },
-  });
-  const fileData = await response.json();
-  return fileData;
+  }, { fallbackMessage: t('msg.fileInfoFailed') });
 }
 async function putFileContent(apiUrl: string, accessToken: string, encodedContent: string, sha: string) {
   const commitData = {
@@ -313,7 +146,7 @@ async function putFileContent(apiUrl: string, accessToken: string, encodedConten
     message: "书签更新",
     sha: sha,
   };
-  const putResponse = await fetch(apiUrl, {
+  const putResponse = await fetchWithTimeout(apiUrl, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -321,11 +154,7 @@ async function putFileContent(apiUrl: string, accessToken: string, encodedConten
     },
     body: JSON.stringify(commitData),
   });
-  if (putResponse.ok) {
-    showToast(t('msg.uploaded'));
-  } else {
-    showToast(t('msg.uploadFailed'), true);
-  }
+  await assertResponseOk(putResponse, t('msg.uploadFailed'));
 }
 function safeBtoa(data: Uint8Array) {
   let binary = '';
@@ -334,44 +163,28 @@ function safeBtoa(data: Uint8Array) {
   }
   return btoa(binary);
 }
+function getGiteeFileApiUrl(gitInfo: any): string {
+  const encodedPath = String(gitInfo.giteeFilePath || '').split('/').map(encodeURIComponent).join('/');
+  return `https://gitee.com/api/v5/repos/${encodeURIComponent(gitInfo.giteeOwner)}/${encodeURIComponent(gitInfo.giteeRepo)}/contents/${encodedPath}?ref=${encodeURIComponent(gitInfo.giteeBranch)}`;
+}
 async function modifyFile(gitInfo: any, modifiedContent: any, isCover: boolean) {
   const accessToken = gitInfo.giteeToken;
-  const apiUrl =
-    "https://gitee.com/api/v5/repos/" +
-    gitInfo.giteeOwner +
-    "/" +
-    gitInfo.giteeRepo +
-    "/contents/" +
-    gitInfo.giteeFilePath +
-    "?ref=" +
-    gitInfo.giteeBranch;
-  try {
-    const file = await fetchFileContent(apiUrl, accessToken);
-    const fileContent = file.content || "";
-    if (!isCover) {
-      const content = await getDecodedContent(fileContent);
-      modifiedContent = mergeBookmarks(content, modifiedContent);
-    }
-    modifiedContent = JSON.stringify(modifiedContent);
-    const encoder = new TextEncoder();
-    const data = encoder.encode(modifiedContent);
-    const encodedContent = safeBtoa(data);
-    await putFileContent(apiUrl, accessToken, encodedContent, file.sha);
-  } catch (error) {
-    showToast(t('msg.uploadFailed'), true);
+  const apiUrl = getGiteeFileApiUrl(gitInfo);
+  const file = await fetchFileContent(apiUrl, accessToken);
+  const fileContent = file.content || "";
+  if (!isCover) {
+    const content = await getDecodedContent(fileContent);
+    modifiedContent = mergeBookmarks(content, modifiedContent);
   }
+  modifiedContent = JSON.stringify(modifiedContent);
+  const encoder = new TextEncoder();
+  const data = encoder.encode(modifiedContent);
+  const encodedContent = safeBtoa(data);
+  await putFileContent(apiUrl, accessToken, encodedContent, file.sha);
 }
 async function getFile(gitInfo: any) {
   const accessToken = gitInfo.giteeToken;
-  const apiUrl =
-    "https://gitee.com/api/v5/repos/" +
-    gitInfo.giteeOwner +
-    "/" +
-    gitInfo.giteeRepo +
-    "/contents/" +
-    gitInfo.giteeFilePath +
-    "?ref=" +
-    gitInfo.giteeBranch;
+  const apiUrl = getGiteeFileApiUrl(gitInfo);
   const file = await fetchFileContent(apiUrl, accessToken);
   const fileContent = file.content || "";
   const decodedContent = atob(fileContent); // 解码Base64编码的文件内容
@@ -382,22 +195,6 @@ async function getFile(gitInfo: any) {
   return JSON.parse(decodedData);
 }
 
-
-// == 书签操作 ==
-function getLocalBookmarks(): Promise<any[]> {
-  return new Promise(resolve => {
-    chrome.bookmarks.getTree(resolve);
-  });
-}
-
-function getBookmarkBarId(): Promise<string> {
-  return new Promise(resolve => {
-    chrome.bookmarks.getTree((nodes: any[]) => {
-      const bookmarkBarId = nodes?.[0]?.children?.[0]?.id;
-      resolve(bookmarkBarId || '1');
-    });
-  });
-}
 
 // 获取书签管理器的完整数据（包含隐藏属性）
 function getBookmarkManagerData(): Promise<any[]> {
@@ -410,65 +207,6 @@ function getBookmarkManagerData(): Promise<any[]> {
       resolve(response?.bookmarks || []);
     });
   });
-}
-function removeAllBookmarks(): Promise<void> {
-  return new Promise(resolve => {
-    chrome.bookmarks.getTree((nodes: any[]) => {
-      const rootChildren = nodes[0]?.children || [];
-      let toDelete: string[] = [];
-      rootChildren.forEach((node: any) => {
-        // 只删除根目录下的子节点（即书签栏、其他书签、移动设备书签的 children）
-        if (node.children && node.children.length) {
-          node.children.forEach((child: any) => toDelete.push(child.id));
-        }
-      });
-      let count = toDelete.length;
-      if (count === 0) return resolve();
-      toDelete.forEach(id => {
-        chrome.bookmarks.removeTree(id, () => {
-          count--;
-          if (count === 0) resolve();
-        });
-      });
-    });
-  });
-}
-function createBookmarks(nodes: any[], parentId = '1'): Promise<void> {
-  if (!Array.isArray(nodes) || nodes.length === 0) {
-    return Promise.resolve();
-  }
-
-  return Promise.all(nodes.map(node => {
-    if (!node || !parentId) {
-      return Promise.resolve();
-    }
-
-    if (node.url) {
-      return new Promise(res => {
-        chrome.bookmarks.create({ parentId, title: node.title || '', url: node.url }, () => {
-          if (chrome.runtime.lastError) {
-            // 读取 lastError，避免出现 Unchecked runtime.lastError 控制台噪音
-          }
-          res(undefined);
-        });
-      });
-    } else {
-      return new Promise(res => {
-        chrome.bookmarks.create({ parentId, title: node.title || '' }, (folder: any) => {
-          if (chrome.runtime.lastError || !folder || !folder.id) {
-            res(undefined);
-            return;
-          }
-
-          if (node.children && node.children.length) {
-            createBookmarks(node.children, folder.id).then(() => res(undefined));
-          } else {
-            res(undefined);
-          }
-        });
-      });
-    }
-  })).then(() => {});
 }
 
 // == 筛选隐藏书签 ==
@@ -560,33 +298,6 @@ function mergeBookmarks(arr1: any[], arr2: any[]): any[] {
     }
   });
   return Array.from(map.values());
-}
-
-// == 全局 Toast 提示 ==
-let toastTimer: number | undefined;
-
-function showToast(text: string, isError = false) {
-  const toast = document.getElementById('toast');
-  if (!toast || !text) return;
-
-  if (toastTimer !== undefined) {
-    window.clearTimeout(toastTimer);
-  }
-
-  toast.classList.remove('toast-visible', 'toast-success', 'toast-error');
-  toast.textContent = text;
-  toast.classList.add(isError ? 'toast-error' : 'toast-success');
-  toast.setAttribute('role', isError ? 'alert' : 'status');
-  toast.setAttribute('aria-live', isError ? 'assertive' : 'polite');
-
-  // 强制重排，让连续提示也能重新播放入场动画。
-  void toast.offsetWidth;
-  toast.classList.add('toast-visible');
-
-  toastTimer = window.setTimeout(() => {
-    toast.classList.remove('toast-visible');
-    toastTimer = undefined;
-  }, isError ? 3600 : 2400);
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -716,24 +427,92 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // Gitee 配置表单逻辑
-    // const form = document.getElementById('giteeForm');
+    const tokenEl = document.getElementById('giteeToken') as HTMLInputElement;
+    const ownerEl = document.getElementById('giteeOwner') as HTMLInputElement;
+    const repoEl = document.getElementById('giteeRepo') as HTMLInputElement;
+    const branchSel = document.getElementById('giteeBranch') as HTMLSelectElement;
+    const filePathSelect = document.getElementById('giteeFilePath') as HTMLSelectElement;
+    const bookmarkDirInput = document.getElementById('bookmarkDir') as HTMLInputElement;
     const fields = ['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath'];
-    // 自动填充
+    const CONFIG_SAVE_DEBOUNCE_MS = 400;
+    let configSaveTimer: number | undefined;
+    let configSaveQueue: Promise<void> = Promise.resolve();
+    let lastSavedConfigSnapshot = '';
+    let lastNotifiedConfigSnapshot = '';
+    let pendingSavedFile = '';
+
+    function serializeConfig(config: Record<string, string>) {
+      return JSON.stringify(fields.map(field => config[field] || ''));
+    }
+
+    function collectConfig(): Record<string, string> {
+      const config: Record<string, string> = {};
+      fields.forEach(field => {
+        const value = (document.getElementById(field) as HTMLInputElement).value;
+        config[field] = field === 'giteeFilePath' && !value && pendingSavedFile ? pendingSavedFile : value;
+      });
+      return config;
+    }
+
+    function cancelScheduledConfigSave() {
+      if (configSaveTimer !== undefined) {
+        window.clearTimeout(configSaveTimer);
+        configSaveTimer = undefined;
+      }
+    }
+
+    async function saveConfigNow(shouldNotify = false): Promise<boolean> {
+      cancelScheduledConfigSave();
+      const config = collectConfig();
+      const snapshot = serializeConfig(config);
+      const operation = configSaveQueue.then(async () => {
+        if (snapshot === lastSavedConfigSnapshot) return;
+        await setConfigToDB(config);
+        lastSavedConfigSnapshot = snapshot;
+      });
+      configSaveQueue = operation.catch(() => undefined);
+
+      try {
+        await operation;
+        if (shouldNotify && snapshot !== lastNotifiedConfigSnapshot && snapshot === lastSavedConfigSnapshot) {
+          lastNotifiedConfigSnapshot = snapshot;
+          showToast(t('msg.configSaved'));
+        }
+        return true;
+      } catch (error) {
+        showToast(t('msg.configSaveFailed', getErrorMessage(error)), 'error');
+        return false;
+      }
+    }
+
+    function scheduleConfigSave() {
+      cancelScheduledConfigSave();
+      configSaveTimer = window.setTimeout(() => {
+        configSaveTimer = undefined;
+        void saveConfigNow(false);
+      }, CONFIG_SAVE_DEBOUNCE_MS);
+    }
+
+    // 自动填充，并记录已保存快照，避免初始化或未修改失焦时误报“保存成功”。
     getConfigFromDB(fields).then((data) => {
       fields.forEach(f => {
         const el = document.getElementById(f) as HTMLInputElement;
         if (el && data[f]) el.value = data[f];
       });
-    });
-    // 自动回填保存的 filePath 配置
-    getConfigFromDB(['giteeFilePath']).then((data) => {
-      const savedFile = data['giteeFilePath'];
+      const normalizedConfig = Object.fromEntries(fields.map(field => [field, data[field] || '']));
+      lastSavedConfigSnapshot = serializeConfig(normalizedConfig);
+      lastNotifiedConfigSnapshot = lastSavedConfigSnapshot;
+
+      // 自动回填保存的 filePath 配置
+      const savedFile = data.giteeFilePath || '';
+      pendingSavedFile = savedFile;
       if (savedFile) {
         // 等待文件列表加载后再选中
         const trySelect = () => {
           const opt = Array.from(filePathSelect.options).find(o => o.value === savedFile);
           if (opt) {
             filePathSelect.value = savedFile;
+            pendingSavedFile = '';
           } else {
             setTimeout(trySelect, 100);
           }
@@ -741,30 +520,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         trySelect();
       }
     });
-    // 输入框失焦和输入时自动保存
+
+    // 输入时防抖保存，失焦时立即落库并按实际变更提示一次。
     fields.forEach(f => {
       const el = document.getElementById(f) as HTMLInputElement;
-      function save(shouldNotify = false) {
-        const config: Record<string, string> = {};
-        fields.forEach(ff => {
-          const v = (document.getElementById(ff) as HTMLInputElement).value;
-          config[ff] = v;
-        });
-        setConfigToDB(config).then(() => {
-          if (shouldNotify) showToast(t('msg.configSaved'));
-        });
-      }
-      // 输入时静默自动保存，离开字段后再统一给出一次 Toast，避免输入过程中反复打扰。
-      el.addEventListener('blur', () => save(true));
-      el.addEventListener('input', () => save());
+      el.addEventListener('blur', () => { void saveConfigNow(true); });
+      el.addEventListener('input', scheduleConfigSave);
     });
-
-    const tokenEl = document.getElementById('giteeToken') as HTMLInputElement;
-    const ownerEl = document.getElementById('giteeOwner') as HTMLInputElement;
-    const repoEl = document.getElementById('giteeRepo') as HTMLInputElement;
-    const branchSel = document.getElementById('giteeBranch') as HTMLSelectElement;
-    const filePathSelect = document.getElementById('giteeFilePath') as HTMLSelectElement;
-    const bookmarkDirInput = document.getElementById('bookmarkDir') as HTMLInputElement;
 
     // 监听来自content script的消息（在DOM加载完成后设置）
     chrome.runtime.onMessage.addListener((message: any) => {
@@ -773,9 +535,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tokenEl = document.getElementById('giteeToken') as HTMLInputElement;
         if (tokenEl) {
           tokenEl.value = message.token;
-          // 触发自动保存
-          tokenEl.dispatchEvent(new Event('blur'));
-          showToast(t('msg.tokenUpdated'));
+          void saveConfigNow(false).then(saved => {
+            if (saved) showToast(t('msg.tokenUpdated'), 'info');
+          });
         }
       }
       // 返回响应表示消息已处理
@@ -790,10 +552,13 @@ document.addEventListener('DOMContentLoaded', async () => {
           const tokenEl = document.getElementById('giteeToken') as HTMLInputElement;
           if (tokenEl) {
             tokenEl.value = result.latestToken;
-            tokenEl.dispatchEvent(new Event('blur'));
-            showToast(t('msg.tokenUpdated'));
-            // 清除storage中的token，避免重复使用
-            chrome.storage.local.remove(['latestToken']);
+            void saveConfigNow(false).then(saved => {
+              if (saved) {
+                showToast(t('msg.tokenUpdated'), 'info');
+                // 保存成功后再清除，失败时保留以便下次重试。
+                chrome.storage.local.remove(['latestToken']);
+              }
+            });
           }
         }
       });
@@ -814,23 +579,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     async function fetchGiteeFiles(token: string, owner: string, repo: string, branch: string, dir: string): Promise<string[]> {
       // dir 为空时获取根目录，否则获取指定目录下文件
-      let url = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents`;
-      if (dir) url += `/${encodeURIComponent(dir)}`;
-      url += `?ref=${branch}`;
-      const res = await fetch(url, {
-        headers: { 'Authorization': `token ${token}` }
-      });
-      if (!res.ok) throw new Error(t('select.getFileFailed'));
-      const data = await res.json();
+      let url = `https://gitee.com/api/v5/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents`;
+      if (dir) url += `/${dir.split('/').map(encodeURIComponent).join('/')}`;
+      url += `?ref=${encodeURIComponent(branch)}`;
+      const data = await fetchJson<any[]>(url, {
+        headers: { Authorization: `token ${token}` },
+      }, { fallbackMessage: t('select.getFileFailed') });
       return Array.isArray(data) ? data.filter((f: any) => f.type === 'file').map((f: any) => f.path) : [];
     }
     async function fetchGiteeBranches(token: string, owner: string, repo: string): Promise<string[]> {
-      const url = `https://gitee.com/api/v5/repos/${owner}/${repo}/branches`;
-      const res = await fetch(url, {
-        headers: { 'Authorization': `token ${token}` }
-      });
-      if (!res.ok) throw new Error(t('select.getBranchFailed'));
-      const data = await res.json();
+      const url = `https://gitee.com/api/v5/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/branches`;
+      const data = await fetchJson<any[]>(url, {
+        headers: { Authorization: `token ${token}` },
+      }, { fallbackMessage: t('select.getBranchFailed') });
       return data.map((b: any) => b.name);
     }
     async function updateFilePathOptions() {
@@ -919,7 +680,31 @@ document.addEventListener('DOMContentLoaded', async () => {
       updateFilePathOptions();
     }, 300);
 
-    document.getElementById('btnSaveOverwrite')!.onclick = async function() {
+    const btnSaveOverwrite = document.getElementById('btnSaveOverwrite') as HTMLButtonElement;
+    const btnSaveMerge = document.getElementById('btnSaveMerge') as HTMLButtonElement;
+    const btnGetOverwrite = document.getElementById('btnGetOverwrite') as HTMLButtonElement;
+    const btnGetMerge = document.getElementById('btnGetMerge') as HTMLButtonElement;
+    const syncActionButtons = [btnSaveOverwrite, btnSaveMerge, btnGetOverwrite, btnGetMerge];
+
+    async function runSyncAction(button: HTMLButtonElement, busyText: string, action: () => Promise<void>) {
+      if (button.disabled) return;
+      const originalText = button.textContent || '';
+      syncActionButtons.forEach(item => { item.disabled = true; });
+      button.classList.add('is-loading');
+      button.setAttribute('aria-busy', 'true');
+      button.textContent = busyText;
+      try {
+        await action();
+      } finally {
+        syncActionButtons.forEach(item => { item.disabled = false; });
+        button.classList.remove('is-loading');
+        button.removeAttribute('aria-busy');
+        const labelKey = button.dataset.i18n;
+        button.textContent = labelKey ? t(labelKey) : originalText;
+      }
+    }
+
+    btnSaveOverwrite.onclick = async function() {
       if (!confirm(t('confirm.overwriteSave'))) {
         return;
       }
@@ -927,126 +712,130 @@ document.addEventListener('DOMContentLoaded', async () => {
       // 询问是否保留隐藏书签
       const keepHidden = confirm(t('confirm.keepHidden'));
 
-      try {
-        const config = await getGiteeConfig();
-        const tree = await getLocalBookmarks();
-        let content = tree[0]?.children || [];
+      await runSyncAction(btnSaveOverwrite, t('sync.saving'), async () => {
+        try {
+          const config = await getGiteeConfig();
+          const tree = await getLocalBookmarks();
+          let content = tree[0]?.children || [];
+          let hiddenBookmarksKept = false;
+          let hiddenBookmarksWarning = false;
 
-        if (keepHidden) {
-          // 需要保留隐藏书签，从书签管理器中获取包含隐藏属性的书签
-          try {
-            // 通过消息传递获取书签管理器的完整书签数据
-            const bookmarkManagerData = await getBookmarkManagerData();
-
-            if (bookmarkManagerData && bookmarkManagerData.length > 0) {
-              // 筛选出书签管理器中的隐藏书签
-              const hiddenBookmarks = filterHiddenBookmarks(bookmarkManagerData);
-
-              // 将隐藏书签合并到当前要保存的书签中
-              content = mergeBookmarks(content, hiddenBookmarks);
-
-              showToast(t('msg.hiddenBookmarksKept'));
-            } else {
-              showToast(t('msg.cannotGetManagerData'), true);
+          if (keepHidden) {
+            // 需要保留隐藏书签，从书签管理器中获取包含隐藏属性的书签。
+            try {
+              const bookmarkManagerData = await getBookmarkManagerData();
+              if (bookmarkManagerData && bookmarkManagerData.length > 0) {
+                const hiddenBookmarks = filterHiddenBookmarks(bookmarkManagerData);
+                content = mergeBookmarks(content, hiddenBookmarks);
+                hiddenBookmarksKept = true;
+              } else {
+                hiddenBookmarksWarning = true;
+              }
+            } catch (error) {
+              hiddenBookmarksWarning = true;
+              console.warn('Failed to preserve hidden bookmarks:', error);
             }
-          } catch (error) {
-            showToast(t('msg.getManagerDataFailed'), true);
           }
-        }
 
-        await modifyFile(config, content, true);
-        showToast(t('msg.overwriteSaveSuccess'));
-      } catch (e: any) {
-        showToast(t('msg.overwriteSaveFailed', e.message), true);
-      }
+          await modifyFile(config, content, true);
+          if (hiddenBookmarksWarning) {
+            showToast(t('msg.overwriteSaveCompletedWithWarning'), 'warning');
+          } else if (hiddenBookmarksKept) {
+            showToast(t('msg.overwriteSaveSuccessWithHidden'));
+          } else {
+            showToast(t('msg.overwriteSaveSuccess'));
+          }
+        } catch (error) {
+          showToast(t('msg.overwriteSaveFailed', getErrorMessage(error)), 'error');
+        }
+      });
     };
 
-    document.getElementById('btnSaveMerge')!.onclick = async function() {
+    btnSaveMerge.onclick = async function() {
       if (!confirm(t('confirm.mergeSave'))) {
         return;
       }
-      try {
-        const config = await getGiteeConfig();
-        const tree = await getLocalBookmarks();
-        const content = tree[0]?.children || [];
-        await modifyFile(config, content, false);
-        showToast(t('msg.mergeSaveSuccess'));
-      } catch (e: any) {
-        showToast(t('msg.mergeSaveFailed', e.message), true);
-      }
+      await runSyncAction(btnSaveMerge, t('sync.saving'), async () => {
+        try {
+          const config = await getGiteeConfig();
+          const tree = await getLocalBookmarks();
+          const content = tree[0]?.children || [];
+          await modifyFile(config, content, false);
+          showToast(t('msg.mergeSaveSuccess'));
+        } catch (error) {
+          showToast(t('msg.mergeSaveFailed', getErrorMessage(error)), 'error');
+        }
+      });
     };
 
-    document.getElementById('btnGetOverwrite')!.onclick = async function() {
+    btnGetOverwrite.onclick = async function() {
       if (!confirm(t('confirm.overwriteGet'))) {
         return;
       }
-      try {
-        const config = await getGiteeConfig();
-        const data = await getFile(config);
+      await runSyncAction(btnGetOverwrite, t('sync.getting'), async () => {
+        try {
+          const config = await getGiteeConfig();
+          const data = await getFile(config);
 
-        // 检查数据结构
-        let bookmarksToCreate;
-        if (Array.isArray(data)) {
-          // 如果是数组，取第一个元素的children
-          bookmarksToCreate = data[0]?.children || [];
-        } else if (data.children) {
-          // 如果是对象且有children属性
-          bookmarksToCreate = data.children;
-        } else {
-          throw new Error(t('msg.remoteDataFormatError'));
+          // 检查数据结构
+          let bookmarksToCreate;
+          if (Array.isArray(data)) {
+            // 如果是数组，取第一个元素的children
+            bookmarksToCreate = data[0]?.children || [];
+          } else if (data.children) {
+            // 如果是对象且有children属性
+            bookmarksToCreate = data.children;
+          } else {
+            throw new Error(t('msg.remoteDataFormatError'));
+          }
+
+          // 过滤掉隐藏的书签，不在系统书签栏显示
+          const visibleBookmarks = filterVisibleBookmarks(bookmarksToCreate);
+
+          await replaceBookmarkBarSafely(visibleBookmarks);
+          showToast(t('msg.overwriteGetSuccess'));
+        } catch (error) {
+          showToast(t('msg.overwriteGetFailed', getErrorMessage(error)), 'error');
         }
-
-
-        // 过滤掉隐藏的书签，不在系统书签栏显示
-        const visibleBookmarks = filterVisibleBookmarks(bookmarksToCreate);
-
-        await removeAllBookmarks();
-        const bookmarkBarId = await getBookmarkBarId();
-        await createBookmarks(visibleBookmarks, bookmarkBarId); // 只写入书签栏（仅可见书签）
-        showToast(t('msg.overwriteGetSuccess'));
-      } catch (e: any) {
-        showToast(t('msg.overwriteGetFailed', e.message), true);
-      }
+      });
     };
 
-    document.getElementById('btnGetMerge')!.onclick = async function() {
+    btnGetMerge.onclick = async function() {
       if (!confirm(t('confirm.mergeGet'))) {
         return;
       }
-      try {
-        const config = await getGiteeConfig();
-        const data = await getFile(config);
+      await runSyncAction(btnGetMerge, t('sync.getting'), async () => {
+        try {
+          const config = await getGiteeConfig();
+          const data = await getFile(config);
 
-        const tree = await getLocalBookmarks();
-        const local = tree[0]?.children || [];
+          const tree = await getLocalBookmarks();
+          const local = tree[0]?.children || [];
 
-        // 检查数据结构并获取远程书签
-        let remoteBookmarks;
-        if (Array.isArray(data)) {
-          remoteBookmarks = data[0]?.children || [];
-        } else if (data.children) {
-          remoteBookmarks = data.children;
-        } else {
-          throw new Error(t('msg.remoteDataFormatError'));
+          // 检查数据结构并获取远程书签
+          let remoteBookmarks;
+          if (Array.isArray(data)) {
+            remoteBookmarks = data[0]?.children || [];
+          } else if (data.children) {
+            remoteBookmarks = data.children;
+          } else {
+            throw new Error(t('msg.remoteDataFormatError'));
+          }
+
+          // 获取书签栏的书签进行合并
+          const localBookmarks = local.find((item: any) => item.title === '书签栏' || item.title === 'Bookmarks bar');
+          const localBookmarksChildren = localBookmarks?.children || [];
+          const merged = mergeBookmarks(localBookmarksChildren, remoteBookmarks);
+
+          // 过滤掉隐藏的书签，不在系统书签栏显示
+          const visibleMerged = filterVisibleBookmarks(merged);
+
+          await replaceBookmarkBarSafely(visibleMerged);
+          showToast(t('msg.mergeGetSuccess'));
+        } catch (error) {
+          showToast(t('msg.mergeGetFailed', getErrorMessage(error)), 'error');
         }
-
-
-        // 获取书签栏的书签进行合并
-        const localBookmarks = local.find((item: any) => item.title === '书签栏' || item.title === 'Bookmarks bar');
-        const localBookmarksChildren = localBookmarks?.children || [];
-
-        const merged = mergeBookmarks(localBookmarksChildren, remoteBookmarks);
-
-        // 过滤掉隐藏的书签，不在系统书签栏显示
-        const visibleMerged = filterVisibleBookmarks(merged);
-
-        await removeAllBookmarks();
-        const bookmarkBarId = await getBookmarkBarId();
-        await createBookmarks(visibleMerged, bookmarkBarId); // 只写入书签栏（仅可见书签）
-        showToast(t('msg.mergeGetSuccess'));
-      } catch (e: any) {
-        showToast(t('msg.mergeGetFailed', e.message), true);
-      }
+      });
     };
 
     // 新增书签文件
@@ -1064,7 +853,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const dir = bookmarkDirInput.value.trim();
 
       if (!token || !owner || !repo || !branch || !dir) {
-        showToast(t('msg.fillConfigFirst'), true);
+        showToast(t('msg.fillConfigFirst'), 'warning');
         return;
       }
 
@@ -1073,8 +862,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const content = JSON.stringify([], null, 2); // 空的书签数组
         const encodedContent = btoa(unescape(encodeURIComponent(content)));
 
-        const url = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeURIComponent(filePath)}`;
-        const response = await fetch(url, {
+        const encodedPath = filePath.split('/').map(encodeURIComponent).join('/');
+        const url = `https://gitee.com/api/v5/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodedPath}`;
+        const response = await fetchWithTimeout(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1088,14 +878,11 @@ document.addEventListener('DOMContentLoaded', async () => {
           })
         });
 
-        if (response.ok) {
-          showToast(t('msg.addFileSuccess', finalFileName));
-          updateFilePathOptions(); // 刷新文件列表
-        } else {
-          showToast(t('msg.addFileFailed'), true);
-        }
+        await assertResponseOk(response, t('msg.addFileFailed'));
+        showToast(t('msg.addFileSuccess', finalFileName));
+        updateFilePathOptions(); // 刷新文件列表
       } catch (e: any) {
-        showToast(t('msg.addFileFailed') + ': ' + e.message, true);
+        showToast(t('msg.addFileFailedDetail', getErrorMessage(e)), 'error');
       }
     };
 
@@ -1103,7 +890,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('deleteBookmarkFile')!.onclick = async function() {
       const selectedFile = filePathSelect.value;
       if (!selectedFile) {
-        showToast(t('msg.selectFileFirst'), true);
+        showToast(t('msg.selectFileFirst'), 'warning');
         return;
       }
 
@@ -1117,25 +904,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       const branch = branchSel.value;
 
       if (!token || !owner || !repo || !branch) {
-        showToast(t('msg.fillConfigFirst'), true);
+        showToast(t('msg.fillConfigFirst'), 'warning');
         return;
       }
 
       try {
         // 先获取文件信息（需要 sha）
-        const getUrl = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeURIComponent(selectedFile)}?ref=${branch}`;
-        const getResponse = await fetch(getUrl, {
+        const encodedPath = selectedFile.split('/').map(encodeURIComponent).join('/');
+        const baseUrl = `https://gitee.com/api/v5/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodedPath}`;
+        const getUrl = `${baseUrl}?ref=${encodeURIComponent(branch)}`;
+        const getResponse = await fetchWithTimeout(getUrl, {
           headers: { 'Authorization': `token ${token}` }
         });
-        if (!getResponse.ok) {
-          showToast(t('msg.fileInfoFailed'), true);
-          return;
-        }
+        await assertResponseOk(getResponse, t('msg.fileInfoFailed'));
         const fileInfo = await getResponse.json();
 
         // 删除文件
-        const deleteUrl = `https://gitee.com/api/v5/repos/${owner}/${repo}/contents/${encodeURIComponent(selectedFile)}`;
-        const deleteResponse = await fetch(deleteUrl, {
+        const deleteResponse = await fetchWithTimeout(baseUrl, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
@@ -1149,14 +934,11 @@ document.addEventListener('DOMContentLoaded', async () => {
           })
         });
 
-        if (deleteResponse.ok) {
-          showToast(t('msg.deleteFileSuccess', selectedFile.split('/').pop() || ''));
-          updateFilePathOptions(); // 刷新文件列表
-        } else {
-          showToast(t('msg.deleteFileFailed'), true);
-        }
+        await assertResponseOk(deleteResponse, t('msg.deleteFileFailed'));
+        showToast(t('msg.deleteFileSuccess', selectedFile.split('/').pop() || ''));
+        updateFilePathOptions(); // 刷新文件列表
       } catch (e: any) {
-        showToast(t('msg.deleteFileFailed') + ': ' + e.message, true);
+        showToast(t('msg.deleteFileFailedDetail', getErrorMessage(e)), 'error');
       }
     };
 
@@ -1168,12 +950,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       const file = filePathSelect.value;
 
       if (!owner || !repo) {
-        showToast(t('msg.fillOwnerRepo'), true);
+        showToast(t('msg.fillOwnerRepo'), 'warning');
         return;
       }
 
       if (!file) {
-        showToast(t('msg.selectBookmarkFile'), true);
+        showToast(t('msg.selectBookmarkFile'), 'warning');
         return;
       }
 
@@ -1189,11 +971,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (chrome && chrome.tabs && chrome.tabs.create) {
           chrome.tabs.create({ url: 'chrome://bookmarks/' }, function() {
             if (chrome.runtime.lastError) {
-              showToast(t('msg.cannotOpenManager'), true);
+              showToast(t('msg.cannotOpenManager'), 'error');
             }
           });
         } else {
-          showToast(t('msg.pleaseOpenManually'), true);
+          showToast(t('msg.pleaseOpenManually'), 'error');
         }
       };
     }
@@ -1207,7 +989,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           chrome.storage.local.set({ bmAuthTimestamp: Date.now() }, function() {
             chrome.tabs.create({ url: chrome.runtime.getURL('bookmark-manager.html') }, function() {
               if (chrome.runtime.lastError) {
-                showToast(t('msg.cannotOpenMyManager'), true);
+                showToast(t('msg.cannotOpenMyManager'), 'error');
               }
             });
           });
@@ -1238,6 +1020,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     const closeTabEnabledEl = document.getElementById('closeTabEnabled') as HTMLInputElement;
     const closeTabModifierEl = document.getElementById('closeTabModifier') as HTMLSelectElement;
     const closeTabKeyEl = document.getElementById('closeTabKey') as HTMLInputElement;
+    const siteAccessPanelEl = document.getElementById('siteAccessPanel') as HTMLDivElement;
+    const requestSiteAccessBtnEl = document.getElementById('requestSiteAccessBtn') as HTMLButtonElement;
+    const globalSiteOrigins = ['http://*/*', 'https://*/*'];
+
+    async function hasGlobalSiteAccess(): Promise<boolean> {
+      if (!chrome.permissions?.contains) return true;
+      return chrome.permissions.contains({ origins: globalSiteOrigins });
+    }
+
+    async function updateSiteAccessPanel() {
+      siteAccessPanelEl.style.display = await hasGlobalSiteAccess() ? 'none' : 'block';
+    }
+
+    requestSiteAccessBtnEl.addEventListener('click', async () => {
+      if (!chrome.permissions?.request) return;
+      try {
+        const granted = await chrome.permissions.request({ origins: globalSiteOrigins });
+        await updateSiteAccessPanel();
+        showToast(t(granted ? 'shortcut.siteAccessGranted' : 'shortcut.siteAccessDenied'), granted ? 'success' : 'warning');
+      } catch (error) {
+        showToast(t('shortcut.siteAccessFailed', getErrorMessage(error)), 'error');
+      }
+    });
+    void updateSiteAccessPanel();
+
     if (searchEnabledEl && searchTriggerKeyEl && searchPressCountEl && searchTimeWindowEl &&
         closeTabEnabledEl && closeTabModifierEl && closeTabKeyEl) {
 
@@ -1268,7 +1075,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
 
       // 收集表单数据并保存
-      function saveShortcuts() {
+      async function saveShortcuts() {
         const config = {
           search: {
             triggerKey: searchTriggerKeyEl.value,
@@ -1282,16 +1089,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             key: (closeTabKeyEl.value || 'w').toLowerCase(),
           },
         };
-        saveShortcutConfig(config).then(() => {
+        try {
+          await saveShortcutConfig(config);
           showToast(t('msg.shortcutSaved'));
-        });
+          await updateSiteAccessPanel();
+        } catch (error) {
+          showToast(t('msg.shortcutSaveFailed', getErrorMessage(error)), 'error');
+        }
       }
 
       // 绑定 change 事件 — select 和 checkbox
       [searchEnabledEl, searchTriggerKeyEl, searchPressCountEl, searchTimeWindowEl,
        closeTabEnabledEl, closeTabModifierEl].forEach((el: HTMLElement) => {
         el.addEventListener('change', () => {
-          saveShortcuts();
+          void saveShortcuts();
           updateSearchControlsState();
           updateCloseTabControlsState();
         });
@@ -1304,13 +1115,13 @@ document.addEventListener('DOMContentLoaded', async () => {
           closeTabKeyEl.value = closeTabKeyEl.value.slice(-1);
         }
         closeTabKeyEl.value = closeTabKeyEl.value.toUpperCase();
-        saveShortcuts();
+        void saveShortcuts();
       });
       closeTabKeyEl.addEventListener('blur', () => {
         if (!closeTabKeyEl.value) {
           closeTabKeyEl.value = 'W'; // 为空时恢复默认值
         }
-        saveShortcuts();
+        void saveShortcuts();
       });
     }
 
@@ -1322,31 +1133,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btnClearCryptoMasterEl = document.getElementById('btnClearCryptoMaster') as HTMLButtonElement;
     const giteeFieldNames = ['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath'];
 
-    async function migrateGiteeConfigByCurrentKey() {
-      const plainConfig = await getConfigFromDB(giteeFieldNames);
-      await setConfigToDB(plainConfig);
-    }
-
     if (btnSaveCryptoMasterEl && btnClearCryptoMasterEl && cryptoMasterPasswordEl && cryptoMasterPasswordConfirmEl) {
       btnSaveCryptoMasterEl.onclick = async function() {
         const pwd = cryptoMasterPasswordEl.value;
         const confirmPwd = cryptoMasterPasswordConfirmEl.value;
         if (!pwd) {
-          showToast(t('crypto.masterEmpty'), true);
+          showToast(t('crypto.masterEmpty'), 'warning');
           return;
         }
         if (pwd !== confirmPwd) {
-          showToast(t('crypto.masterMismatch'), true);
+          showToast(t('crypto.masterMismatch'), 'warning');
           return;
         }
         try {
+          // 先用旧密钥读取明文，再切换主密钥，避免修改主密码时丢失现有配置。
+          const plainConfig = await getConfigFromDB(giteeFieldNames);
           await setMasterPassphrase(pwd);
-          await migrateGiteeConfigByCurrentKey();
+          await setConfigToDB(plainConfig);
           cryptoMasterPasswordEl.value = '';
           cryptoMasterPasswordConfirmEl.value = '';
           showToast(t('crypto.masterSaved'));
         } catch {
-          showToast(t('crypto.masterSaveFailed'), true);
+          showToast(t('crypto.masterSaveFailed'), 'error');
         }
       };
 
@@ -1361,7 +1169,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           cryptoMasterPasswordConfirmEl.value = '';
           showToast(t('crypto.masterCleared'));
         } catch {
-          showToast(t('crypto.masterClearFailed'), true);
+          showToast(t('crypto.masterClearFailed'), 'error');
         }
       };
     }
@@ -1410,7 +1218,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         URL.revokeObjectURL(url);
         showToast(t('msg.exportConfigSuccess'));
       } catch (e: any) {
-        showToast(t('msg.exportConfigFailed'), true);
+        showToast(t('msg.exportConfigFailed'), 'error');
       }
     };
 
@@ -1429,7 +1237,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 校验文件格式
         if (!data.version || !data.giteeConfig) {
-          showToast(t('msg.importConfigInvalid'), true);
+          showToast(t('msg.importConfigInvalid'), 'warning');
           this.value = '';
           return;
         }
@@ -1509,9 +1317,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         showToast(t('msg.importConfigSuccess'));
       } catch (e: any) {
         if (e?.message === 'ENCRYPTED_CONFIG_DECRYPT_FAILED') {
-          showToast(t('msg.importConfigDecryptFailed'), true);
+          showToast(t('msg.importConfigDecryptFailed'), 'error');
         } else {
-          showToast(t('msg.importConfigFailed'), true);
+          showToast(t('msg.importConfigFailed'), 'error');
         }
       }
 
@@ -1551,19 +1359,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         try {
-          const config = await getPasswordConfig(token, owner, repo, branch, dir);
-          if (config) {
-            passwordEnabledEl.checked = config.enabled;
-            passwordInputEl.value = config.password;
-            passwordConfirmEl.value = config.password;
-          } else {
-            // 密码.json不存在，说明没有配置密码
-            passwordEnabledEl.checked = false;
-            passwordInputEl.value = '';
-            passwordConfirmEl.value = '';
-          }
+          const policy = await resolvePasswordPolicy({ token, owner, repo, branch, bookmarkDir: dir });
+          passwordEnabledEl.checked = Boolean(policy?.enabled);
+          // 密码仅用于即时派生校验值，绝不从远程或本地回填明文。
+          passwordInputEl.value = '';
+          passwordConfirmEl.value = '';
         } catch (error) {
-          passwordEnabledEl.checked = false;
+          const localPolicy = await getLocalPasswordPolicy().catch(() => null);
+          passwordEnabledEl.checked = Boolean(localPolicy?.enabled);
+          showToast(t('password.msg.loadFailed', getErrorMessage(error)), 'error');
         }
         updatePasswordFieldsState();
       }
@@ -1587,7 +1391,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const dir = bookmarkDirInput.value.trim();
 
         if (!token || !owner || !repo || !branch || !dir) {
-          showToast(t('password.msg.configFirst'), true);
+          showToast(t('password.msg.configFirst'), 'warning');
           return;
         }
 
@@ -1597,25 +1401,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (enabled) {
           if (!password) {
-            showToast(t('password.msg.empty'), true);
+            showToast(t('password.msg.empty'), 'warning');
             return;
           }
           if (password !== confirm) {
-            showToast(t('password.msg.mismatch'), true);
+            showToast(t('password.msg.mismatch'), 'warning');
             return;
           }
         }
 
-        const config = {
-          enabled: enabled,
-          password: enabled ? password : ''
-        };
-
-        const success = await savePasswordConfig(token, owner, repo, branch, dir, config);
-        if (success) {
+        const originalText = savePasswordBtnEl.textContent || '';
+        savePasswordBtnEl.disabled = true;
+        savePasswordBtnEl.textContent = t('password.saving');
+        try {
+          const policy = await createPasswordPolicy(password, enabled);
+          await saveRemotePasswordPolicy({ token, owner, repo, branch, bookmarkDir: dir }, policy);
+          passwordInputEl.value = '';
+          passwordConfirmEl.value = '';
           showToast(t('password.msg.saved'));
-        } else {
-          showToast(t('password.msg.saveFailed'), true);
+        } catch (error) {
+          showToast(t('password.msg.saveFailedDetail', getErrorMessage(error)), 'error');
+        } finally {
+          savePasswordBtnEl.disabled = false;
+          savePasswordBtnEl.textContent = savePasswordBtnEl.dataset.i18n ? t(savePasswordBtnEl.dataset.i18n) : originalText;
         }
       });
 
@@ -1636,93 +1444,82 @@ document.addEventListener('DOMContentLoaded', async () => {
   const lockSubmit = document.getElementById('lockPasswordSubmit') as HTMLButtonElement;
   const lockError = document.getElementById('lockPasswordError') as HTMLDivElement;
 
-  try {
-    const configData = await getConfigFromDB(['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath']);
-    const pToken = configData.giteeToken || '';
-    const pOwner = configData.giteeOwner || '';
-    const pRepo = configData.giteeRepo || '';
-    const pBranch = configData.giteeBranch || 'master';
-    const pFilePath = configData.giteeFilePath || '';
-    const pDir = pFilePath.includes('/') ? pFilePath.substring(0, pFilePath.lastIndexOf('/')) : '';
-
-    let needLock = false;
-    if (pToken && pOwner && pRepo && pBranch && pDir) {
-      const pwdConfig = await getPasswordConfig(pToken, pOwner, pRepo, pBranch, pDir);
-      if (pwdConfig && pwdConfig.enabled && pwdConfig.password) {
-        needLock = true;
-
-        // === 安全优化：从DOM中移除主内容，而不是仅用display:none隐藏 ===
-        // 将popupContent从DOM树中移除，存储在闭包变量中
-        // 这样即使通过控制台也无法通过修改CSS来显示内容
-        popupContent.remove();
-
-        // 显示密码锁定遮罩
-        document.body.style.minHeight = '360px';
-        lockOverlay.style.display = 'flex';
-
-        // 使用 MutationObserver 防止通过控制台篡改锁定遮罩
-        let unlocked = false;
-        const protectObserver = new MutationObserver(() => {
-          if (!unlocked) {
-            // 确保锁定遮罩始终可见
-            if (lockOverlay.style.display !== 'flex') {
-              lockOverlay.style.display = 'flex';
-            }
-            // 确保主内容未被重新添加到DOM
-            if (document.getElementById('popupContent')) {
-              document.getElementById('popupContent')!.remove();
-            }
-          }
-        });
-        protectObserver.observe(lockOverlay, { attributes: true, attributeFilter: ['style', 'class'] });
-        protectObserver.observe(document.body, { childList: true });
-
-        const doUnlock = () => {
-          const inputVal = lockInput.value;
-          if (!inputVal) {
-            lockError.textContent = t('password.msg.empty');
-            return;
-          }
-          if (inputVal === pwdConfig.password) {
-            // 标记已解锁，停止保护
-            unlocked = true;
-            protectObserver.disconnect();
-
-            // 隐藏锁定遮罩
-            lockOverlay.style.display = 'none';
-            document.body.style.minHeight = '';
-
-            // 将主内容重新添加到DOM并显示
-            document.body.appendChild(popupContent);
-            popupContent.style.display = 'flex';
-
-            // 重新翻译DOM（因为popupContent刚恢复到DOM）
-            translateDOM();
-
-            // 初始化所有UI组件
-            initPopupUI();
-          } else {
-            lockError.textContent = t('password.lock.error');
-            lockInput.value = '';
-            lockInput.focus();
-          }
-        };
-
-        lockSubmit.addEventListener('click', doUnlock);
-        lockInput.addEventListener('keydown', (e: KeyboardEvent) => {
-          if (e.key === 'Enter') doUnlock();
-        });
-        setTimeout(() => lockInput.focus(), 50);
-      }
-    }
-    // 无需密码，直接显示主内容并初始化
-    if (!needLock) {
-      popupContent.style.display = 'flex';
-      initPopupUI();
-    }
-  } catch (e) {
-    // 密码检查失败，不锁定，显示主内容并初始化
+  function initializeUnlockedPopup() {
     popupContent.style.display = 'flex';
     initPopupUI();
+  }
+
+  function activatePasswordLock(policy: PasswordPolicy) {
+    popupContent.remove();
+    document.body.style.minHeight = '360px';
+    lockOverlay.style.display = 'flex';
+
+    let unlocked = false;
+    const protectObserver = new MutationObserver(() => {
+      if (!unlocked) {
+        if (lockOverlay.style.display !== 'flex') lockOverlay.style.display = 'flex';
+        document.getElementById('popupContent')?.remove();
+      }
+    });
+    protectObserver.observe(lockOverlay, { attributes: true, attributeFilter: ['style', 'class'] });
+    protectObserver.observe(document.body, { childList: true });
+
+    const doUnlock = async () => {
+      const inputValue = lockInput.value;
+      if (!inputValue) {
+        lockError.textContent = t('password.msg.empty');
+        return;
+      }
+
+      lockSubmit.disabled = true;
+      lockSubmit.textContent = t('password.lock.verifying');
+      try {
+        if (await verifyPassword(inputValue, policy)) {
+          unlocked = true;
+          protectObserver.disconnect();
+          lockOverlay.style.display = 'none';
+          document.body.style.minHeight = '';
+          document.body.appendChild(popupContent);
+          translateDOM();
+          initializeUnlockedPopup();
+        } else {
+          lockError.textContent = t('password.lock.error');
+          lockInput.value = '';
+          lockInput.focus();
+        }
+      } finally {
+        lockSubmit.disabled = false;
+        lockSubmit.textContent = t('password.lock.submit');
+      }
+    };
+
+    lockSubmit.addEventListener('click', () => { void doUnlock(); });
+    lockInput.addEventListener('keydown', (event: KeyboardEvent) => {
+      if (event.key === 'Enter') void doUnlock();
+    });
+    setTimeout(() => lockInput.focus(), 50);
+  }
+
+  try {
+    const configData = await getConfigFromDB(['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath']);
+    const filePath = configData.giteeFilePath || '';
+    const bookmarkDir = filePath.includes('/') ? filePath.substring(0, filePath.lastIndexOf('/')) : '';
+    const location = configData.giteeToken && configData.giteeOwner && configData.giteeRepo
+      ? {
+          token: configData.giteeToken,
+          owner: configData.giteeOwner,
+          repo: configData.giteeRepo,
+          branch: configData.giteeBranch || 'master',
+          bookmarkDir,
+        }
+      : undefined;
+    const policy = await resolvePasswordPolicy(location);
+    if (policy?.enabled) activatePasswordLock(policy);
+    else initializeUnlockedPopup();
+  } catch (error) {
+    // 配置读取失败时仍检查本地策略；已启用保护的设备绝不能因网络或存储故障直接放行。
+    const localPolicy = await getLocalPasswordPolicy().catch(() => null);
+    if (localPolicy?.enabled) activatePasswordLock(localPolicy);
+    else initializeUnlockedPopup();
   }
 });

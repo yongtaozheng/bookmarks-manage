@@ -58,6 +58,7 @@ export default defineConfig({
     // bookmark-manager.js 也需要 IIFE 格式以支持 import 加密模块后打包为单文件
     chromeExtensionScripts([
       'src/content-search.ts',
+      'src/gitee-token-capture.ts',
       'src/background.ts',
       'src/bookmark-manager.js',
     ]),

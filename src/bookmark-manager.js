@@ -1,6 +1,11 @@
-import { encrypt, decryptSafe } from './crypto';
 import { initLocale, t as _t, translateDOM, getLocale, setLocale } from './i18n/index';
 import { initTheme, setupThemeToggle } from './theme';
+import { getConfig, setConfig } from './config-repository';
+import { replaceBookmarkBarSafely } from './bookmark-service';
+import { assertResponseOk, fetchJson, fetchWithTimeout, getErrorMessage } from './http';
+import { escapeHtml, escapeRegExp, safeExternalUrl } from './sanitize';
+import { showToast } from './toast';
+import { getLocalPasswordPolicy, resolvePasswordPolicy, verifyPassword } from './password-service';
 
 // i18n 辅助函数（直接使用 i18n 模块的翻译函数）
 const t = (key, ...args) => _t(key, ...args);
@@ -33,7 +38,9 @@ class BookmarkManager {
       filePath: 'hidden-bookmarks.json'
     };
 
-    this.init();
+    void this.init().catch(error => {
+      showToast(t('manager.localBookmarksLoadFailed', getErrorMessage(error)), 'error');
+    });
   }
 
   async init() {
@@ -80,7 +87,7 @@ class BookmarkManager {
       this.bookmarks = resolvedBookmarks;
       this.saveBookmarksToStorage();
     } catch (error) {
-      this.bookmarks = [];
+      throw error;
     }
   }
 
@@ -142,7 +149,7 @@ class BookmarkManager {
     if (['2', 'remote', 'r'].includes(value)) return 'remote';
     if (['3', 'merge', 'm'].includes(value)) return 'merge';
 
-    alert(t('manager.syncConflictInvalidChoice'));
+    showToast(t('manager.syncConflictInvalidChoice'), 'warning');
     return 'merge';
   }
 
@@ -296,7 +303,9 @@ class BookmarkManager {
   saveBookmarksToStorage() {
     if (typeof chrome !== 'undefined' && chrome.storage) {
       chrome.storage.local.set({ 'bookmarkManagerData': this.bookmarks }, () => {
-        // 数据已保存
+        if (chrome.runtime.lastError) {
+          showToast(t('manager.localStateSaveFailed', chrome.runtime.lastError.message), 'error');
+        }
       });
     }
   }
@@ -311,15 +320,24 @@ class BookmarkManager {
       this.applyFilter(e.target.value);
     });
 
-    document.getElementById('refreshBtn').addEventListener('click', () => {
-      this.loadBookmarks().then(() => {
+    document.getElementById('refreshBtn').addEventListener('click', async event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      button.textContent = t('manager.refreshing');
+      try {
+        await this.loadBookmarks();
         // 重新渲染文件夹树
         this.renderFolderTree();
         // 重新渲染当前文件夹内容
         this.renderBookmarks();
         // 更新统计信息
         this.updateStats();
-      });
+      } catch (error) {
+        showToast(t('manager.refreshFailed', getErrorMessage(error)), 'error');
+      } finally {
+        button.disabled = false;
+        button.textContent = button.dataset.i18n ? t(button.dataset.i18n) : t('btn.refresh');
+      }
     });
 
     document.getElementById('exportBtn').addEventListener('click', () => {
@@ -926,14 +944,14 @@ class BookmarkManager {
               // 切换到目标标签页
               chrome.tabs.update(targetTab.id, { active: true });
             }).catch((error) => {
-              alert(t('manager.scriptExecutionFailed') + error.message);
+              showToast(t('manager.scriptExecutionFailed') + error.message, 'error');
             });
           } else {
-            alert(t('manager.noWebPageTab') || '请先打开一个网页标签页，再执行脚本书签');
+            showToast(t('manager.noWebPageTab') || '请先打开一个网页标签页，再执行脚本书签', 'warning');
           }
         });
       } catch (error) {
-        alert(t('manager.scriptExecutionFailed') + error.message);
+        showToast(t('manager.scriptExecutionFailed') + error.message, 'error');
       }
     } else if (scriptUrl.startsWith('data:')) {
       // 对于data URL，直接打开
@@ -950,10 +968,10 @@ class BookmarkManager {
       const hasChildren = folder.children && folder.children.length > 0;
 
       html += `
-        <div class="folder-item${hiddenClass}" data-folder-id="${folder.id}" style="padding-left: ${16 + level * 16}px;">
+        <div class="folder-item${hiddenClass}" data-folder-id="${this.escapeHtml(folder.id)}" style="padding-left: ${16 + level * 16}px;">
           ${hasChildren ? '<div class="folder-toggle">▼</div>' : '<div class="folder-toggle" style="visibility: hidden;">▼</div>'}
           <div class="folder-icon">📁</div>
-          <div class="folder-name">${folder.title} ${hiddenIcon}</div>
+          <div class="folder-name">${this.escapeHtml(folder.title)} ${hiddenIcon}</div>
         </div>
         ${hasChildren ? `
           <div class="folder-children" style="display: block;">
@@ -1178,7 +1196,7 @@ class BookmarkManager {
       this.bookmarkTree.innerHTML = `
         <div class="empty-state">
           <h3>${t('manager.noSearchResults')}</h3>
-          <p>${t('manager.searchNoResult', searchTerm)}</p>
+          <p>${this.escapeHtml(t('manager.searchNoResult', searchTerm))}</p>
         </div>
       `;
       // 清除左侧选中状态
@@ -1226,20 +1244,23 @@ class BookmarkManager {
           // 普通书签
           faviconUrl = this.getFaviconUrl(bookmark.url);
           displayUrl = bookmark.url;
-          clickHandler = `href="${bookmark.url}" target="_blank"`;
+          const safeUrl = safeExternalUrl(bookmark.url);
+          clickHandler = safeUrl
+            ? `href="${this.escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer"`
+            : 'href="#" aria-disabled="true"';
         }
 
         html += `
-          <div class="bookmark-item${hiddenClass}" data-bookmark-id="${bookmark.id}" draggable="true">
+          <div class="bookmark-item${hiddenClass}" data-bookmark-id="${this.escapeHtml(bookmark.id)}" draggable="true">
             <div class="drag-handle">⋮⋮</div>
             <img class="bookmark-icon" src="${faviconUrl}" alt="${t('manager.statBookmarks')}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIgMkgxNFYxNEgyVjJaIiBzdHJva2U9IiM2NjYiIHN0cm9rZS13aWR0aD0iMS41IiBmaWxsPSJub25lIi8+CjxwYXRoIGQ9Ik0yIDZIMTRWNkg2VjJaIiBmaWxsPSIjNjY2Ii8+Cjwvc3ZnPgo='">
             <div class="bookmark-content">
               <a ${clickHandler} class="bookmark-title">${this.highlightSearchTerm(bookmark.title, searchTerm)} ${hiddenIcon}</a>
-              <div class="bookmark-url">${displayUrl}</div>
+              <div class="bookmark-url">${this.escapeHtml(displayUrl)}</div>
               <div class="bookmark-actions">
-                <button class="action-btn action-btn-edit" data-bookmark-id="${bookmark.id}">${t('btn.edit')}</button>
-                <button class="action-btn action-btn-hide" data-bookmark-id="${bookmark.id}">${isHidden ? t('btn.show') : t('btn.hide')}</button>
-                <button class="action-btn action-btn-delete" data-bookmark-id="${bookmark.id}">${t('btn.delete')}</button>
+                <button class="action-btn action-btn-edit" data-bookmark-id="${this.escapeHtml(bookmark.id)}">${t('btn.edit')}</button>
+                <button class="action-btn action-btn-hide" data-bookmark-id="${this.escapeHtml(bookmark.id)}">${isHidden ? t('btn.show') : t('btn.hide')}</button>
+                <button class="action-btn action-btn-delete" data-bookmark-id="${this.escapeHtml(bookmark.id)}">${t('btn.delete')}</button>
               </div>
             </div>
           </div>
@@ -1254,9 +1275,10 @@ class BookmarkManager {
   }
 
   highlightSearchTerm(text, searchTerm) {
-    if (!searchTerm) return text;
-    const regex = new RegExp(`(${searchTerm})`, 'gi');
-    return text.replace(regex, '<mark>$1</mark>');
+    const escapedText = this.escapeHtml(text);
+    if (!searchTerm) return escapedText;
+    const regex = new RegExp(`(${escapeRegExp(this.escapeHtml(searchTerm))})`, 'gi');
+    return escapedText.replace(regex, '<mark>$1</mark>');
   }
 
   renderSearchResultsInFolder(folder, searchTerm) {
@@ -1267,7 +1289,7 @@ class BookmarkManager {
       this.bookmarkTree.innerHTML = `
         <div class="empty-state">
           <h3>${t('manager.noMatchInFolder')}</h3>
-          <p>${t('manager.noSearchResultInFolder', folder.title, searchTerm)}</p>
+          <p>${this.escapeHtml(t('manager.noSearchResultInFolder', folder.title, searchTerm))}</p>
         </div>
       `;
       this.panelTitle.textContent = `${folder.title} - ${t('manager.searchResults')} (0 ${t('manager.items')})`;
@@ -1307,20 +1329,23 @@ class BookmarkManager {
           // 普通书签
           faviconUrl = this.getFaviconUrl(bookmark.url);
           displayUrl = bookmark.url;
-          clickHandler = `href="${bookmark.url}" target="_blank"`;
+          const safeUrl = safeExternalUrl(bookmark.url);
+          clickHandler = safeUrl
+            ? `href="${this.escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer"`
+            : 'href="#" aria-disabled="true"';
         }
 
         html += `
-          <div class="bookmark-item${hiddenClass}" data-bookmark-id="${bookmark.id}" draggable="true">
+          <div class="bookmark-item${hiddenClass}" data-bookmark-id="${this.escapeHtml(bookmark.id)}" draggable="true">
             <div class="drag-handle">⋮⋮</div>
             <img class="bookmark-icon" src="${faviconUrl}" alt="${t('manager.statBookmarks')}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIgMkgxNFYxNEgyVjJaIiBzdHJva2U9IiM2NjYiIHN0cm9rZS13aWR0aD0iMS41IiBmaWxsPSJub25lIi8+CjxwYXRoIGQ9Ik0yIDZIMTRWNkg2VjJaIiBmaWxsPSIjNjY2Ii8+Cjwvc3ZnPgo='">
             <div class="bookmark-content">
-              <a ${clickHandler} class="bookmark-title">${bookmark.title} ${hiddenIcon}</a>
-              <div class="bookmark-url">${displayUrl}</div>
+              <a ${clickHandler} class="bookmark-title">${this.escapeHtml(bookmark.title)} ${hiddenIcon}</a>
+              <div class="bookmark-url">${this.escapeHtml(displayUrl)}</div>
               <div class="bookmark-actions">
-                <button class="action-btn action-btn-edit" data-bookmark-id="${bookmark.id}">${t('btn.edit')}</button>
-                <button class="action-btn action-btn-hide" data-bookmark-id="${bookmark.id}">${isHidden ? t('btn.show') : t('btn.hide')}</button>
-                <button class="action-btn action-btn-delete" data-bookmark-id="${bookmark.id}">${t('btn.delete')}</button>
+                <button class="action-btn action-btn-edit" data-bookmark-id="${this.escapeHtml(bookmark.id)}">${t('btn.edit')}</button>
+                <button class="action-btn action-btn-hide" data-bookmark-id="${this.escapeHtml(bookmark.id)}">${isHidden ? t('btn.show') : t('btn.hide')}</button>
+                <button class="action-btn action-btn-delete" data-bookmark-id="${this.escapeHtml(bookmark.id)}">${t('btn.delete')}</button>
               </div>
             </div>
           </div>
@@ -1330,16 +1355,16 @@ class BookmarkManager {
         const hiddenClass = isHidden ? ' hidden-bookmark' : '';
         const hiddenIcon = isHidden ? '👁️‍🗨️' : '';
         html += `
-          <div class="bookmark-item folder-item${hiddenClass}" data-folder-id="${bookmark.id}" data-bookmark-id="${bookmark.id}" draggable="true">
+          <div class="bookmark-item folder-item${hiddenClass}" data-folder-id="${this.escapeHtml(bookmark.id)}" data-bookmark-id="${this.escapeHtml(bookmark.id)}" draggable="true">
             <div class="drag-handle">⋮⋮</div>
             <div class="folder-icon">📁</div>
             <div class="bookmark-content">
-              <div class="bookmark-title">${bookmark.title} ${hiddenIcon}</div>
+              <div class="bookmark-title">${this.escapeHtml(bookmark.title)} ${hiddenIcon}</div>
               <div class="bookmark-url">${t('manager.folderItems', String(bookmark.children.length))}</div>
               <div class="bookmark-actions">
-                <button class="action-btn action-btn-edit" data-bookmark-id="${bookmark.id}">${t('btn.edit')}</button>
-                <button class="action-btn action-btn-hide" data-bookmark-id="${bookmark.id}">${isHidden ? t('btn.show') : t('btn.hide')}</button>
-                <button class="action-btn action-btn-delete" data-bookmark-id="${bookmark.id}">${t('btn.delete')}</button>
+                <button class="action-btn action-btn-edit" data-bookmark-id="${this.escapeHtml(bookmark.id)}">${t('btn.edit')}</button>
+                <button class="action-btn action-btn-hide" data-bookmark-id="${this.escapeHtml(bookmark.id)}">${isHidden ? t('btn.show') : t('btn.hide')}</button>
+                <button class="action-btn action-btn-delete" data-bookmark-id="${this.escapeHtml(bookmark.id)}">${t('btn.delete')}</button>
               </div>
             </div>
           </div>
@@ -1386,7 +1411,7 @@ class BookmarkManager {
     // 查找书签数据
     const bookmark = this.findBookmarkById(id);
     if (!bookmark) {
-      alert(t('manager.editNotFound'));
+      showToast(t('manager.editNotFound'), 'warning');
       return;
     }
 
@@ -1426,14 +1451,14 @@ class BookmarkManager {
     const newUrl = document.getElementById('editBookmarkUrl').value.trim().replace(/[\r\n]/g, '');
 
     if (!newTitle) {
-      alert(t('manager.editTitleRequired'));
+      showToast(t('manager.editTitleRequired'), 'warning');
       return;
     }
 
     // 查找书签数据
     const bookmark = this.findBookmarkById(id);
     if (!bookmark) {
-      alert(t('manager.editNotFound'));
+      showToast(t('manager.editNotFound'), 'warning');
       return;
     }
 
@@ -1450,7 +1475,9 @@ class BookmarkManager {
       this.saveBookmarksToStorage();
 
       // 同步到Gitee
-      this.saveBookmarkTreeToGitee(this.bookmarks);
+      void this.saveBookmarkTreeToGitee(this.bookmarks).catch(error => {
+        showToast(t('manager.saveToGiteeFailedDetail', getErrorMessage(error)), 'error');
+      });
 
       // 更新系统书签栏
       this.updateSystemBookmarks();
@@ -1479,7 +1506,7 @@ class BookmarkManager {
         updateLocalData();
       }
     } catch (error) {
-      alert(t('manager.editFailed'));
+      showToast(t('manager.editFailed'), 'error');
     }
   }
 
@@ -1510,13 +1537,15 @@ class BookmarkManager {
       try {
         const removed = this.removeBookmarkById(this.bookmarks, id);
         if (!removed) {
-          alert(t('manager.editNotFound'));
+          showToast(t('manager.editNotFound'), 'warning');
           return;
         }
 
         // 本地数据为准，避免使用已失效的 chrome bookmark id 导致报错
         this.saveBookmarksToStorage();
-        this.saveBookmarkTreeToGitee(this.bookmarks);
+        void this.saveBookmarkTreeToGitee(this.bookmarks).catch(error => {
+          showToast(t('manager.saveToGiteeFailedDetail', getErrorMessage(error)), 'error');
+        });
         this.updateSystemBookmarks();
 
         this.renderFolderTree();
@@ -1527,7 +1556,7 @@ class BookmarkManager {
         }
         this.updateStats();
       } catch (error) {
-        alert(t('manager.deleteBookmarkFailed'));
+        showToast(t('manager.deleteBookmarkFailed'), 'error');
       }
     }
   }
@@ -1574,13 +1603,13 @@ class BookmarkManager {
       try {
         const data = JSON.parse(e.target.result);
         if (!Array.isArray(data) || data.length === 0) {
-          alert(t('manager.importInvalidFormat'));
+          showToast(t('manager.importInvalidFormat'), 'warning');
           return;
         }
 
         // 验证数据基本结构
         if (!this.validateImportData(data)) {
-          alert(t('manager.importInvalidFormat'));
+          showToast(t('manager.importInvalidFormat'), 'warning');
           return;
         }
 
@@ -1591,7 +1620,7 @@ class BookmarkManager {
         // 显示导入确认对话框
         this.showImportModal(stats);
       } catch (error) {
-        alert(t('manager.importInvalidFormat'));
+        showToast(t('manager.importInvalidFormat'), 'warning');
       }
     };
     reader.readAsText(file);
@@ -1667,10 +1696,15 @@ class BookmarkManager {
   }
 
   // 确认导入书签
-  confirmImport() {
+  async confirmImport() {
     if (!this.pendingImportData) return;
 
     const importMode = document.querySelector('input[name="importMode"]:checked').value;
+    const previousBookmarks = this.cloneBookmarks(this.bookmarks);
+    const confirmButton = document.getElementById('confirmImportBtn');
+    const originalLabel = confirmButton.textContent;
+    confirmButton.disabled = true;
+    confirmButton.textContent = t('manager.importing');
 
     try {
       if (importMode === 'overwrite') {
@@ -1681,14 +1715,10 @@ class BookmarkManager {
         this.bookmarks = this.mergeImportedBookmarks(this.bookmarks, this.pendingImportData);
       }
 
-      // 保存到storage
+      // 浏览器书签替换带自动备份与失败回滚。
+      await this.applyBookmarksToBrowser(this.bookmarks);
+      if (this.isGiteeConfigured()) await this.saveBookmarkTreeToGitee(this.bookmarks);
       this.saveBookmarksToStorage();
-
-      // 保存到Gitee仓库
-      this.saveBookmarkTreeToGitee(this.bookmarks);
-
-      // 更新系统书签（过滤掉隐藏的书签）
-      this.updateSystemBookmarks();
 
       // 重新渲染
       this.renderFolderTree();
@@ -1698,9 +1728,19 @@ class BookmarkManager {
       // 关闭对话框
       this.hideImportModal();
 
-      alert(t('manager.importSuccess'));
+      showToast(t('manager.importSuccess'));
     } catch (error) {
-      alert(t('manager.importFailed'));
+      this.bookmarks = previousBookmarks;
+      this.saveBookmarksToStorage();
+      try {
+        await this.applyBookmarksToBrowser(previousBookmarks);
+      } catch (rollbackError) {
+        console.error('Failed to restore bookmarks after import error:', rollbackError);
+      }
+      showToast(t('manager.importFailedDetail', getErrorMessage(error)), 'error');
+    } finally {
+      confirmButton.disabled = false;
+      confirmButton.textContent = confirmButton.dataset.i18n ? t(confirmButton.dataset.i18n) : originalLabel;
     }
   }
 
@@ -1786,7 +1826,9 @@ class BookmarkManager {
       }
 
       // 保存到Gitee仓库
-      this.saveBookmarkTreeToGitee(this.bookmarks);
+      void this.saveBookmarkTreeToGitee(this.bookmarks).catch(error => {
+        showToast(t('manager.saveToGiteeFailedDetail', getErrorMessage(error)), 'error');
+      });
 
       // 保存到storage供popup使用
       this.saveBookmarksToStorage();
@@ -1836,48 +1878,16 @@ class BookmarkManager {
     const sourceChildren = root?.children || [];
     const visibleBookmarks = this.filterVisibleBookmarks(this.cloneBookmarks(sourceChildren));
 
-    await this.removeAllBookmarks();
-    const bookmarkBarId = await this.getBookmarkBarId();
-    await this.createBookmarks(visibleBookmarks, bookmarkBarId);
+    await replaceBookmarkBarSafely(visibleBookmarks);
   }
 
   updateSystemBookmarks() {
     // 更新系统书签，过滤掉隐藏的书签（系统书签栏不显示隐藏书签）
     if (typeof chrome !== 'undefined' && chrome.bookmarks) {
-      this.applyBookmarksToBrowser(this.bookmarks).catch(() => {});
+      void this.applyBookmarksToBrowser(this.bookmarks).catch(error => {
+        showToast(t('manager.browserUpdateFailedDetail', getErrorMessage(error)), 'error');
+      });
     }
-  }
-
-  getBookmarkBarId() {
-    return new Promise((resolve) => {
-      chrome.bookmarks.getTree((nodes) => {
-        const bookmarkBarId = nodes?.[0]?.children?.[0]?.id;
-        resolve(bookmarkBarId || '1');
-      });
-    });
-  }
-
-  removeAllBookmarks() {
-    return new Promise((resolve) => {
-      chrome.bookmarks.getTree((nodes) => {
-        const rootChildren = nodes[0]?.children || [];
-        let toDelete = [];
-        rootChildren.forEach((node) => {
-          // 只删除根目录下的子节点（即书签栏、其他书签、移动设备书签的 children）
-          if (node.children && node.children.length) {
-            node.children.forEach((child) => toDelete.push(child.id));
-          }
-        });
-        let count = toDelete.length;
-        if (count === 0) return resolve();
-        toDelete.forEach(id => {
-          chrome.bookmarks.removeTree(id, () => {
-            count--;
-            if (count === 0) resolve();
-          });
-        });
-      });
-    });
   }
 
   filterVisibleBookmarks(bookmarks) {
@@ -1904,86 +1914,16 @@ class BookmarkManager {
     }, []);
   }
 
-  createBookmarks(nodes, parentId = '1') {
-    // 参考popup页面的createBookmarks实现
-    if (!Array.isArray(nodes) || nodes.length === 0 || !parentId) {
-      return Promise.resolve();
-    }
-
-
-    return Promise.all(nodes.map(node => {
-      if (!node) {
-        return Promise.resolve();
-      }
-
-      if (node.url) {
-        // 创建书签
-        return new Promise(res => {
-          chrome.bookmarks.create({
-            parentId,
-            title: node.title,
-            url: node.url
-          }, (bookmark) => {
-            if (chrome.runtime.lastError) {
-            } else {
-            }
-            res(undefined);
-          });
-        });
-      } else {
-        // 创建文件夹
-        return new Promise(res => {
-          chrome.bookmarks.create({
-            parentId,
-            title: node.title
-          }, (folder) => {
-            if (chrome.runtime.lastError || !folder || !folder.id) {
-              res(undefined);
-            } else {
-              if (node.children && node.children.length > 0) {
-                this.createBookmarks(node.children, folder.id).then(() => res(undefined));
-              } else {
-                res(undefined);
-              }
-            }
-          });
-        });
-      }
-    })).then(() => {
-    });
-  }
-
-
-  loadBookmarksFromGitee() {
-    return new Promise((resolve, reject) => {
-      if (!this.giteeConfig || !this.giteeConfig.owner || !this.giteeConfig.repo || !this.giteeConfig.token) {
-        reject(new Error(t('manager.giteeConfigIncomplete')));
-        return;
-      }
-
-      const encodedPath = this.giteeConfig.filePath.split('/').map(encodeURIComponent).join('/');
-      const url = `https://gitee.com/api/v5/repos/${this.giteeConfig.owner}/${this.giteeConfig.repo}/contents/${encodedPath}?ref=${encodeURIComponent(this.giteeConfig.branch)}`;
-
-      fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `token ${this.giteeConfig.token}`
-        }
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.content) {
-          const content = decodeURIComponent(escape(atob(data.content)));
-          const bookmarks = JSON.parse(content);
-          resolve(bookmarks);
-        } else {
-          reject(new Error(t('manager.cannotGetFileContent')));
-        }
-      })
-      .catch(error => {
-        reject(error);
-      });
-    });
+  async loadBookmarksFromGitee() {
+    if (!this.isGiteeConfigured()) throw new Error(t('manager.giteeConfigIncomplete'));
+    const encodedPath = this.giteeConfig.filePath.split('/').map(encodeURIComponent).join('/');
+    const url = `https://gitee.com/api/v5/repos/${encodeURIComponent(this.giteeConfig.owner)}/${encodeURIComponent(this.giteeConfig.repo)}/contents/${encodedPath}?ref=${encodeURIComponent(this.giteeConfig.branch)}`;
+    const data = await fetchJson(url, {
+      headers: { Authorization: `token ${this.giteeConfig.token}` },
+    }, { fallbackMessage: t('manager.cannotGetFileContent') });
+    if (!data?.content) throw new Error(t('manager.cannotGetFileContent'));
+    const content = decodeURIComponent(escape(atob(data.content)));
+    return JSON.parse(content);
   }
 
   filterHiddenBookmarks(bookmarks) {
@@ -2070,7 +2010,7 @@ class BookmarkManager {
 
   async saveBookmarkTreeToGitee(bookmarks, options = {}) {
     if (!this.isGiteeConfigured()) {
-      return false;
+      throw new Error(t('manager.giteeConfigIncomplete'));
     }
 
     const mode = options.mode === 'overwrite' ? 'overwrite' : 'merge';
@@ -2081,121 +2021,54 @@ class BookmarkManager {
     );
 
     const encodedPath = this.giteeConfig.filePath.split('/').map(encodeURIComponent).join('/');
-    const apiUrl = `https://gitee.com/api/v5/repos/${this.giteeConfig.owner}/${this.giteeConfig.repo}/contents/${encodedPath}`;
+    const apiUrl = `https://gitee.com/api/v5/repos/${encodeURIComponent(this.giteeConfig.owner)}/${encodeURIComponent(this.giteeConfig.repo)}/contents/${encodedPath}`;
     const refUrl = `${apiUrl}?ref=${encodeURIComponent(this.giteeConfig.branch)}`;
 
-    try {
-      const getResp = await fetch(refUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `token ${this.giteeConfig.token}`
-        }
-      });
-      const data = await getResp.json();
-
-      const sha = data?.sha;
-      let finalBookmarks = bookmarks;
-
-      if (mode === 'merge' && data?.content) {
-        try {
-          const remoteContent = decodeURIComponent(escape(atob(data.content)));
-          const remoteBookmarks = JSON.parse(remoteContent);
-          finalBookmarks = this.mergeBookmarks(bookmarks, remoteBookmarks);
-        } catch (e) {
-          console.warn('远程书签数据解析失败，将直接使用本地数据保存:', e);
-        }
-      }
-
-      const content = JSON.stringify(finalBookmarks, null, 2);
-      const encodedContent = btoa(unescape(encodeURIComponent(content)));
-      const payload = {
-        message: commitMessage,
-        content: encodedContent,
-        sha
-      };
-
-      const putResp = await fetch(apiUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `token ${this.giteeConfig.token}`
-        },
-        body: JSON.stringify(payload)
-      });
-      const putData = await putResp.json();
-      return !!putData.content;
-    } catch (error) {
-      console.error('书签保存到Gitee出错:', error);
-      return false;
-    }
-  }
-
-
-
-
-  // IndexedDB 相关方法
-  async openDB() {
-    return new Promise((resolve, reject) => {
-      const req = indexedDB.open('bookmarks-plus', 1);
-      req.onupgradeneeded = function(e) {
-        const db = e.target.result;
-        if (!db.objectStoreNames.contains('gitee-config')) {
-          db.createObjectStore('gitee-config');
-        }
-      };
-      req.onsuccess = function(e) {
-        resolve(e.target.result);
-      };
-      req.onerror = function(e) {
-        reject(e);
-      };
+    const getResp = await fetchWithTimeout(refUrl, {
+      method: 'GET',
+      headers: { Authorization: `token ${this.giteeConfig.token}` },
     });
+    await assertResponseOk(getResp, t('manager.cannotGetFileContent'));
+    const data = await getResp.json();
+
+    const sha = data?.sha;
+    if (!sha) throw new Error(t('manager.cannotGetFileContent'));
+    let finalBookmarks = bookmarks;
+
+    if (mode === 'merge' && data?.content) {
+      try {
+        const remoteContent = decodeURIComponent(escape(atob(data.content)));
+        const remoteBookmarks = JSON.parse(remoteContent);
+        finalBookmarks = this.mergeBookmarks(bookmarks, remoteBookmarks);
+      } catch (error) {
+        console.warn('Remote bookmark data could not be parsed:', error);
+        throw new Error(t('manager.remoteDataInvalid'));
+      }
+    }
+
+    const content = JSON.stringify(finalBookmarks, null, 2);
+    const encodedContent = btoa(unescape(encodeURIComponent(content)));
+    const putResp = await fetchWithTimeout(apiUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `token ${this.giteeConfig.token}`,
+      },
+      body: JSON.stringify({ message: commitMessage, content: encodedContent, sha }),
+    });
+    await assertResponseOk(putResp, t('manager.saveToGiteeFailed'));
+    return true;
   }
+
+
+
 
   async getConfigFromIndexedDB(fields) {
-    const db = await this.openDB();
-    // 1. 从 IndexedDB 读取原始（加密后的）数据
-    const rawResult = await new Promise(resolve => {
-      const tx = db.transaction('gitee-config', 'readonly');
-      const store = tx.objectStore('gitee-config');
-      const result = {};
-      let count = fields.length;
-      fields.forEach(f => {
-        const req = store.get(f);
-        req.onsuccess = function() {
-          result[f] = req.result || '';
-          count--;
-          if (count === 0) resolve(result);
-        };
-        req.onerror = function() {
-          count--;
-          if (count === 0) resolve(result);
-        };
-      });
-    });
-    // 2. 解密每个字段（兼容未加密的旧数据）
-    const decrypted = {};
-    for (const f of fields) {
-      decrypted[f] = await decryptSafe(rawResult[f]);
-    }
-    return decrypted;
+    return getConfig(fields);
   }
 
   async setConfigToIndexedDB(config) {
-    // 1. 先加密所有配置值
-    const encryptedConfig = {};
-    for (const [k, v] of Object.entries(config)) {
-      encryptedConfig[k] = v ? await encrypt(v) : v;
-    }
-    // 2. 写入 IndexedDB
-    const db = await this.openDB();
-    const tx = db.transaction('gitee-config', 'readwrite');
-    const store = tx.objectStore('gitee-config');
-    Object.entries(encryptedConfig).forEach(([k, v]) => store.put(v, k));
-    return new Promise(resolve => {
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => resolve();
-    });
+    return setConfig(config);
   }
 
   async loadConfigFromIndexedDB() {
@@ -2211,18 +2084,14 @@ class BookmarkManager {
 
   async getFileSha() {
     try {
-      const apiUrl = `https://gitee.com/api/v5/repos/${this.giteeConfig.owner}/${this.giteeConfig.repo}/contents/${this.giteeConfig.filePath}?ref=${this.giteeConfig.branch}`;
-      const response = await fetch(apiUrl, {
-        headers: {
-          'Authorization': `token ${this.giteeConfig.token}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        return data.sha;
-      }
+      const encodedPath = this.giteeConfig.filePath.split('/').map(encodeURIComponent).join('/');
+      const apiUrl = `https://gitee.com/api/v5/repos/${encodeURIComponent(this.giteeConfig.owner)}/${encodeURIComponent(this.giteeConfig.repo)}/contents/${encodedPath}?ref=${encodeURIComponent(this.giteeConfig.branch)}`;
+      const data = await fetchJson(apiUrl, {
+        headers: { Authorization: `token ${this.giteeConfig.token}` },
+      }, { fallbackMessage: t('manager.cannotGetFileContent') });
+      return data?.sha || null;
     } catch (error) {
+      console.warn('Failed to load Gitee file SHA:', error);
     }
     return null;
   }
@@ -2249,7 +2118,7 @@ class BookmarkManager {
     const token = document.getElementById('giteeToken').value.trim();
 
     if (!owner || !repo || !token) {
-      alert(t('manager.configIncomplete'));
+      showToast(t('manager.configIncomplete'), 'warning');
       return;
     }
 
@@ -2267,11 +2136,11 @@ class BookmarkManager {
         giteeBranch: this.giteeConfig.branch,
         giteeFilePath: this.giteeConfig.filePath
       });
+      this.hideConfigModal();
+      showToast(t('manager.configSaved'));
     } catch (error) {
+      showToast(t('manager.configSaveFailed', getErrorMessage(error)), 'error');
     }
-
-    this.hideConfigModal();
-    alert(t('manager.configSaved'));
   }
 
   // ========== 重复书签检测 ==========
@@ -2505,7 +2374,7 @@ class BookmarkManager {
           <div class="duplicate-item">
             <input type="checkbox" class="duplicate-checkbox"
                    data-group="${groupIdx}" data-item="${itemIdx}"
-                   data-bookmark-id="${item.id}" ${checked}>
+                   data-bookmark-id="${this.escapeHtml(item.id)}" ${checked}>
             <div class="duplicate-item-info">
               <div class="duplicate-item-title">
                 ${this.escapeHtml(item.title)}
@@ -2536,9 +2405,7 @@ class BookmarkManager {
    * HTML 转义（防 XSS）
    */
   escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    return escapeHtml(text);
   }
 
   /**
@@ -2602,12 +2469,16 @@ class BookmarkManager {
 
       // 关闭对话框并提示成功
       this.hideDuplicateModal();
-      alert(t('manager.duplicateDeleteSuccess', String(ids.length)));
+      showToast(t('manager.duplicateDeleteSuccess', String(ids.length)));
     } catch (error) {
       console.error('Delete duplicates failed:', error);
-      alert(t('manager.duplicateDeleteFailed'));
+      showToast(t('manager.duplicateDeleteFailed'), 'error');
       // 重新执行检测刷新状态
       this.runDuplicateDetection();
+    } finally {
+      if (document.getElementById('duplicateModal').style.display !== 'none') {
+        this.updateDuplicateSelectedCount();
+      }
     }
   }
 
@@ -2738,6 +2609,19 @@ class BookmarkManager {
    */
   async startLinkCheck() {
     if (this.linkCheckRunning) return;
+
+    if (typeof chrome !== 'undefined' && chrome.permissions?.request) {
+      try {
+        const granted = await chrome.permissions.request({ origins: ['http://*/*', 'https://*/*'] });
+        if (!granted) {
+          showToast(t('manager.linkCheckPermissionDenied'), 'warning');
+          return;
+        }
+      } catch (error) {
+        showToast(t('manager.linkCheckPermissionFailed', getErrorMessage(error)), 'error');
+        return;
+      }
+    }
 
     this.linkCheckRunning = true;
     this.linkCheckResults = [];
@@ -2905,7 +2789,7 @@ class BookmarkManager {
       html += `
         <div class="linkcheck-item">
           ${showCheckbox
-            ? `<input type="checkbox" class="linkcheck-checkbox" data-bookmark-id="${item.id}" ${checked}>`
+            ? `<input type="checkbox" class="linkcheck-checkbox" data-bookmark-id="${this.escapeHtml(item.id)}" ${checked}>`
             : `<div style="width:17px;flex-shrink:0;"></div>`
           }
           <div class="linkcheck-item-info">
@@ -2997,10 +2881,12 @@ class BookmarkManager {
 
       // 重新渲染检测结果
       this.renderLinkCheckResults();
-      alert(t('manager.linkCheckDeleteSuccess', String(ids.length)));
+      showToast(t('manager.linkCheckDeleteSuccess', String(ids.length)));
     } catch (error) {
       console.error('Delete broken links failed:', error);
-      alert(t('manager.linkCheckDeleteFailed'));
+      showToast(t('manager.linkCheckDeleteFailed'), 'error');
+    } finally {
+      this.updateLinkCheckSelectedCount();
     }
   }
 
@@ -3060,145 +2946,75 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  // 非 popup 跳转，需要检查密码保护
-  try {
-    // 从 IndexedDB 获取 Gitee 配置
-    const db = await new Promise((resolve, reject) => {
-      const req = indexedDB.open('bookmarks-plus', 1);
-      req.onupgradeneeded = (e) => {
-        const db = e.target.result;
-        if (!db.objectStoreNames.contains('gitee-config')) {
-          db.createObjectStore('gitee-config');
-        }
-      };
-      req.onsuccess = (e) => resolve(e.target.result);
-      req.onerror = (e) => reject(e);
-    });
+  const lockInput = document.getElementById('lockPasswordInput');
+  const lockSubmit = document.getElementById('lockPasswordSubmit');
+  const lockError = document.getElementById('lockPasswordError');
 
-    const getConfig = (fields) => new Promise((resolve) => {
-      const tx = db.transaction('gitee-config', 'readonly');
-      const store = tx.objectStore('gitee-config');
-      const result = {};
-      let count = fields.length;
-      fields.forEach((f) => {
-        const req = store.get(f);
-        req.onsuccess = () => {
-          result[f] = req.result || '';
-          count--;
-          if (count === 0) resolve(result);
-        };
-        req.onerror = () => {
-          count--;
-          if (count === 0) resolve(result);
-        };
-      });
-    });
-
-    const rawConfig = await getConfig(['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath']);
-    // IndexedDB 中的配置值是加密的，需要解密后才能使用
-    const pToken = await decryptSafe(rawConfig.giteeToken || '');
-    const pOwner = await decryptSafe(rawConfig.giteeOwner || '');
-    const pRepo = await decryptSafe(rawConfig.giteeRepo || '');
-    const pBranch = await decryptSafe(rawConfig.giteeBranch || '') || 'master';
-    const pFilePath = await decryptSafe(rawConfig.giteeFilePath || '');
-    const pDir = pFilePath.includes('/') ? pFilePath.substring(0, pFilePath.lastIndexOf('/')) : '';
-
-    let needLock = false;
-
-    if (pToken && pOwner && pRepo && pBranch && pDir) {
-      // 从 Gitee 获取密码配置
-      const passwordFileName = '密码.json';
-      const passwordFilePath = pDir ? `${pDir}/${passwordFileName}` : passwordFileName;
-      const encodedPath = passwordFilePath.split('/').map(encodeURIComponent).join('/');
-      const apiUrl = `https://gitee.com/api/v5/repos/${pOwner}/${pRepo}/contents/${encodedPath}?ref=${pBranch}`;
-
-      try {
-        const response = await fetch(apiUrl, {
-          headers: { 'Authorization': `token ${pToken}` }
-        });
-
-        if (response.ok) {
-          const fileData = await response.json();
-          const decodedContent = atob(fileData.content);
-          const decoder = new TextDecoder();
-          const decodedData = decoder.decode(
-            new Uint8Array([...decodedContent].map((char) => char.charCodeAt(0)))
-          );
-          const pwdConfig = JSON.parse(decodedData);
-
-          if (pwdConfig && pwdConfig.enabled && pwdConfig.password) {
-            needLock = true;
-
-            // === 安全优化：从DOM中移除主内容，而不是仅用display:none隐藏 ===
-            // 将mainContent从DOM树中移除，存储在闭包变量中
-            // 这样即使通过控制���也无法通过修改CSS来显示内容
-            mainContent.remove();
-
-            // 显示密码锁定遮罩
-            lockOverlay.style.display = 'flex';
-
-            // 使用 MutationObserver 防止通过控制台篡改锁定遮罩
-            let unlocked = false;
-            const protectObserver = new MutationObserver(() => {
-              if (!unlocked) {
-                // 确保锁定遮罩始终可见
-                if (lockOverlay.style.display !== 'flex') {
-                  lockOverlay.style.display = 'flex';
-                }
-                // 确保主内容未被重新添加到DOM
-                if (document.getElementById('mainContent')) {
-                  document.getElementById('mainContent').remove();
-                }
-              }
-            });
-            protectObserver.observe(lockOverlay, { attributes: true, attributeFilter: ['style', 'class'] });
-            protectObserver.observe(document.body, { childList: true });
-
-            const lockInput = document.getElementById('lockPasswordInput');
-            const lockSubmit = document.getElementById('lockPasswordSubmit');
-            const lockError = document.getElementById('lockPasswordError');
-
-            const doUnlock = () => {
-              const inputVal = lockInput.value;
-              if (!inputVal) {
-                lockError.textContent = t('password.msg.empty');
-                return;
-              }
-              if (inputVal === pwdConfig.password) {
-                // 标记已解锁，停止保护
-                unlocked = true;
-                protectObserver.disconnect();
-
-                // 隐藏锁定遮罩
-                lockOverlay.style.display = 'none';
-
-                // 初始化管理器（会将mainContent重新添加到DOM）
-                initManager();
-              } else {
-                lockError.textContent = t('password.lock.error');
-                lockInput.value = '';
-                lockInput.focus();
-              }
-            };
-
-            lockSubmit.addEventListener('click', doUnlock);
-            lockInput.addEventListener('keydown', (e) => {
-              if (e.key === 'Enter') doUnlock();
-            });
-            setTimeout(() => lockInput.focus(), 50);
-          }
-        }
-      } catch (error) {
-        // 密码配置获取失败，不锁定
+  function activatePasswordLock(policy) {
+    mainContent.remove();
+    lockOverlay.style.display = 'flex';
+    let unlocked = false;
+    const protectObserver = new MutationObserver(() => {
+      if (!unlocked) {
+        if (lockOverlay.style.display !== 'flex') lockOverlay.style.display = 'flex';
+        document.getElementById('mainContent')?.remove();
       }
-    }
+    });
+    protectObserver.observe(lockOverlay, { attributes: true, attributeFilter: ['style', 'class'] });
+    protectObserver.observe(document.body, { childList: true });
 
-    // 无需密码保护，直接初始化
-    if (!needLock) {
-      initManager();
-    }
-  } catch (e) {
-    // 发生异常，不阻塞用户使用
-    initManager();
+    const doUnlock = async () => {
+      const inputValue = lockInput.value;
+      if (!inputValue) {
+        lockError.textContent = t('password.msg.empty');
+        return;
+      }
+      lockSubmit.disabled = true;
+      lockSubmit.textContent = t('password.lock.verifying');
+      try {
+        if (await verifyPassword(inputValue, policy)) {
+          unlocked = true;
+          protectObserver.disconnect();
+          lockOverlay.style.display = 'none';
+          initManager();
+        } else {
+          lockError.textContent = t('password.lock.error');
+          lockInput.value = '';
+          lockInput.focus();
+        }
+      } finally {
+        lockSubmit.disabled = false;
+        lockSubmit.textContent = t('password.lock.submit');
+      }
+    };
+
+    lockSubmit.addEventListener('click', () => { void doUnlock(); });
+    lockInput.addEventListener('keydown', event => {
+      if (event.key === 'Enter') void doUnlock();
+    });
+    setTimeout(() => lockInput.focus(), 50);
+  }
+
+  // 非 popup 跳转时刷新远程策略；网络故障时回退到本地策略，避免绕过已启用的锁定。
+  try {
+    const config = await getConfig(['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath']);
+    const filePath = config.giteeFilePath || '';
+    const bookmarkDir = filePath.includes('/') ? filePath.substring(0, filePath.lastIndexOf('/')) : '';
+    const location = config.giteeToken && config.giteeOwner && config.giteeRepo
+      ? {
+          token: config.giteeToken,
+          owner: config.giteeOwner,
+          repo: config.giteeRepo,
+          branch: config.giteeBranch || 'master',
+          bookmarkDir,
+        }
+      : undefined;
+    const policy = await resolvePasswordPolicy(location);
+    if (policy?.enabled) activatePasswordLock(policy);
+    else initManager();
+  } catch (error) {
+    const localPolicy = await getLocalPasswordPolicy().catch(() => null);
+    if (localPolicy?.enabled) activatePasswordLock(localPolicy);
+    else initManager();
   }
 });

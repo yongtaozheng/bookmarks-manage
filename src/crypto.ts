@@ -10,6 +10,8 @@ declare const chrome: any;
 const CRYPTO_KEY_NAME = '_bm_encryption_key';
 /** 主密码（用于派生跨设备一致密钥） */
 const CRYPTO_MASTER_PASSPHRASE_NAME = '_bm_encryption_master_passphrase';
+/** 主密码派生出的密钥。仅用于兼容自动解密，不保存用户原始主密码。 */
+const CRYPTO_MASTER_KEY_NAME = '_bm_encryption_master_key';
 /** 主密码派生参数 */
 const MASTER_KEY_SALT = 'bookmarks-manage-master-key-v1';
 const PBKDF2_ITERATIONS = 250000;
@@ -24,20 +26,29 @@ type KeyContext = {
 let cachedKeyContext: KeyContext | null = null;
 
 function storageGet(keys: string[]): Promise<any> {
-  return new Promise(resolve => {
-    chrome.storage.local.get(keys, (result: any) => resolve(result || {}));
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.get(keys, (result: any) => {
+      if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+      else resolve(result || {});
+    });
   });
 }
 
 function storageSet(values: Record<string, any>): Promise<void> {
-  return new Promise(resolve => {
-    chrome.storage.local.set(values, () => resolve());
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.set(values, () => {
+      if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+      else resolve();
+    });
   });
 }
 
 function storageRemove(keys: string[]): Promise<void> {
-  return new Promise(resolve => {
-    chrome.storage.local.remove(keys, () => resolve());
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.remove(keys, () => {
+      if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+      else resolve();
+    });
   });
 }
 
@@ -96,10 +107,21 @@ async function getLegacyKey(generateIfMissing: boolean): Promise<CryptoKey> {
 async function getKeyContext(): Promise<KeyContext> {
   if (cachedKeyContext) return cachedKeyContext;
 
-  const result = await storageGet([CRYPTO_MASTER_PASSPHRASE_NAME]);
+  const result = await storageGet([CRYPTO_MASTER_KEY_NAME, CRYPTO_MASTER_PASSPHRASE_NAME]);
+  const storedMasterKey = result[CRYPTO_MASTER_KEY_NAME];
+  if (storedMasterKey) {
+    const key = await crypto.subtle.importKey('jwk', storedMasterKey, { name: 'AES-GCM' }, true, ['encrypt', 'decrypt']);
+    cachedKeyContext = { key, mode: 'master' };
+    return cachedKeyContext;
+  }
+
+  // 一次性迁移旧版本中明文保存的主密码，迁移后立即删除明文。
   const passphrase = result[CRYPTO_MASTER_PASSPHRASE_NAME];
   if (passphrase && typeof passphrase === 'string') {
     const key = await deriveKeyFromPassphrase(passphrase);
+    const jwk = await crypto.subtle.exportKey('jwk', key);
+    await storageSet({ [CRYPTO_MASTER_KEY_NAME]: jwk });
+    await storageRemove([CRYPTO_MASTER_PASSPHRASE_NAME]);
     cachedKeyContext = { key, mode: 'master' };
     return cachedKeyContext;
   }
@@ -134,21 +156,25 @@ async function decryptWithKey(encryptedBase64: string, key: CryptoKey): Promise<
  */
 export async function setMasterPassphrase(passphrase: string): Promise<void> {
   if (!passphrase) throw new Error('EMPTY_MASTER_PASSPHRASE');
-  await storageSet({ [CRYPTO_MASTER_PASSPHRASE_NAME]: passphrase });
-  cachedKeyContext = null;
+  if (passphrase.length > 1024) throw new Error('MASTER_PASSPHRASE_TOO_LONG');
+  const key = await deriveKeyFromPassphrase(passphrase);
+  const jwk = await crypto.subtle.exportKey('jwk', key);
+  await storageSet({ [CRYPTO_MASTER_KEY_NAME]: jwk });
+  await storageRemove([CRYPTO_MASTER_PASSPHRASE_NAME]);
+  cachedKeyContext = { key, mode: 'master' };
 }
 
 /**
  * 清除跨设备主密码，回退到本地随机密钥模式
  */
 export async function clearMasterPassphrase(): Promise<void> {
-  await storageRemove([CRYPTO_MASTER_PASSPHRASE_NAME]);
+  await storageRemove([CRYPTO_MASTER_KEY_NAME, CRYPTO_MASTER_PASSPHRASE_NAME]);
   cachedKeyContext = null;
 }
 
 export async function hasMasterPassphrase(): Promise<boolean> {
-  const result = await storageGet([CRYPTO_MASTER_PASSPHRASE_NAME]);
-  return Boolean(result[CRYPTO_MASTER_PASSPHRASE_NAME]);
+  const result = await storageGet([CRYPTO_MASTER_KEY_NAME, CRYPTO_MASTER_PASSPHRASE_NAME]);
+  return Boolean(result[CRYPTO_MASTER_KEY_NAME] || result[CRYPTO_MASTER_PASSPHRASE_NAME]);
 }
 
 /**
