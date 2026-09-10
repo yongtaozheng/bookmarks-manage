@@ -3,7 +3,9 @@ import { initTheme, setupThemeToggle } from './theme';
 import { getConfig, setConfig } from './config-repository';
 import {
   captureBookmarkBarRestorePoint,
-  getBookmarkRestorePoint,
+  deleteBookmarkRestorePoint,
+  getBookmarkRestoreHistory,
+  mergeBookmarkHiddenState,
   replaceBookmarkBarSafely,
   restoreBookmarkBarFromPoint,
 } from './bookmark-service';
@@ -39,6 +41,8 @@ class BookmarkManager {
     this.renderBatchSize = 150;
     this.renderLimit = this.renderBatchSize;
     this.searchDebounceTimer = null;
+    this.restoreHistory = [];
+    this.selectedRestorePointId = null;
     this.giteeConfig = {
       owner: '',
       repo: '',
@@ -127,7 +131,7 @@ class BookmarkManager {
     const button = document.getElementById('restoreBtn');
     if (!button) return;
     try {
-      button.disabled = !(await getBookmarkRestorePoint());
+      button.disabled = (await getBookmarkRestoreHistory()).length === 0;
     } catch {
       button.disabled = true;
     }
@@ -159,49 +163,165 @@ class BookmarkManager {
 
   async showRestoreModal() {
     try {
-      const point = await getBookmarkRestorePoint();
-      if (!point) {
+      this.restoreHistory = await getBookmarkRestoreHistory();
+      if (this.restoreHistory.length === 0) {
         showToast(t('manager.restoreUnavailable'), 'info');
         return;
       }
-      const info = document.getElementById('restoreInfo');
-      const time = new Date(point.createdAt).toLocaleString(getLocale() === 'en' ? 'en-US' : 'zh-CN');
-      info.textContent = t(
-        'manager.restoreSummary',
-        time,
-        String(this.countBookmarkNodes(point.nodes)),
-        this.getRestoreReasonLabel(point.reason),
-      );
+      if (!this.restoreHistory.some(point => point.id === this.selectedRestorePointId)) {
+        this.selectedRestorePointId = this.restoreHistory[0].id;
+      }
+      this.renderRestoreHistory();
       document.getElementById('restoreModal').style.display = 'flex';
+      document.querySelector('.restore-history-item[aria-selected="true"]')?.focus();
     } catch (error) {
       showToast(t('manager.restoreLoadFailed', getErrorMessage(error)), 'error');
     }
+  }
+
+  analyzeRestorePoint(nodes) {
+    const stats = { bookmarks: 0, folders: 0, hidden: 0 };
+    const visit = items => {
+      (items || []).forEach(item => {
+        if (item?.url) stats.bookmarks += 1;
+        else stats.folders += 1;
+        if (item?.hidden === true) stats.hidden += 1;
+        if (item?.children) visit(item.children);
+      });
+    };
+    visit(nodes);
+    return stats;
+  }
+
+  renderRestoreHistory() {
+    const list = document.getElementById('restoreHistoryList');
+    list.replaceChildren();
+    this.restoreHistory.forEach(point => {
+      const stats = this.analyzeRestorePoint(point.nodes);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'restore-history-item';
+      button.dataset.restoreId = point.id;
+      button.setAttribute('aria-selected', String(point.id === this.selectedRestorePointId));
+
+      const time = document.createElement('strong');
+      time.textContent = new Date(point.createdAt).toLocaleString(getLocale() === 'en' ? 'en-US' : 'zh-CN');
+      const reason = document.createElement('span');
+      reason.textContent = this.getRestoreReasonLabel(point.reason);
+      const count = document.createElement('small');
+      count.textContent = t('manager.restoreItemCount', stats.bookmarks, stats.folders);
+      button.append(time, reason, count);
+      button.addEventListener('click', () => {
+        this.selectedRestorePointId = point.id;
+        this.renderRestoreHistory();
+      });
+      list.appendChild(button);
+    });
+    this.renderSelectedRestorePoint();
+  }
+
+  renderSelectedRestorePoint() {
+    const point = this.restoreHistory.find(item => item.id === this.selectedRestorePointId);
+    const preview = document.getElementById('restorePreview');
+    const meta = document.getElementById('restorePreviewMeta');
+    const actionButtons = ['exportRestoreBtn', 'deleteRestoreBtn', 'restoreLocalBtn', 'restoreSyncBtn']
+      .map(id => document.getElementById(id));
+    actionButtons.forEach(button => { button.disabled = !point; });
+    preview.replaceChildren();
+    if (!point) {
+      meta.textContent = t('manager.restoreSelectVersion');
+      return;
+    }
+
+    const stats = this.analyzeRestorePoint(point.nodes);
+    meta.textContent = t('manager.restorePreviewMeta', stats.bookmarks, stats.folders, stats.hidden);
+    point.nodes.forEach(node => {
+      const item = document.createElement('div');
+      item.className = 'restore-preview-item';
+      const icon = document.createElement('span');
+      icon.textContent = node.url ? '🔖' : '📁';
+      const label = document.createElement('span');
+      label.textContent = node.title || '—';
+      const detail = document.createElement('small');
+      detail.textContent = node.url
+        ? node.url
+        : t('manager.restoreChildCount', Array.isArray(node.children) ? node.children.length : 0);
+      item.append(icon, label, detail);
+      preview.appendChild(item);
+    });
   }
 
   hideRestoreModal() {
     document.getElementById('restoreModal').style.display = 'none';
   }
 
-  async restoreLastBookmarkBackup() {
-    const button = document.getElementById('confirmRestoreBtn');
+  exportSelectedRestorePoint() {
+    const point = this.restoreHistory.find(item => item.id === this.selectedRestorePointId);
+    if (!point) return;
+    const blob = new Blob([JSON.stringify(point.nodes, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `bookmark-backup-${new Date(point.createdAt).toISOString().replace(/[:.]/g, '-')}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    showToast(t('manager.restoreExported'));
+  }
+
+  async deleteSelectedRestorePoint() {
+    const point = this.restoreHistory.find(item => item.id === this.selectedRestorePointId);
+    if (!point || !confirm(t('manager.restoreDeleteConfirm'))) return;
+    try {
+      await deleteBookmarkRestorePoint(point.id);
+      this.restoreHistory = await getBookmarkRestoreHistory();
+      this.selectedRestorePointId = this.restoreHistory[0]?.id || null;
+      if (this.restoreHistory.length === 0) this.hideRestoreModal();
+      else this.renderRestoreHistory();
+      await this.updateRestoreButtonState();
+      showToast(t('manager.restoreDeleted'));
+    } catch (error) {
+      showToast(t('manager.restoreDeleteFailed', getErrorMessage(error)), 'error');
+    }
+  }
+
+  async restoreSelectedBookmarkBackup(syncToGitee = false) {
+    const point = this.restoreHistory.find(item => item.id === this.selectedRestorePointId);
+    if (!point) return;
+    if (syncToGitee && !this.isGiteeConfigured()) {
+      showToast(t('manager.giteeConfigIncomplete'), 'warning');
+      return;
+    }
+    const button = document.getElementById(syncToGitee ? 'restoreSyncBtn' : 'restoreLocalBtn');
     const originalText = button.textContent;
+    const actionButtons = ['exportRestoreBtn', 'deleteRestoreBtn', 'restoreLocalBtn', 'restoreSyncBtn']
+      .map(id => document.getElementById(id));
+    actionButtons.forEach(item => { item.disabled = true; });
     button.disabled = true;
     button.textContent = t('manager.restoring');
+    let restoredLocally = false;
     try {
-      await restoreBookmarkBarFromPoint();
+      await restoreBookmarkBarFromPoint(point.id);
+      restoredLocally = true;
       this.bookmarks = await this.getLocalBookmarksWithHiddenState();
       this.saveBookmarksToStorage();
+      if (syncToGitee) {
+        await this.saveBookmarkTreeToGitee(this.bookmarks, {
+          mode: 'overwrite',
+          message: 'Restore bookmark history version',
+        });
+      }
       this.renderFolderTree();
       this.selectRootFolder();
       this.renderBookmarks();
       this.updateStats();
       this.hideRestoreModal();
       await this.updateRestoreButtonState();
-      showToast(t('manager.restoreSuccess'));
+      showToast(t(syncToGitee ? 'manager.restoreSyncSuccess' : 'manager.restoreSuccess'));
     } catch (error) {
-      showToast(t('manager.restoreFailed', getErrorMessage(error)), 'error');
+      const key = restoredLocally && syncToGitee ? 'manager.restoreSyncPartial' : 'manager.restoreFailed';
+      showToast(t(key, getErrorMessage(error)), restoredLocally ? 'warning' : 'error');
     } finally {
-      button.disabled = false;
+      actionButtons.forEach(item => { item.disabled = false; });
       button.textContent = button.dataset.i18n ? t(button.dataset.i18n) : originalText;
     }
   }
@@ -368,40 +488,7 @@ class BookmarkManager {
 
   // 合并隐藏状态到Chrome书签数据
   mergeHiddenState(chromeBookmarks, storedData) {
-    // 创建存储数据的ID到隐藏状态的映射
-    const hiddenStateMap = new Map();
-    const collectHiddenState = (bookmarks) => {
-      bookmarks.forEach(bookmark => {
-        if (bookmark.hidden !== undefined) {
-          hiddenStateMap.set(bookmark.id, bookmark.hidden);
-        }
-        if (bookmark.children) {
-          collectHiddenState(bookmark.children);
-        }
-      });
-    };
-    collectHiddenState(storedData);
-
-    // 递归合并隐藏状态到Chrome书签数据
-    const mergeRecursive = (chromeItems) => {
-      return chromeItems.map(item => {
-        const merged = { ...item };
-
-        // 恢复隐藏状态
-        if (hiddenStateMap.has(item.id)) {
-          merged.hidden = hiddenStateMap.get(item.id);
-        }
-
-        // 递归处理子项
-        if (item.children && item.children.length > 0) {
-          merged.children = mergeRecursive(item.children);
-        }
-
-        return merged;
-      });
-    };
-
-    return mergeRecursive(chromeBookmarks);
+    return mergeBookmarkHiddenState(chromeBookmarks, storedData);
   }
 
   // 保存书签数据到storage，供popup使用
@@ -594,9 +681,10 @@ class BookmarkManager {
     });
     document.getElementById('closeRestoreModal').addEventListener('click', () => this.hideRestoreModal());
     document.getElementById('cancelRestoreBtn').addEventListener('click', () => this.hideRestoreModal());
-    document.getElementById('confirmRestoreBtn').addEventListener('click', () => {
-      void this.restoreLastBookmarkBackup();
-    });
+    document.getElementById('exportRestoreBtn').addEventListener('click', () => this.exportSelectedRestorePoint());
+    document.getElementById('deleteRestoreBtn').addEventListener('click', () => void this.deleteSelectedRestorePoint());
+    document.getElementById('restoreLocalBtn').addEventListener('click', () => void this.restoreSelectedBookmarkBackup(false));
+    document.getElementById('restoreSyncBtn').addEventListener('click', () => void this.restoreSelectedBookmarkBackup(true));
 
     // 编辑对话框中按Enter键保存
     document.getElementById('editBookmarkTitle').addEventListener('keydown', (e) => {
@@ -2174,9 +2262,7 @@ class BookmarkManager {
       ? (bookmarksTree.find(item => item && (item.title === '书签栏' || item.title === 'Bookmarks bar')) || bookmarksTree[0])
       : null;
     const sourceChildren = root?.children || [];
-    const visibleBookmarks = this.filterVisibleBookmarks(this.cloneBookmarks(sourceChildren));
-
-    await replaceBookmarkBarSafely(visibleBookmarks, 'replace', createRestorePoint);
+    await replaceBookmarkBarSafely(this.cloneBookmarks(sourceChildren), 'replace', createRestorePoint);
   }
 
   updateSystemBookmarks() {

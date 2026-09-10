@@ -81,21 +81,34 @@
     "sync.mergeDownload": "\u5408\u5E76\u4E0B\u8F7D\uFF08\u63A8\u8350\uFF09",
     "sync.overwriteDownload": "\u8986\u76D6\u672C\u5730",
     "sync.safeHint": "\u5408\u5E76\u4F1A\u4FDD\u7559\u4E24\u7AEF\u4E66\u7B7E\uFF1B\u8986\u76D6\u64CD\u4F5C\u6267\u884C\u524D\u4ECD\u4F1A\u8981\u6C42\u786E\u8BA4\u3002",
-    "sync.keepHidden": "\u4FDD\u7559\u8FDC\u7A0B\u9690\u85CF\u4E66\u7B7E",
+    "sync.keepHidden": "\u540C\u6B65\u65F6\u4FDD\u7559\u9690\u85CF\u4E66\u7B7E",
     "sync.confirmAction": "\u786E\u8BA4\u540C\u6B65",
     "sync.confirmOverwriteUploadTitle": "\u786E\u8BA4\u8986\u76D6\u8FDC\u7A0B\u4E66\u7B7E\uFF1F",
-    "sync.confirmOverwriteUploadDesc": "\u5C06\u4F7F\u7528\u5F53\u524D\u672C\u5730\u4E66\u7B7E\u66FF\u6362\u8FDC\u7A0B\u6587\u4EF6\u3002\u5EFA\u8BAE\u5148\u786E\u8BA4\u4E66\u7B7E\u6570\u91CF\uFF0C\u6216\u6539\u7528\u5408\u5E76\u4E0A\u4F20\u3002",
+    "sync.confirmOverwriteUploadDesc": "\u9ED8\u8BA4\u4F7F\u7528\u672C\u5730\u7248\u672C\u66FF\u6362\u8FDC\u7A0B\u6587\u4EF6\uFF1B\u5C55\u5F00\u5DEE\u5F02\u540E\u53EF\u9010\u9879\u6539\u4E3A\u4FDD\u7559\u8FDC\u7A0B\u3002",
     "sync.confirmMergeUploadTitle": "\u786E\u8BA4\u5408\u5E76\u4E0A\u4F20\uFF1F",
-    "sync.confirmMergeUploadDesc": "\u672C\u5730\u4E0E\u8FDC\u7A0B\u4E66\u7B7E\u5C06\u53BB\u91CD\u5408\u5E76\uFF0C\u5E76\u5199\u56DE Gitee\u3002",
+    "sync.confirmMergeUploadDesc": "\u9ED8\u8BA4\u5408\u5E76\u4E24\u7AEF\u72EC\u6709\u4E66\u7B7E\uFF0C\u5E76\u5199\u56DE Gitee\uFF1B\u51B2\u7A81\u9879\u53EF\u9010\u9879\u9009\u62E9\u7248\u672C\u3002",
     "sync.confirmOverwriteDownloadTitle": "\u786E\u8BA4\u8986\u76D6\u672C\u5730\u4E66\u7B7E\uFF1F",
-    "sync.confirmOverwriteDownloadDesc": "\u8FDC\u7A0B\u4E66\u7B7E\u5C06\u66FF\u6362\u672C\u5730\u4E66\u7B7E\u680F\u3002\u64CD\u4F5C\u524D\u4F1A\u81EA\u52A8\u521B\u5EFA\u6062\u590D\u70B9\u3002",
+    "sync.confirmOverwriteDownloadDesc": "\u9ED8\u8BA4\u4F7F\u7528\u8FDC\u7A0B\u7248\u672C\u66FF\u6362\u672C\u5730\u4E66\u7B7E\u680F\uFF1B\u53EF\u9010\u9879\u4FDD\u7559\u672C\u5730\uFF0C\u64CD\u4F5C\u524D\u4F1A\u81EA\u52A8\u521B\u5EFA\u6062\u590D\u70B9\u3002",
     "sync.confirmMergeDownloadTitle": "\u786E\u8BA4\u5408\u5E76\u4E0B\u8F7D\uFF1F",
-    "sync.confirmMergeDownloadDesc": "\u8FDC\u7A0B\u4E66\u7B7E\u5C06\u4E0E\u672C\u5730\u4E66\u7B7E\u53BB\u91CD\u5408\u5E76\uFF0C\u518D\u66F4\u65B0\u672C\u5730\u4E66\u7B7E\u680F\u3002",
+    "sync.confirmMergeDownloadDesc": "\u9ED8\u8BA4\u5408\u5E76\u4E24\u7AEF\u72EC\u6709\u4E66\u7B7E\uFF0C\u518D\u66F4\u65B0\u672C\u5730\u4E66\u7B7E\u680F\uFF1B\u51B2\u7A81\u9879\u53EF\u9010\u9879\u9009\u62E9\u7248\u672C\u3002",
     "sync.localOnly": "\u4EC5\u672C\u5730",
     "sync.shared": "\u4E24\u7AEF\u76F8\u540C",
     "sync.remoteOnly": "\u4EC5\u8FDC\u7A0B",
+    "sync.moved": "\u4F4D\u7F6E\u53D8\u5316",
+    "sync.urlChanged": "URL \u53D8\u5316",
+    "sync.localVersion": "\u672C\u5730\u7248\u672C",
+    "sync.remoteVersion": "\u8FDC\u7A0B\u7248\u672C",
+    "sync.keepLocalVersion": "\u4FDD\u7559\u672C\u5730",
+    "sync.keepRemoteVersion": "\u4FDD\u7559\u8FDC\u7A0B",
+    "sync.followLocalDeletion": "\u6309\u672C\u5730\u5220\u9664",
+    "sync.followRemoteDeletion": "\u6309\u8FDC\u7A0B\u5220\u9664",
+    "sync.deletedOnSide": "\u6B64\u7AEF\u4E0D\u5B58\u5728\uFF08\u9009\u62E9\u540E\u5220\u9664\uFF09",
+    "sync.bookmarkBarRoot": "\u4E66\u7B7E\u680F\u6839\u76EE\u5F55",
+    "sync.noDifferences": "\u672C\u5730\u4E0E\u8FDC\u7A0B\u4E66\u7B7E\u5B8C\u5168\u4E00\u81F4\uFF0C\u65E0\u9700\u9010\u9879\u5904\u7406\u3002",
     "sync.previewing": "\u8BA1\u7B97\u5DEE\u5F02\u2026",
     "sync.previewFailed": "\u65E0\u6CD5\u8BA1\u7B97\u540C\u6B65\u5DEE\u5F02\uFF1A{0}",
+    "sync.previewFailedInline": "\u5DEE\u5F02\u52A0\u8F7D\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u4ED3\u5E93\u914D\u7F6E\u548C\u7F51\u7EDC\u540E\u91CD\u8BD5\u3002",
+    "sync.previewUnavailable": "\u5DEE\u5F02\u4E0D\u53EF\u7528",
     // === 快捷键设置 ===
     "shortcut.title": "\u2328\uFE0F \u5FEB\u6377\u952E\u8BBE\u7F6E",
     "shortcut.enableSearch": "\u542F\u7528\u5168\u5C40\u4E66\u7B7E\u641C\u7D22",
@@ -273,10 +286,27 @@
     "manager.loadMore": "\u7EE7\u7EED\u52A0\u8F7D\uFF08\u5DF2\u663E\u793A {0} / {1}\uFF09",
     "manager.restore": "\u21B6 \u6062\u590D",
     "manager.restoreCenter": "\u6062\u590D\u4E2D\u5FC3",
+    "manager.restoreHistory": "\u6700\u8FD1 10 \u4E2A\u7248\u672C",
+    "manager.restorePreview": "\u7248\u672C\u9884\u89C8",
+    "manager.restoreSelectVersion": "\u8BF7\u9009\u62E9\u5DE6\u4FA7\u7684\u5386\u53F2\u7248\u672C\u8FDB\u884C\u9884\u89C8\u3002",
+    "manager.restoreItemCount": "{0} \u4E2A\u4E66\u7B7E \xB7 {1} \u4E2A\u6587\u4EF6\u5939",
+    "manager.restorePreviewMeta": "{0} \u4E2A\u4E66\u7B7E \xB7 {1} \u4E2A\u6587\u4EF6\u5939 \xB7 {2} \u4E2A\u9690\u85CF\u9879",
+    "manager.restoreChildCount": "{0} \u4E2A\u76F4\u63A5\u5B50\u9879",
+    "manager.restoreMoreItems": "\u53E6\u6709 {0} \u4E2A\u9876\u5C42\u9879\u76EE",
     "manager.restoreDesc": "\u6062\u590D\u4F1A\u66FF\u6362\u5F53\u524D\u4E66\u7B7E\u680F\uFF0C\u5E76\u81EA\u52A8\u628A\u5F53\u524D\u72B6\u6001\u4FDD\u5B58\u4E3A\u65B0\u7684\u6062\u590D\u70B9\u3002",
     "manager.restoreConfirm": "\u6062\u590D\u6B64\u5907\u4EFD",
+    "manager.restoreExport": "\u5BFC\u51FA\u7248\u672C",
+    "manager.restoreDelete": "\u5220\u9664\u7248\u672C",
+    "manager.restoreLocal": "\u4EC5\u6062\u590D\u672C\u5730",
+    "manager.restoreAndSync": "\u6062\u590D\u5E76\u540C\u6B65 Gitee",
     "manager.restoring": "\u6062\u590D\u4E2D\u2026",
     "manager.restoreSuccess": "\u4E66\u7B7E\u5DF2\u6062\u590D\uFF0C\u6062\u590D\u524D\u72B6\u6001\u4E5F\u5DF2\u4FDD\u7559\u3002",
+    "manager.restoreSyncSuccess": "\u4E66\u7B7E\u5DF2\u6062\u590D\u5E76\u540C\u6B65\u5230 Gitee\u3002",
+    "manager.restoreSyncPartial": "\u672C\u5730\u5DF2\u6062\u590D\uFF0C\u4F46\u540C\u6B65 Gitee \u5931\u8D25\uFF1A{0}",
+    "manager.restoreExported": "\u5386\u53F2\u7248\u672C\u5DF2\u5BFC\u51FA\u3002",
+    "manager.restoreDeleteConfirm": "\u786E\u5B9A\u5220\u9664\u8FD9\u4E2A\u5386\u53F2\u7248\u672C\u5417\uFF1F\u5220\u9664\u540E\u65E0\u6CD5\u6062\u590D\u3002",
+    "manager.restoreDeleted": "\u5386\u53F2\u7248\u672C\u5DF2\u5220\u9664\u3002",
+    "manager.restoreDeleteFailed": "\u5220\u9664\u5386\u53F2\u7248\u672C\u5931\u8D25\uFF1A{0}",
     "manager.restoreFailed": "\u6062\u590D\u4E66\u7B7E\u5931\u8D25\uFF1A{0}",
     "manager.restoreUnavailable": "\u6682\u65E0\u53EF\u7528\u7684\u4E66\u7B7E\u6062\u590D\u70B9",
     "manager.restoreLoadFailed": "\u8BFB\u53D6\u6062\u590D\u70B9\u5931\u8D25\uFF1A{0}",
@@ -578,21 +608,34 @@
     "sync.mergeDownload": "Merge Download (Recommended)",
     "sync.overwriteDownload": "Replace Local",
     "sync.safeHint": "Merge keeps bookmarks from both sides; replace actions still require confirmation.",
-    "sync.keepHidden": "Preserve remote hidden bookmarks",
+    "sync.keepHidden": "Keep hidden bookmarks during sync",
     "sync.confirmAction": "Confirm Sync",
     "sync.confirmOverwriteUploadTitle": "Replace remote bookmarks?",
-    "sync.confirmOverwriteUploadDesc": "The remote file will be replaced with current local bookmarks. Check the counts first, or use merge upload.",
+    "sync.confirmOverwriteUploadDesc": "Local versions replace remote by default. Expand the differences to keep individual remote versions.",
     "sync.confirmMergeUploadTitle": "Merge and upload?",
-    "sync.confirmMergeUploadDesc": "Local and remote bookmarks will be deduplicated, merged, and written back to Gitee.",
+    "sync.confirmMergeUploadDesc": "Unique bookmarks are merged by default and written to Gitee. Choose a side for each conflict.",
     "sync.confirmOverwriteDownloadTitle": "Replace local bookmarks?",
-    "sync.confirmOverwriteDownloadDesc": "Remote bookmarks will replace the local bookmark bar. A restore point is created first.",
+    "sync.confirmOverwriteDownloadDesc": "Remote versions replace local by default. Individual local versions can be kept, and a restore point is created first.",
     "sync.confirmMergeDownloadTitle": "Merge and download?",
-    "sync.confirmMergeDownloadDesc": "Remote bookmarks will be merged with local bookmarks before updating the bookmark bar.",
+    "sync.confirmMergeDownloadDesc": "Unique bookmarks are merged before updating the local bar. Choose a side for each conflict.",
     "sync.localOnly": "Local only",
     "sync.shared": "On both sides",
     "sync.remoteOnly": "Remote only",
+    "sync.moved": "Moved",
+    "sync.urlChanged": "URL changed",
+    "sync.localVersion": "Local version",
+    "sync.remoteVersion": "Remote version",
+    "sync.keepLocalVersion": "Keep local",
+    "sync.keepRemoteVersion": "Keep remote",
+    "sync.followLocalDeletion": "Use local deletion",
+    "sync.followRemoteDeletion": "Use remote deletion",
+    "sync.deletedOnSide": "Missing on this side (select to delete)",
+    "sync.bookmarkBarRoot": "Bookmark bar root",
+    "sync.noDifferences": "Local and remote bookmarks are identical. No item-level decisions are needed.",
     "sync.previewing": "Calculating\u2026",
     "sync.previewFailed": "Could not calculate sync differences: {0}",
+    "sync.previewFailedInline": "Could not load differences. Check the repository settings and network, then try again.",
+    "sync.previewUnavailable": "Preview unavailable",
     // === Shortcut Settings ===
     "shortcut.title": "\u2328\uFE0F Shortcut Settings",
     "shortcut.enableSearch": "Enable global bookmark search",
@@ -770,10 +813,27 @@
     "manager.loadMore": "Load more ({0} / {1} shown)",
     "manager.restore": "\u21B6 Restore",
     "manager.restoreCenter": "Restore Center",
+    "manager.restoreHistory": "Latest 10 Versions",
+    "manager.restorePreview": "Version Preview",
+    "manager.restoreSelectVersion": "Select a history version on the left to preview it.",
+    "manager.restoreItemCount": "{0} bookmarks \xB7 {1} folders",
+    "manager.restorePreviewMeta": "{0} bookmarks \xB7 {1} folders \xB7 {2} hidden items",
+    "manager.restoreChildCount": "{0} direct children",
+    "manager.restoreMoreItems": "{0} more top-level items",
     "manager.restoreDesc": "Restoring replaces the current bookmark bar and saves the current state as a new restore point.",
     "manager.restoreConfirm": "Restore This Backup",
+    "manager.restoreExport": "Export Version",
+    "manager.restoreDelete": "Delete Version",
+    "manager.restoreLocal": "Restore Locally",
+    "manager.restoreAndSync": "Restore & Sync to Gitee",
     "manager.restoring": "Restoring\u2026",
     "manager.restoreSuccess": "Bookmarks restored. The previous state was also preserved.",
+    "manager.restoreSyncSuccess": "Bookmarks restored and synced to Gitee.",
+    "manager.restoreSyncPartial": "Restored locally, but Gitee sync failed: {0}",
+    "manager.restoreExported": "History version exported.",
+    "manager.restoreDeleteConfirm": "Delete this history version? This cannot be undone.",
+    "manager.restoreDeleted": "History version deleted.",
+    "manager.restoreDeleteFailed": "Failed to delete history version: {0}",
     "manager.restoreFailed": "Failed to restore bookmarks: {0}",
     "manager.restoreUnavailable": "No bookmark restore point is available",
     "manager.restoreLoadFailed": "Failed to read restore point: {0}",
@@ -1366,11 +1426,21 @@
   }
 
   // src/bookmark-service.ts
-  var RESTORE_POINT_KEY = "bookmark_replace_restore_point";
+  var RESTORE_DB_NAME = "bookmark-restore-history";
+  var RESTORE_DB_VERSION = 1;
+  var RESTORE_STORE_NAME = "restore-points";
+  var LEGACY_RESTORE_POINT_KEY = "bookmark_replace_restore_point";
+  var FALLBACK_HISTORY_KEY = "bookmark_restore_history";
+  var BOOKMARK_MANAGER_DATA_KEY = "bookmarkManagerData";
+  var MAX_RESTORE_POINTS = 10;
   var MAX_BOOKMARK_NODES = 5e4;
   var MAX_BOOKMARK_DEPTH = 64;
   function chromeError(fallback) {
     return new Error(chrome?.runtime?.lastError?.message || fallback);
+  }
+  function createRestorePointId(createdAt = Date.now()) {
+    const suffix = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
+    return `${createdAt}-${suffix}`;
   }
   function prepareBookmarkNodes(nodes, depth = 0, counter = { value: 0 }) {
     if (!Array.isArray(nodes)) throw new Error("Bookmark data must be an array");
@@ -1382,22 +1452,106 @@
       const item = node;
       if (typeof item.title !== "string") throw new Error(`Bookmark title at index ${index} must be a string`);
       if (item.title.length > 1e4) throw new Error(`Bookmark title at index ${index} is too long`);
+      const hidden = item.hidden === true;
       if (item.url !== void 0) {
         if (typeof item.url !== "string" || item.url.length === 0) throw new Error(`Bookmark URL at index ${index} is invalid`);
         if (item.url.length > 1e5) throw new Error(`Bookmark URL at index ${index} is too long`);
-        return { title: item.title, url: item.url };
+        return { title: item.title, url: item.url, ...hidden ? { hidden: true } : {} };
       }
       return {
         title: item.title,
-        children: prepareBookmarkNodes(item.children || [], depth + 1, counter)
+        children: prepareBookmarkNodes(item.children || [], depth + 1, counter),
+        ...hidden ? { hidden: true } : {}
       };
     });
+  }
+  function nodeMatchKey(node) {
+    return JSON.stringify([node?.url ? "bookmark" : "folder", String(node?.title || ""), String(node?.url || "")]);
+  }
+  function containsHiddenNode(node) {
+    return node?.hidden === true || Array.isArray(node?.children) && node.children.some(containsHiddenNode);
+  }
+  function retainHiddenSubtree(node) {
+    if (node?.hidden === true) return structuredClone(node);
+    if (!Array.isArray(node?.children)) return null;
+    const children = node.children.map(retainHiddenSubtree).filter(Boolean);
+    return children.length > 0 ? { ...node, children } : null;
+  }
+  function mergeBookmarkHiddenState(chromeNodes, storedNodes) {
+    if (!Array.isArray(chromeNodes)) return [];
+    if (!Array.isArray(storedNodes) || storedNodes.length === 0) return structuredClone(chromeNodes);
+    const reconcileLevel = (currentItems, savedItems) => {
+      const currentQueues = /* @__PURE__ */ new Map();
+      currentItems.forEach((item) => {
+        const key = nodeMatchKey(item);
+        const queue = currentQueues.get(key) || [];
+        queue.push(item);
+        currentQueues.set(key, queue);
+      });
+      const result = [];
+      const consumed = /* @__PURE__ */ new Set();
+      savedItems.forEach((saved) => {
+        const queue = currentQueues.get(nodeMatchKey(saved));
+        const current = queue?.shift();
+        if (current) {
+          consumed.add(current);
+          const merged = { ...current };
+          if (saved.hidden === true) merged.hidden = true;
+          else delete merged.hidden;
+          if (Array.isArray(current.children)) {
+            merged.children = reconcileLevel(current.children, Array.isArray(saved.children) ? saved.children : []);
+          }
+          result.push(merged);
+          return;
+        }
+        if (containsHiddenNode(saved)) {
+          const retained = retainHiddenSubtree(saved);
+          if (retained) result.push(retained);
+        }
+      });
+      currentItems.forEach((item) => {
+        if (!consumed.has(item)) result.push(structuredClone(item));
+      });
+      return result;
+    };
+    return reconcileLevel(chromeNodes, storedNodes);
+  }
+  function filterVisibleBookmarkNodes(nodes) {
+    if (!Array.isArray(nodes)) return [];
+    return nodes.reduce((result, node) => {
+      if (node.hidden === true) return result;
+      if (node.url) {
+        result.push({ title: node.title, url: node.url });
+        return result;
+      }
+      const children = filterVisibleBookmarkNodes(node.children || []);
+      if (children.length > 0) result.push({ title: node.title, children });
+      return result;
+    }, []);
   }
   function getChromeBookmarksTree() {
     return new Promise((resolve, reject) => {
       chrome.bookmarks.getTree((tree) => {
         if (chrome.runtime.lastError) reject(chromeError("Failed to read local bookmarks"));
         else resolve(tree || []);
+      });
+    });
+  }
+  function storageGet2(keys) {
+    return new Promise((resolve, reject) => {
+      if (!chrome?.storage?.local?.get) return resolve({});
+      chrome.storage.local.get(keys, (result) => {
+        if (chrome.runtime.lastError) reject(chromeError("Failed to read local bookmark state"));
+        else resolve(result || {});
+      });
+    });
+  }
+  function storageSet2(value) {
+    return new Promise((resolve, reject) => {
+      if (!chrome?.storage?.local?.set) return resolve();
+      chrome.storage.local.set(value, () => {
+        if (chrome.runtime.lastError) reject(chromeError("Failed to save local bookmark state"));
+        else resolve();
       });
     });
   }
@@ -1419,74 +1573,182 @@
     });
   }
   async function createBookmarkNodes(nodes, parentId) {
+    const createdNodes = [];
     for (const node of nodes) {
       const created = await createBookmark(node, parentId);
-      if (!node.url && node.children?.length) await createBookmarkNodes(node.children, created.id);
+      const createdNode = { ...created };
+      if (!node.url) createdNode.children = await createBookmarkNodes(node.children || [], created.id);
+      createdNodes.push(createdNode);
     }
+    return createdNodes;
   }
   async function clearBookmarkBar(bookmarkBar) {
     const children = Array.isArray(bookmarkBar?.children) ? bookmarkBar.children : [];
     for (const child of children) await removeTree(child.id);
   }
-  function saveRestorePoint(nodes, reason) {
+  function openRestoreDB() {
+    if (typeof indexedDB === "undefined") return Promise.resolve(null);
     return new Promise((resolve, reject) => {
-      chrome.storage.local.set({
-        [RESTORE_POINT_KEY]: { createdAt: Date.now(), reason, nodes }
-      }, () => {
-        if (chrome.runtime.lastError) reject(chromeError("Failed to save bookmark restore point"));
-        else resolve();
-      });
+      const request = indexedDB.open(RESTORE_DB_NAME, RESTORE_DB_VERSION);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(RESTORE_STORE_NAME)) {
+          const store = db.createObjectStore(RESTORE_STORE_NAME, { keyPath: "id" });
+          store.createIndex("createdAt", "createdAt");
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error("Failed to open bookmark restore database"));
     });
   }
-  function getBookmarkRestorePoint() {
-    return new Promise((resolve, reject) => {
-      chrome.storage.local.get([RESTORE_POINT_KEY], (result) => {
-        if (chrome.runtime.lastError) reject(chromeError("Failed to read bookmark restore point"));
-        else resolve(result?.[RESTORE_POINT_KEY] || null);
-      });
+  function normalizeRestorePoint(value) {
+    if (!value || !Array.isArray(value.nodes) || typeof value.createdAt !== "number") return null;
+    return {
+      id: typeof value.id === "string" ? value.id : createRestorePointId(value.createdAt),
+      createdAt: value.createdAt,
+      reason: typeof value.reason === "string" ? value.reason : "manual-change",
+      nodes: prepareBookmarkNodes(value.nodes)
+    };
+  }
+  async function saveRestorePointRecord(point) {
+    const db = await openRestoreDB();
+    if (!db) {
+      const stored = await storageGet2([FALLBACK_HISTORY_KEY]);
+      const history = (Array.isArray(stored[FALLBACK_HISTORY_KEY]) ? stored[FALLBACK_HISTORY_KEY] : []).map(normalizeRestorePoint).filter(Boolean);
+      const next = [point, ...history.filter((item) => item.id !== point.id)].sort((a, b) => b.createdAt - a.createdAt).slice(0, MAX_RESTORE_POINTS);
+      await storageSet2({ [FALLBACK_HISTORY_KEY]: next, [LEGACY_RESTORE_POINT_KEY]: point });
+      return;
+    }
+    await new Promise((resolve, reject) => {
+      const transaction = db.transaction(RESTORE_STORE_NAME, "readwrite");
+      const store = transaction.objectStore(RESTORE_STORE_NAME);
+      const request = store.getAll();
+      request.onsuccess = () => {
+        const existing = request.result || [];
+        store.put(point);
+        [point, ...existing.filter((item) => item.id !== point.id)].sort((a, b) => b.createdAt - a.createdAt).slice(MAX_RESTORE_POINTS).forEach((item) => store.delete(item.id));
+      };
+      request.onerror = () => reject(request.error || new Error("Failed to read bookmark restore history"));
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error || new Error("Failed to save bookmark restore history"));
+      transaction.onabort = () => reject(transaction.error || new Error("Bookmark restore history transaction aborted"));
     });
+    db.close();
   }
-  async function captureBookmarkBarRestorePoint(reason = "manual-change") {
-    const tree = await getChromeBookmarksTree();
-    const bookmarkBar = findBookmarkBar(tree);
-    if (!bookmarkBar?.id) throw new Error("Bookmark bar was not found");
-    const point = { createdAt: Date.now(), reason, nodes: prepareBookmarkNodes(bookmarkBar.children || []) };
-    await saveRestorePoint(point.nodes, reason);
-    return point;
+  async function readRestoreHistoryRecords() {
+    const db = await openRestoreDB();
+    if (!db) {
+      const stored = await storageGet2([FALLBACK_HISTORY_KEY, LEGACY_RESTORE_POINT_KEY]);
+      const values = Array.isArray(stored[FALLBACK_HISTORY_KEY]) ? stored[FALLBACK_HISTORY_KEY] : stored[LEGACY_RESTORE_POINT_KEY] ? [stored[LEGACY_RESTORE_POINT_KEY]] : [];
+      return values.map(normalizeRestorePoint).filter(Boolean).sort((a, b) => b.createdAt - a.createdAt);
+    }
+    const records = await new Promise((resolve, reject) => {
+      const transaction = db.transaction(RESTORE_STORE_NAME, "readonly");
+      const request = transaction.objectStore(RESTORE_STORE_NAME).getAll();
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error || new Error("Failed to read bookmark restore history"));
+    });
+    db.close();
+    const history = records.map(normalizeRestorePoint).filter(Boolean);
+    if (history.length > 0) return history.sort((a, b) => b.createdAt - a.createdAt);
+    const legacy = normalizeRestorePoint((await storageGet2([LEGACY_RESTORE_POINT_KEY]))[LEGACY_RESTORE_POINT_KEY]);
+    if (!legacy) return [];
+    await saveRestorePointRecord(legacy);
+    await storageSet2({ [LEGACY_RESTORE_POINT_KEY]: null });
+    return [legacy];
   }
-  async function restoreBookmarkBarFromPoint() {
-    const point = await getBookmarkRestorePoint();
-    if (!point?.nodes) throw new Error("No bookmark restore point is available");
-    await replaceBookmarkBarSafely(point.nodes, "restore");
-    return point;
+  async function getBookmarkRestoreHistory() {
+    return readRestoreHistoryRecords();
+  }
+  async function getBookmarkRestorePoint(id) {
+    const history = await readRestoreHistoryRecords();
+    return (id ? history.find((point) => point.id === id) : history[0]) || null;
+  }
+  async function deleteBookmarkRestorePoint(id) {
+    const db = await openRestoreDB();
+    if (!db) {
+      const history = await readRestoreHistoryRecords();
+      const next = history.filter((point) => point.id !== id);
+      await storageSet2({
+        [FALLBACK_HISTORY_KEY]: next,
+        [LEGACY_RESTORE_POINT_KEY]: next[0] || null
+      });
+      return;
+    }
+    await new Promise((resolve, reject) => {
+      const transaction = db.transaction(RESTORE_STORE_NAME, "readwrite");
+      transaction.objectStore(RESTORE_STORE_NAME).delete(id);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error || new Error("Failed to delete bookmark restore point"));
+      transaction.onabort = () => reject(transaction.error || new Error("Bookmark restore delete transaction aborted"));
+    });
+    db.close();
   }
   function findBookmarkBar(tree) {
     const rootChildren = tree?.[0]?.children || [];
     return rootChildren.find((item) => item.id === "1") || rootChildren[0];
   }
+  async function getBookmarkBarState() {
+    const tree = await getChromeBookmarksTree();
+    const rootChildren = tree?.[0]?.children || [];
+    const storedData = (await storageGet2([BOOKMARK_MANAGER_DATA_KEY]))[BOOKMARK_MANAGER_DATA_KEY];
+    const reconciledRoots = mergeBookmarkHiddenState(rootChildren, storedData);
+    const bookmarkBar = findBookmarkBar([{ children: reconciledRoots }]);
+    if (!bookmarkBar) throw new Error("Bookmark bar was not found");
+    return prepareBookmarkNodes(bookmarkBar.children || []);
+  }
+  async function persistBookmarkBarState(logicalNodes, createdVisibleNodes) {
+    const tree = await getChromeBookmarksTree();
+    const rootChildren = tree?.[0]?.children || [];
+    const previousStored = (await storageGet2([BOOKMARK_MANAGER_DATA_KEY]))[BOOKMARK_MANAGER_DATA_KEY];
+    const reconciledRoots = mergeBookmarkHiddenState(rootChildren, previousStored);
+    const bookmarkBar = findBookmarkBar([{ children: reconciledRoots }]);
+    if (!bookmarkBar) return;
+    bookmarkBar.children = mergeBookmarkHiddenState(createdVisibleNodes, logicalNodes);
+    await storageSet2({ [BOOKMARK_MANAGER_DATA_KEY]: reconciledRoots });
+  }
+  async function captureBookmarkBarRestorePoint(reason = "manual-change") {
+    const point = {
+      id: createRestorePointId(),
+      createdAt: Date.now(),
+      reason,
+      nodes: await getBookmarkBarState()
+    };
+    await saveRestorePointRecord(point);
+    return point;
+  }
+  async function restoreBookmarkBarFromPoint(id) {
+    const point = await getBookmarkRestorePoint(id);
+    if (!point?.nodes) throw new Error("No bookmark restore point is available");
+    await replaceBookmarkBarSafely(point.nodes, "restore");
+    return point;
+  }
   async function replaceBookmarkBarSafely(nodes, reason = "replace", createRestorePoint = true) {
     const prepared = prepareBookmarkNodes(nodes);
+    const visiblePrepared = filterVisibleBookmarkNodes(prepared);
     const tree = await getChromeBookmarksTree();
     const bookmarkBar = findBookmarkBar(tree);
     if (!bookmarkBar?.id) throw new Error("Bookmark bar was not found");
-    const backup = prepareBookmarkNodes(bookmarkBar.children || []);
+    const backup = await getBookmarkBarState();
     if (createRestorePoint) {
       try {
-        await saveRestorePoint(backup, reason);
+        await saveRestorePointRecord({ id: createRestorePointId(), createdAt: Date.now(), reason, nodes: backup });
       } catch (error) {
         console.warn("Could not persist bookmark restore point; in-memory rollback remains available.", error);
       }
     }
     try {
       await clearBookmarkBar(bookmarkBar);
-      await createBookmarkNodes(prepared, bookmarkBar.id);
+      const createdVisibleNodes = await createBookmarkNodes(visiblePrepared, bookmarkBar.id);
+      await persistBookmarkBarState(prepared, createdVisibleNodes);
     } catch (replaceError) {
       try {
         const currentTree = await getChromeBookmarksTree();
         const currentBar = findBookmarkBar(currentTree);
         if (currentBar?.id) {
           await clearBookmarkBar(currentBar);
-          await createBookmarkNodes(backup, currentBar.id);
+          const restoredVisibleNodes = await createBookmarkNodes(filterVisibleBookmarkNodes(backup), currentBar.id);
+          await persistBookmarkBarState(backup, restoredVisibleNodes);
         }
       } catch (rollbackError) {
         throw new Error(`Bookmark replacement failed (${String(replaceError)}) and rollback failed: ${String(rollbackError)}`);
@@ -1735,7 +1997,7 @@
     }
     return createPasswordPolicy("", false);
   }
-  function storageGet2(key) {
+  function storageGet3(key) {
     return new Promise((resolve, reject) => {
       chrome.storage.local.get([key], (result) => {
         if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
@@ -1743,7 +2005,7 @@
       });
     });
   }
-  function storageSet2(key, value) {
+  function storageSet3(key, value) {
     return new Promise((resolve, reject) => {
       chrome.storage.local.set({ [key]: value }, () => {
         if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
@@ -1752,11 +2014,11 @@
     });
   }
   async function getLocalPasswordPolicy() {
-    const value = await storageGet2(PASSWORD_POLICY_STORAGE_KEY);
+    const value = await storageGet3(PASSWORD_POLICY_STORAGE_KEY);
     return isPasswordPolicy(value) ? value : null;
   }
   function setLocalPasswordPolicy(policy) {
-    return storageSet2(PASSWORD_POLICY_STORAGE_KEY, policy);
+    return storageSet3(PASSWORD_POLICY_STORAGE_KEY, policy);
   }
   function passwordFileUrl(location) {
     const path = `${location.bookmarkDir ? `${location.bookmarkDir}/` : ""}${PASSWORD_FILE_NAME}`;
@@ -1838,6 +2100,8 @@
       this.renderBatchSize = 150;
       this.renderLimit = this.renderBatchSize;
       this.searchDebounceTimer = null;
+      this.restoreHistory = [];
+      this.selectedRestorePointId = null;
       this.giteeConfig = {
         owner: "",
         repo: "",
@@ -1905,7 +2169,7 @@
       const button = document.getElementById("restoreBtn");
       if (!button) return;
       try {
-        button.disabled = !await getBookmarkRestorePoint();
+        button.disabled = (await getBookmarkRestoreHistory()).length === 0;
       } catch {
         button.disabled = true;
       }
@@ -1934,47 +2198,158 @@
     }
     async showRestoreModal() {
       try {
-        const point = await getBookmarkRestorePoint();
-        if (!point) {
+        this.restoreHistory = await getBookmarkRestoreHistory();
+        if (this.restoreHistory.length === 0) {
           showToast(t2("manager.restoreUnavailable"), "info");
           return;
         }
-        const info = document.getElementById("restoreInfo");
-        const time = new Date(point.createdAt).toLocaleString(getLocale() === "en" ? "en-US" : "zh-CN");
-        info.textContent = t2(
-          "manager.restoreSummary",
-          time,
-          String(this.countBookmarkNodes(point.nodes)),
-          this.getRestoreReasonLabel(point.reason)
-        );
+        if (!this.restoreHistory.some((point) => point.id === this.selectedRestorePointId)) {
+          this.selectedRestorePointId = this.restoreHistory[0].id;
+        }
+        this.renderRestoreHistory();
         document.getElementById("restoreModal").style.display = "flex";
+        document.querySelector('.restore-history-item[aria-selected="true"]')?.focus();
       } catch (error) {
         showToast(t2("manager.restoreLoadFailed", getErrorMessage(error)), "error");
       }
     }
+    analyzeRestorePoint(nodes) {
+      const stats = { bookmarks: 0, folders: 0, hidden: 0 };
+      const visit = (items) => {
+        (items || []).forEach((item) => {
+          if (item?.url) stats.bookmarks += 1;
+          else stats.folders += 1;
+          if (item?.hidden === true) stats.hidden += 1;
+          if (item?.children) visit(item.children);
+        });
+      };
+      visit(nodes);
+      return stats;
+    }
+    renderRestoreHistory() {
+      const list = document.getElementById("restoreHistoryList");
+      list.replaceChildren();
+      this.restoreHistory.forEach((point) => {
+        const stats = this.analyzeRestorePoint(point.nodes);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "restore-history-item";
+        button.dataset.restoreId = point.id;
+        button.setAttribute("aria-selected", String(point.id === this.selectedRestorePointId));
+        const time = document.createElement("strong");
+        time.textContent = new Date(point.createdAt).toLocaleString(getLocale() === "en" ? "en-US" : "zh-CN");
+        const reason = document.createElement("span");
+        reason.textContent = this.getRestoreReasonLabel(point.reason);
+        const count = document.createElement("small");
+        count.textContent = t2("manager.restoreItemCount", stats.bookmarks, stats.folders);
+        button.append(time, reason, count);
+        button.addEventListener("click", () => {
+          this.selectedRestorePointId = point.id;
+          this.renderRestoreHistory();
+        });
+        list.appendChild(button);
+      });
+      this.renderSelectedRestorePoint();
+    }
+    renderSelectedRestorePoint() {
+      const point = this.restoreHistory.find((item) => item.id === this.selectedRestorePointId);
+      const preview = document.getElementById("restorePreview");
+      const meta = document.getElementById("restorePreviewMeta");
+      const actionButtons = ["exportRestoreBtn", "deleteRestoreBtn", "restoreLocalBtn", "restoreSyncBtn"].map((id) => document.getElementById(id));
+      actionButtons.forEach((button) => {
+        button.disabled = !point;
+      });
+      preview.replaceChildren();
+      if (!point) {
+        meta.textContent = t2("manager.restoreSelectVersion");
+        return;
+      }
+      const stats = this.analyzeRestorePoint(point.nodes);
+      meta.textContent = t2("manager.restorePreviewMeta", stats.bookmarks, stats.folders, stats.hidden);
+      point.nodes.forEach((node) => {
+        const item = document.createElement("div");
+        item.className = "restore-preview-item";
+        const icon = document.createElement("span");
+        icon.textContent = node.url ? "\u{1F516}" : "\u{1F4C1}";
+        const label = document.createElement("span");
+        label.textContent = node.title || "\u2014";
+        const detail = document.createElement("small");
+        detail.textContent = node.url ? node.url : t2("manager.restoreChildCount", Array.isArray(node.children) ? node.children.length : 0);
+        item.append(icon, label, detail);
+        preview.appendChild(item);
+      });
+    }
     hideRestoreModal() {
       document.getElementById("restoreModal").style.display = "none";
     }
-    async restoreLastBookmarkBackup() {
-      const button = document.getElementById("confirmRestoreBtn");
+    exportSelectedRestorePoint() {
+      const point = this.restoreHistory.find((item) => item.id === this.selectedRestorePointId);
+      if (!point) return;
+      const blob = new Blob([JSON.stringify(point.nodes, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `bookmark-backup-${new Date(point.createdAt).toISOString().replace(/[:.]/g, "-")}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      showToast(t2("manager.restoreExported"));
+    }
+    async deleteSelectedRestorePoint() {
+      const point = this.restoreHistory.find((item) => item.id === this.selectedRestorePointId);
+      if (!point || !confirm(t2("manager.restoreDeleteConfirm"))) return;
+      try {
+        await deleteBookmarkRestorePoint(point.id);
+        this.restoreHistory = await getBookmarkRestoreHistory();
+        this.selectedRestorePointId = this.restoreHistory[0]?.id || null;
+        if (this.restoreHistory.length === 0) this.hideRestoreModal();
+        else this.renderRestoreHistory();
+        await this.updateRestoreButtonState();
+        showToast(t2("manager.restoreDeleted"));
+      } catch (error) {
+        showToast(t2("manager.restoreDeleteFailed", getErrorMessage(error)), "error");
+      }
+    }
+    async restoreSelectedBookmarkBackup(syncToGitee = false) {
+      const point = this.restoreHistory.find((item) => item.id === this.selectedRestorePointId);
+      if (!point) return;
+      if (syncToGitee && !this.isGiteeConfigured()) {
+        showToast(t2("manager.giteeConfigIncomplete"), "warning");
+        return;
+      }
+      const button = document.getElementById(syncToGitee ? "restoreSyncBtn" : "restoreLocalBtn");
       const originalText = button.textContent;
+      const actionButtons = ["exportRestoreBtn", "deleteRestoreBtn", "restoreLocalBtn", "restoreSyncBtn"].map((id) => document.getElementById(id));
+      actionButtons.forEach((item) => {
+        item.disabled = true;
+      });
       button.disabled = true;
       button.textContent = t2("manager.restoring");
+      let restoredLocally = false;
       try {
-        await restoreBookmarkBarFromPoint();
+        await restoreBookmarkBarFromPoint(point.id);
+        restoredLocally = true;
         this.bookmarks = await this.getLocalBookmarksWithHiddenState();
         this.saveBookmarksToStorage();
+        if (syncToGitee) {
+          await this.saveBookmarkTreeToGitee(this.bookmarks, {
+            mode: "overwrite",
+            message: "Restore bookmark history version"
+          });
+        }
         this.renderFolderTree();
         this.selectRootFolder();
         this.renderBookmarks();
         this.updateStats();
         this.hideRestoreModal();
         await this.updateRestoreButtonState();
-        showToast(t2("manager.restoreSuccess"));
+        showToast(t2(syncToGitee ? "manager.restoreSyncSuccess" : "manager.restoreSuccess"));
       } catch (error) {
-        showToast(t2("manager.restoreFailed", getErrorMessage(error)), "error");
+        const key = restoredLocally && syncToGitee ? "manager.restoreSyncPartial" : "manager.restoreFailed";
+        showToast(t2(key, getErrorMessage(error)), restoredLocally ? "warning" : "error");
       } finally {
-        button.disabled = false;
+        actionButtons.forEach((item) => {
+          item.disabled = false;
+        });
         button.textContent = button.dataset.i18n ? t2(button.dataset.i18n) : originalText;
       }
     }
@@ -2112,31 +2487,7 @@
     }
     // 合并隐藏状态到Chrome书签数据
     mergeHiddenState(chromeBookmarks, storedData) {
-      const hiddenStateMap = /* @__PURE__ */ new Map();
-      const collectHiddenState = (bookmarks) => {
-        bookmarks.forEach((bookmark) => {
-          if (bookmark.hidden !== void 0) {
-            hiddenStateMap.set(bookmark.id, bookmark.hidden);
-          }
-          if (bookmark.children) {
-            collectHiddenState(bookmark.children);
-          }
-        });
-      };
-      collectHiddenState(storedData);
-      const mergeRecursive = (chromeItems) => {
-        return chromeItems.map((item) => {
-          const merged = { ...item };
-          if (hiddenStateMap.has(item.id)) {
-            merged.hidden = hiddenStateMap.get(item.id);
-          }
-          if (item.children && item.children.length > 0) {
-            merged.children = mergeRecursive(item.children);
-          }
-          return merged;
-        });
-      };
-      return mergeRecursive(chromeBookmarks);
+      return mergeBookmarkHiddenState(chromeBookmarks, storedData);
     }
     // 保存书签数据到storage，供popup使用
     saveBookmarksToStorage() {
@@ -2282,9 +2633,10 @@
       });
       document.getElementById("closeRestoreModal").addEventListener("click", () => this.hideRestoreModal());
       document.getElementById("cancelRestoreBtn").addEventListener("click", () => this.hideRestoreModal());
-      document.getElementById("confirmRestoreBtn").addEventListener("click", () => {
-        void this.restoreLastBookmarkBackup();
-      });
+      document.getElementById("exportRestoreBtn").addEventListener("click", () => this.exportSelectedRestorePoint());
+      document.getElementById("deleteRestoreBtn").addEventListener("click", () => void this.deleteSelectedRestorePoint());
+      document.getElementById("restoreLocalBtn").addEventListener("click", () => void this.restoreSelectedBookmarkBackup(false));
+      document.getElementById("restoreSyncBtn").addEventListener("click", () => void this.restoreSelectedBookmarkBackup(true));
       document.getElementById("editBookmarkTitle").addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
           this.saveEditBookmark();
@@ -3498,8 +3850,7 @@
       }
       const root = Array.isArray(bookmarksTree) ? bookmarksTree.find((item) => item && (item.title === "\u4E66\u7B7E\u680F" || item.title === "Bookmarks bar")) || bookmarksTree[0] : null;
       const sourceChildren = root?.children || [];
-      const visibleBookmarks = this.filterVisibleBookmarks(this.cloneBookmarks(sourceChildren));
-      await replaceBookmarkBarSafely(visibleBookmarks, "replace", createRestorePoint);
+      await replaceBookmarkBarSafely(this.cloneBookmarks(sourceChildren), "replace", createRestorePoint);
     }
     updateSystemBookmarks() {
       if (typeof chrome !== "undefined" && chrome.bookmarks) {

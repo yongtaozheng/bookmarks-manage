@@ -5,7 +5,22 @@ import { decrypt, setMasterPassphrase, clearMasterPassphrase, hasMasterPassphras
 import { checkForUpdate, getCurrentVersion, getDismissedVersion, setDismissedVersion, downloadDistZip, GITEE_RELEASES_PAGE } from './version-check';
 import { getConfig as getConfigFromDB, getRawConfig as getRawConfigFromDB, setConfig as setConfigToDB } from './config-repository';
 import { assertResponseOk, fetchJson, fetchWithTimeout, getErrorMessage } from './http';
-import { getChromeBookmarksTree as getLocalBookmarks, replaceBookmarkBarSafely } from './bookmark-service';
+import {
+  getChromeBookmarksTree as getLocalBookmarks,
+  mergeBookmarkHiddenState,
+  replaceBookmarkBarSafely,
+} from './bookmark-service';
+import {
+  analyzeBookmarkDifferences,
+  getDefaultDifferenceSelections,
+  resolveBookmarkDifferences,
+} from './bookmark-diff';
+import type {
+  BookmarkDifference,
+  BookmarkDifferenceAnalysis,
+  BookmarkSource,
+  DifferenceStrategy,
+} from './bookmark-diff';
 import { showToast } from './toast';
 import {
   PASSWORD_FILE_NAME,
@@ -207,35 +222,6 @@ function getBookmarkManagerData(): Promise<any[]> {
       resolve(response?.bookmarks || []);
     });
   });
-}
-
-// == 筛选隐藏书签 ==
-function filterHiddenBookmarks(bookmarks: any[]): any[] {
-  const filterBookmarks = (items: any[]): any[] => {
-    const result: any[] = [];
-
-    items.forEach(item => {
-      if (item.hidden) {
-        // 保留隐藏的书签
-        result.push(item);
-      } else if (item.children && item.children.length > 0) {
-        // 递归筛选子项
-        const filteredChildren = filterBookmarks(item.children);
-
-        // 如果目录包含隐藏的子项，则保留整个目录
-        if (filteredChildren.length > 0) {
-          result.push({
-            ...item,
-            children: filteredChildren
-          });
-        }
-      }
-    });
-
-    return result;
-  };
-
-  return filterBookmarks(bookmarks);
 }
 
 // == 过滤可见书签（移除隐藏书签）==
@@ -681,20 +667,28 @@ document.addEventListener('DOMContentLoaded', async () => {
       return Array.isArray(data?.children) ? data.children : [];
     }
 
-    function collectBookmarkKeys(items: any[], parentPath = '', result = new Set<string>()): Set<string> {
-      if (!Array.isArray(items)) return result;
-      items.forEach(item => {
-        const title = String(item?.title || '');
-        const path = parentPath ? `${parentPath}/${title}` : title;
-        if (item?.url) result.add(`${path}|${item.url}`);
-        if (item?.children) collectBookmarkKeys(item.children, path, result);
-      });
-      return result;
+    function findBookmarkBar(roots: any[]): any {
+      return roots.find((item: any) => item?.id === '1')
+        || roots.find((item: any) => item?.title === '书签栏' || item?.title === 'Bookmarks bar')
+        || roots[0];
     }
 
-    async function loadSyncDifference() {
+    function replaceBookmarkBarChildren(roots: any[], children: any[]): any[] {
+      const clonedRoots = structuredClone(Array.isArray(roots) ? roots : []);
+      const bookmarkBar = findBookmarkBar(clonedRoots);
+      if (bookmarkBar) bookmarkBar.children = structuredClone(children);
+      return clonedRoots;
+    }
+
+    async function loadSyncDifference(): Promise<{
+      analysis: BookmarkDifferenceAnalysis;
+      localRoots: any[];
+    }> {
       const tree = await getLocalBookmarks();
-      const bookmarkBar = tree?.[0]?.children?.find((item: any) => item.id === '1') || tree?.[0]?.children?.[0];
+      const chromeRoots = tree?.[0]?.children || [];
+      const storedRoots = await getBookmarkManagerData();
+      const localRoots = mergeBookmarkHiddenState(chromeRoots, storedRoots);
+      const bookmarkBar = findBookmarkBar(localRoots);
       const localBookmarks = bookmarkBar?.children || [];
       const config = {
         giteeToken: tokenEl.value.trim(),
@@ -705,16 +699,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       };
       if (Object.values(config).some(value => !value)) throw new Error(t('msg.fillConfigFirst'));
       const remoteBookmarks = getRemoteBookmarkChildren(await getFile(config));
-      const localKeys = collectBookmarkKeys(localBookmarks);
-      const remoteKeys = collectBookmarkKeys(remoteBookmarks);
-      const shared = [...localKeys].filter(key => remoteKeys.has(key)).length;
       syncLocalCountEl.textContent = String(countBookmarkItems(localBookmarks));
       syncRemoteCountEl.textContent = String(countBookmarkItems(remoteBookmarks));
-      return {
-        localOnly: localKeys.size - shared,
-        remoteOnly: remoteKeys.size - shared,
-        shared,
-      };
+      return { analysis: analyzeBookmarkDifferences(localBookmarks, remoteBookmarks), localRoots };
     }
 
     async function updateLocalBookmarkCount() {
@@ -749,12 +736,116 @@ document.addEventListener('DOMContentLoaded', async () => {
       void updateLocalBookmarkCount();
     }
 
+    function getDifferenceTypeLabel(type: BookmarkDifference['type']): string {
+      return t({
+        'local-only': 'sync.localOnly',
+        'remote-only': 'sync.remoteOnly',
+        moved: 'sync.moved',
+        'url-changed': 'sync.urlChanged',
+      }[type]);
+    }
+
+    function getVersionLocation(difference: BookmarkDifference, source: BookmarkSource): string {
+      const version = difference[source];
+      if (!version) return t('sync.deletedOnSide');
+      const folder = version.pathLabel || t('sync.bookmarkBarRoot');
+      return `${folder} · ${version.node.url || ''}`;
+    }
+
+    function renderSyncDifferenceDetails(
+      analysis: BookmarkDifferenceAnalysis,
+      selections: Record<string, BookmarkSource>,
+    ) {
+      const container = document.getElementById('syncDiffDetails') as HTMLElement;
+      container.replaceChildren();
+      if (analysis.differences.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'sync-diff-empty';
+        empty.textContent = t('sync.noDifferences');
+        container.appendChild(empty);
+        return;
+      }
+
+      const types: BookmarkDifference['type'][] = ['url-changed', 'moved', 'local-only', 'remote-only'];
+      let openedGroup = false;
+      types.forEach(type => {
+        const entries = analysis.differences.filter(item => item.type === type);
+        if (entries.length === 0) return;
+        const details = document.createElement('details');
+        details.className = 'sync-diff-group';
+        if (!openedGroup) {
+          details.open = true;
+          openedGroup = true;
+        }
+        const summary = document.createElement('summary');
+        const summaryLabel = document.createElement('span');
+        summaryLabel.textContent = getDifferenceTypeLabel(type);
+        const summaryCount = document.createElement('strong');
+        summaryCount.textContent = String(entries.length);
+        summary.append(summaryLabel, summaryCount);
+        details.appendChild(summary);
+
+        entries.forEach(difference => {
+          const row = document.createElement('article');
+          row.className = 'sync-diff-row';
+          const heading = document.createElement('div');
+          heading.className = 'sync-diff-row-heading';
+          const title = document.createElement('strong');
+          title.textContent = difference.local?.node?.title || difference.remote?.node?.title || '—';
+          const badge = document.createElement('span');
+          badge.textContent = getDifferenceTypeLabel(difference.type);
+          heading.append(title, badge);
+
+          const comparison = document.createElement('div');
+          comparison.className = 'sync-version-comparison';
+          (['local', 'remote'] as BookmarkSource[]).forEach(source => {
+            const version = document.createElement('div');
+            version.className = 'sync-version';
+            const sourceLabel = document.createElement('b');
+            sourceLabel.textContent = t(source === 'local' ? 'sync.localVersion' : 'sync.remoteVersion');
+            const location = document.createElement('span');
+            location.textContent = getVersionLocation(difference, source);
+            version.append(sourceLabel, location);
+            comparison.appendChild(version);
+          });
+
+          const choices = document.createElement('div');
+          choices.className = 'sync-version-choices';
+          (['local', 'remote'] as BookmarkSource[]).forEach(source => {
+            const label = document.createElement('label');
+            const input = document.createElement('input');
+            input.type = 'radio';
+            input.name = `sync-diff-${difference.id}`;
+            input.value = source;
+            input.dataset.diffId = difference.id;
+            input.checked = selections[difference.id] === source;
+            const text = document.createElement('span');
+            const hasVersion = Boolean(difference[source]);
+            text.textContent = t(hasVersion
+              ? (source === 'local' ? 'sync.keepLocalVersion' : 'sync.keepRemoteVersion')
+              : (source === 'local' ? 'sync.followLocalDeletion' : 'sync.followRemoteDeletion'));
+            label.append(input, text);
+            choices.appendChild(label);
+          });
+          row.append(heading, comparison, choices);
+          details.appendChild(row);
+        });
+        container.appendChild(details);
+      });
+    }
+
     function showSyncConfirmation(options: {
       title: string;
       message: string;
       showKeepHidden?: boolean;
       destructive?: boolean;
-    }): Promise<{ confirmed: boolean; keepHidden: boolean }> {
+      strategy: DifferenceStrategy;
+    }): Promise<{
+      confirmed: boolean;
+      keepHidden: boolean;
+      resolvedBookmarks?: any[];
+      localRoots?: any[];
+    }> {
       const modal = document.getElementById('syncConfirmModal') as HTMLDivElement;
       const title = document.getElementById('syncConfirmTitle') as HTMLElement;
       const message = document.getElementById('syncConfirmMessage') as HTMLElement;
@@ -768,7 +859,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       const localOnly = document.getElementById('syncDiffLocalOnly') as HTMLElement;
       const shared = document.getElementById('syncDiffShared') as HTMLElement;
       const remoteOnly = document.getElementById('syncDiffRemoteOnly') as HTMLElement;
+      const moved = document.getElementById('syncDiffMoved') as HTMLElement;
+      const urlChanged = document.getElementById('syncDiffUrlChanged') as HTMLElement;
+      const detailsContainer = document.getElementById('syncDiffDetails') as HTMLElement;
       const returnFocus = document.activeElement as HTMLElement | null;
+      let loadedData: Awaited<ReturnType<typeof loadSyncDifference>> | null = null;
+      let selections: Record<string, BookmarkSource> = {};
 
       title.textContent = options.title;
       message.textContent = options.message;
@@ -781,7 +877,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       submitButton.disabled = true;
       submitButton.textContent = t('sync.previewing');
       diffPreview.dataset.state = 'loading';
-      localOnly.textContent = shared.textContent = remoteOnly.textContent = '—';
+      localOnly.textContent = shared.textContent = remoteOnly.textContent = moved.textContent = urlChanged.textContent = '—';
+      detailsContainer.replaceChildren();
+      const loading = document.createElement('p');
+      loading.className = 'sync-diff-empty';
+      loading.textContent = t('sync.previewing');
+      detailsContainer.appendChild(loading);
       modal.style.display = 'flex';
       cancelButton.focus();
 
@@ -795,7 +896,19 @@ document.addEventListener('DOMContentLoaded', async () => {
           submitButton.disabled = false;
           submitButton.textContent = t('sync.confirmAction');
           returnFocus?.focus();
-          resolve({ confirmed, keepHidden: keepHiddenInput.checked });
+          if (!confirmed || !loadedData) {
+            resolve({ confirmed: false, keepHidden: keepHiddenInput.checked });
+            return;
+          }
+          detailsContainer.querySelectorAll<HTMLInputElement>('input[data-diff-id]:checked').forEach(input => {
+            selections[input.dataset.diffId || ''] = input.value as BookmarkSource;
+          });
+          resolve({
+            confirmed: true,
+            keepHidden: keepHiddenInput.checked,
+            resolvedBookmarks: resolveBookmarkDifferences(loadedData.analysis, selections, options.strategy),
+            localRoots: loadedData.localRoots,
+          });
         };
         cancelButton.onclick = () => finish(false);
         submitButton.onclick = () => finish(true);
@@ -809,8 +922,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
           }
           if (event.key === 'Tab') {
-            const focusable = [keepHiddenInput, cancelButton, submitButton]
-              .filter(element => element.offsetParent !== null && !element.disabled);
+            const focusable = [...modal.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), summary, [tabindex="0"]')]
+              .filter(element => element.offsetParent !== null);
             const first = focusable[0];
             const last = focusable[focusable.length - 1];
             if (event.shiftKey && document.activeElement === first) {
@@ -824,21 +937,31 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
 
         void loadSyncDifference()
-          .then(diff => {
+          .then(data => {
+            loadedData = data;
+            selections = getDefaultDifferenceSelections(data.analysis, options.strategy);
             localCount.textContent = syncLocalCountEl.textContent || '—';
             remoteCount.textContent = syncRemoteCountEl.textContent || '—';
-            localOnly.textContent = String(diff.localOnly);
-            shared.textContent = String(diff.shared);
-            remoteOnly.textContent = String(diff.remoteOnly);
+            localOnly.textContent = String(data.analysis.counts.localOnly);
+            shared.textContent = String(data.analysis.counts.shared);
+            remoteOnly.textContent = String(data.analysis.counts.remoteOnly);
+            moved.textContent = String(data.analysis.counts.moved);
+            urlChanged.textContent = String(data.analysis.counts.urlChanged);
+            renderSyncDifferenceDetails(data.analysis, selections);
             diffPreview.dataset.state = 'ready';
             submitButton.disabled = false;
             submitButton.textContent = t('sync.confirmAction');
           })
           .catch(error => {
             diffPreview.dataset.state = 'error';
-            localOnly.textContent = shared.textContent = remoteOnly.textContent = '!';
-            submitButton.disabled = false;
-            submitButton.textContent = t('sync.confirmAction');
+            localOnly.textContent = shared.textContent = remoteOnly.textContent = moved.textContent = urlChanged.textContent = '!';
+            detailsContainer.replaceChildren();
+            const failed = document.createElement('p');
+            failed.className = 'sync-diff-empty';
+            failed.textContent = t('sync.previewFailedInline');
+            detailsContainer.appendChild(failed);
+            submitButton.disabled = true;
+            submitButton.textContent = t('sync.previewUnavailable');
             showToast(t('sync.previewFailed', getErrorMessage(error)), 'warning');
           });
       });
@@ -980,6 +1103,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         message: t('sync.confirmOverwriteUploadDesc'),
         showKeepHidden: true,
         destructive: true,
+        strategy: 'local',
       });
       if (!confirmation.confirmed) return;
       const keepHidden = confirmation.keepHidden;
@@ -987,33 +1111,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       await runSyncAction(btnSaveOverwrite, t('sync.saving'), async () => {
         try {
           const config = await getGiteeConfig();
-          const tree = await getLocalBookmarks();
-          let content = tree[0]?.children || [];
-          let hiddenBookmarksKept = false;
-          let hiddenBookmarksWarning = false;
-
-          if (keepHidden) {
-            // 需要保留隐藏书签，从书签管理器中获取包含隐藏属性的书签。
-            try {
-              const bookmarkManagerData = await getBookmarkManagerData();
-              if (bookmarkManagerData && bookmarkManagerData.length > 0) {
-                const hiddenBookmarks = filterHiddenBookmarks(bookmarkManagerData);
-                content = mergeBookmarks(content, hiddenBookmarks);
-                hiddenBookmarksKept = true;
-              } else {
-                hiddenBookmarksWarning = true;
-              }
-            } catch (error) {
-              hiddenBookmarksWarning = true;
-              console.warn('Failed to preserve hidden bookmarks:', error);
-            }
-          }
-
+          let content = replaceBookmarkBarChildren(
+            confirmation.localRoots || [],
+            confirmation.resolvedBookmarks || [],
+          );
+          if (!keepHidden) content = filterVisibleBookmarks(structuredClone(content));
           await modifyFile(config, content, true);
           recordSuccessfulSync();
-          if (hiddenBookmarksWarning) {
-            showToast(t('msg.overwriteSaveCompletedWithWarning'), 'warning');
-          } else if (hiddenBookmarksKept) {
+          if (keepHidden) {
             showToast(t('msg.overwriteSaveSuccessWithHidden'));
           } else {
             showToast(t('msg.overwriteSaveSuccess'));
@@ -1028,14 +1133,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       const confirmation = await showSyncConfirmation({
         title: t('sync.confirmMergeUploadTitle'),
         message: t('sync.confirmMergeUploadDesc'),
+        strategy: 'merge',
       });
       if (!confirmation.confirmed) return;
       await runSyncAction(btnSaveMerge, t('sync.saving'), async () => {
         try {
           const config = await getGiteeConfig();
-          const tree = await getLocalBookmarks();
-          const content = tree[0]?.children || [];
-          await modifyFile(config, content, false);
+          const content = replaceBookmarkBarChildren(
+            confirmation.localRoots || [],
+            confirmation.resolvedBookmarks || [],
+          );
+          await modifyFile(config, content, true);
           recordSuccessfulSync();
           showToast(t('msg.mergeSaveSuccess'));
         } catch (error) {
@@ -1049,29 +1157,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         title: t('sync.confirmOverwriteDownloadTitle'),
         message: t('sync.confirmOverwriteDownloadDesc'),
         destructive: true,
+        strategy: 'remote',
       });
       if (!confirmation.confirmed) return;
       await runSyncAction(btnGetOverwrite, t('sync.getting'), async () => {
         try {
-          const config = await getGiteeConfig();
-          const data = await getFile(config);
-
-          // 检查数据结构
-          let bookmarksToCreate;
-          if (Array.isArray(data)) {
-            // 如果是数组，取第一个元素的children
-            bookmarksToCreate = data[0]?.children || [];
-          } else if (data.children) {
-            // 如果是对象且有children属性
-            bookmarksToCreate = data.children;
-          } else {
-            throw new Error(t('msg.remoteDataFormatError'));
-          }
-
-          // 过滤掉隐藏的书签，不在系统书签栏显示
-          const visibleBookmarks = filterVisibleBookmarks(bookmarksToCreate);
-
-          await replaceBookmarkBarSafely(visibleBookmarks);
+          await replaceBookmarkBarSafely(confirmation.resolvedBookmarks || []);
           recordSuccessfulSync();
           showToast(t('msg.overwriteGetSuccess'));
         } catch (error) {
@@ -1084,35 +1175,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       const confirmation = await showSyncConfirmation({
         title: t('sync.confirmMergeDownloadTitle'),
         message: t('sync.confirmMergeDownloadDesc'),
+        strategy: 'merge',
       });
       if (!confirmation.confirmed) return;
       await runSyncAction(btnGetMerge, t('sync.getting'), async () => {
         try {
-          const config = await getGiteeConfig();
-          const data = await getFile(config);
-
-          const tree = await getLocalBookmarks();
-          const local = tree[0]?.children || [];
-
-          // 检查数据结构并获取远程书签
-          let remoteBookmarks;
-          if (Array.isArray(data)) {
-            remoteBookmarks = data[0]?.children || [];
-          } else if (data.children) {
-            remoteBookmarks = data.children;
-          } else {
-            throw new Error(t('msg.remoteDataFormatError'));
-          }
-
-          // 获取书签栏的书签进行合并
-          const localBookmarks = local.find((item: any) => item.title === '书签栏' || item.title === 'Bookmarks bar');
-          const localBookmarksChildren = localBookmarks?.children || [];
-          const merged = mergeBookmarks(localBookmarksChildren, remoteBookmarks);
-
-          // 过滤掉隐藏的书签，不在系统书签栏显示
-          const visibleMerged = filterVisibleBookmarks(merged);
-
-          await replaceBookmarkBarSafely(visibleMerged);
+          await replaceBookmarkBarSafely(confirmation.resolvedBookmarks || []);
           recordSuccessfulSync();
           showToast(t('msg.mergeGetSuccess'));
         } catch (error) {

@@ -755,7 +755,14 @@
       .security-purpose-icon { font-size: 1.45em; line-height: 1; }
       .security-purpose strong { display: block; margin-bottom: 0.18em; }
       .security-purpose p { margin: 0; color: var(--color-text-muted); font-size: var(--font-size-sm); line-height: 1.45; }
-      .sync-confirm-content { width: 360px; max-width: calc(100vw - 48px); }
+      .sync-confirm-content {
+        display: flex;
+        flex-direction: column;
+        width: 520px;
+        max-width: calc(100vw - 48px);
+        max-height: calc(100vh - 48px);
+        overflow: hidden;
+      }
       .sync-confirm-summary {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -772,7 +779,7 @@
       .sync-confirm-summary strong { display: block; margin-top: 0.15em; font-size: var(--font-size-lg); }
       .sync-diff-preview {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(5, 1fr);
         gap: 0.4em;
         margin: 0.65em 0;
       }
@@ -780,6 +787,68 @@
       .sync-diff-item strong { display: block; color: var(--color-text-primary); }
       .sync-diff-item span { color: var(--color-text-muted); font-size: var(--font-size-xs); }
       .sync-diff-preview[data-state="loading"] { opacity: 0.55; }
+      .sync-diff-details {
+        flex: 1 1 250px;
+        min-height: 90px;
+        max-height: 250px;
+        overflow-y: auto;
+        border: 1px solid var(--color-border-light);
+        border-radius: 8px;
+        background: var(--color-bg-secondary);
+      }
+      .sync-diff-group + .sync-diff-group { border-top: 1px solid var(--color-border-light); }
+      .sync-diff-group summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6em;
+        padding: 0.65em 0.75em;
+        color: var(--color-text-primary);
+        font-size: var(--font-size-sm);
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .sync-diff-group summary strong {
+        min-width: 1.8em;
+        padding: 0.1em 0.45em;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--color-accent-blue) 12%, transparent);
+        color: var(--color-accent-blue);
+        text-align: center;
+      }
+      .sync-diff-row { padding: 0.7em 0.75em; border-top: 1px solid var(--color-border-light); }
+      .sync-diff-row-heading { display: flex; align-items: center; justify-content: space-between; gap: 0.5em; }
+      .sync-diff-row-heading strong { overflow: hidden; color: var(--color-text-primary); font-size: var(--font-size-sm); text-overflow: ellipsis; white-space: nowrap; }
+      .sync-diff-row-heading span { flex: none; color: var(--color-accent-blue); font-size: var(--font-size-xs); }
+      .sync-version-comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45em; margin-top: 0.5em; }
+      .sync-version {
+        min-width: 0;
+        padding: 0.45em 0.55em;
+        border-radius: 6px;
+        background: var(--color-bg-hover);
+      }
+      .sync-version b,
+      .sync-version span { display: block; }
+      .sync-version b { color: var(--color-text-secondary); font-size: var(--font-size-xs); }
+      .sync-version span { margin-top: 0.18em; overflow: hidden; color: var(--color-text-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+      .sync-version-choices { display: flex; flex-wrap: wrap; gap: 0.45em; margin-top: 0.5em; }
+      .sync-version-choices label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.28em;
+        padding: 0.3em 0.5em;
+        border: 1px solid var(--color-border-light);
+        border-radius: 6px;
+        color: var(--color-text-secondary);
+        font-size: var(--font-size-xs);
+        cursor: pointer;
+      }
+      .sync-version-choices label:has(input:checked) {
+        border-color: var(--color-accent-blue);
+        background: color-mix(in srgb, var(--color-accent-blue) 12%, transparent);
+        color: var(--color-accent-blue);
+      }
+      .sync-diff-empty { margin: 0; padding: 1.2em; color: var(--color-text-muted); font-size: var(--font-size-sm); text-align: center; }
       .sync-confirm-option {
         display: flex;
         align-items: flex-start;
@@ -788,7 +857,7 @@
         color: var(--color-text-secondary);
         font-size: var(--font-size-sm);
       }
-      .sync-confirm-actions { display: flex; justify-content: flex-end; gap: 0.5em; margin-top: 1em; }
+      .sync-confirm-actions { display: flex; flex: none; justify-content: flex-end; gap: 0.5em; margin-top: 1em; }
       .popup-tab-btn:focus-visible,
       .ui-button:focus-visible,
       .field-action:focus-visible,
@@ -1142,9 +1211,12 @@
         </div>
         <div class="sync-diff-preview" id="syncDiffPreview" data-state="loading" aria-live="polite">
           <div class="sync-diff-item"><strong id="syncDiffLocalOnly">—</strong><span data-i18n="sync.localOnly">仅本地</span></div>
-          <div class="sync-diff-item"><strong id="syncDiffShared">—</strong><span data-i18n="sync.shared">两端相同</span></div>
           <div class="sync-diff-item"><strong id="syncDiffRemoteOnly">—</strong><span data-i18n="sync.remoteOnly">仅远程</span></div>
+          <div class="sync-diff-item"><strong id="syncDiffMoved">—</strong><span data-i18n="sync.moved">已移动</span></div>
+          <div class="sync-diff-item"><strong id="syncDiffUrlChanged">—</strong><span data-i18n="sync.urlChanged">URL 变化</span></div>
+          <div class="sync-diff-item"><strong id="syncDiffShared">—</strong><span data-i18n="sync.shared">两端相同</span></div>
         </div>
+        <div class="sync-diff-details" id="syncDiffDetails" aria-live="polite"></div>
         <label class="sync-confirm-option" id="syncKeepHiddenOption"><input type="checkbox" id="syncKeepHidden" checked><span data-i18n="sync.keepHidden">保留远程隐藏书签</span></label>
         <div class="sync-confirm-actions">
           <button type="button" class="ui-button ui-button--secondary" id="syncConfirmCancel" data-i18n="btn.cancel">取消</button>

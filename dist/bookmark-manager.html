@@ -2450,6 +2450,167 @@
       background: var(--color-bg-primary);
     }
 
+    .restore-modal-content {
+      width: min(920px, calc(100vw - 40px));
+      max-width: none;
+      height: min(780px, calc(100vh - 40px));
+      max-height: none;
+    }
+
+    .restore-modal-body {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .restore-center-layout {
+      display: grid;
+      grid-template-columns: minmax(230px, 0.8fr) minmax(340px, 1.4fr);
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid var(--color-border-primary);
+      border-radius: var(--radius-md);
+      background: var(--color-bg-secondary);
+    }
+
+    .restore-history-panel,
+    .restore-preview-panel {
+      min-width: 0;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .restore-history-panel {
+      border-right: 1px solid var(--color-border-primary);
+    }
+
+    .restore-panel-title {
+      margin: 0 0 12px;
+      color: var(--color-text-secondary);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .restore-history-list {
+      display: grid;
+      align-content: start;
+      flex: 1;
+      gap: 8px;
+      min-height: 0;
+      overflow-y: auto;
+      padding-right: 5px;
+    }
+
+    .restore-history-item {
+      width: 100%;
+      padding: 11px 12px;
+      border: 1px solid var(--color-border-primary);
+      border-radius: var(--radius-sm);
+      background: var(--color-bg-primary);
+      color: var(--color-text-primary);
+      text-align: left;
+      cursor: pointer;
+      transition: border-color 0.16s ease, background-color 0.16s ease, transform 0.16s ease;
+    }
+
+    .restore-history-item:hover {
+      border-color: var(--color-border-hover);
+      transform: translateY(-1px);
+    }
+
+    .restore-history-item[aria-selected="true"] {
+      border-color: var(--color-accent-blue);
+      background: color-mix(in srgb, var(--color-accent-blue) 12%, transparent);
+      box-shadow: inset 3px 0 0 var(--color-accent-blue);
+    }
+
+    .restore-history-item strong,
+    .restore-history-item span,
+    .restore-history-item small {
+      display: block;
+    }
+
+    .restore-history-item strong { font-size: 13px; }
+    .restore-history-item span { margin-top: 4px; color: var(--color-accent-blue); font-size: 12px; font-weight: 700; }
+    .restore-history-item small { margin-top: 3px; color: var(--color-text-secondary); font-size: 11px; }
+
+    .restore-preview-meta {
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      background: var(--color-bg-hover);
+      color: var(--color-text-secondary);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .restore-preview {
+      display: grid;
+      align-content: start;
+      flex: 1;
+      gap: 6px;
+      min-height: 0;
+      overflow-y: auto;
+      padding-right: 5px;
+    }
+
+    .restore-preview-item {
+      display: grid;
+      grid-template-columns: auto minmax(110px, 0.7fr) minmax(160px, 1fr);
+      align-items: center;
+      gap: 8px;
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--color-border-light);
+      color: var(--color-text-primary);
+      font-size: 13px;
+    }
+
+    .restore-preview-item small {
+      overflow: hidden;
+      color: var(--color-text-secondary);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .restore-modal-footer {
+      flex: none;
+      padding: 14px 20px 18px;
+      border-top: 1px solid var(--color-border-primary);
+      background: var(--color-bg-card);
+      box-shadow: 0 -8px 22px color-mix(in srgb, var(--color-shadow-heavy) 8%, transparent);
+    }
+
+    .restore-modal-footer p {
+      margin: 0 0 12px;
+      color: var(--color-text-secondary);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .restore-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0;
+    }
+
+    .restore-actions .restore-action-spacer { flex: 1; }
+
+    @media (max-width: 760px) {
+      .restore-center-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(140px, 0.65fr) minmax(180px, 1fr);
+      }
+      .restore-history-panel { border-right: 0; border-bottom: 1px solid var(--color-border-primary); }
+      .restore-preview-item { grid-template-columns: auto 1fr; }
+      .restore-preview-item small { grid-column: 2; }
+    }
+
     #passwordLockOverlay > div {
       border-radius: var(--radius-lg);
       border: 1px solid var(--color-border-primary);
@@ -2726,17 +2887,33 @@
 
   <!-- 恢复中心 -->
   <div id="restoreModal" class="modal" style="display: none;">
-    <div class="modal-content">
+    <div class="modal-content restore-modal-content" role="dialog" aria-modal="true" aria-labelledby="restoreModalTitle">
       <div class="modal-header">
-        <h3 data-i18n="manager.restoreCenter">恢复中心</h3>
+        <h3 id="restoreModalTitle" data-i18n="manager.restoreCenter">恢复中心</h3>
         <span class="close" id="closeRestoreModal">&times;</span>
       </div>
-      <div class="modal-body">
-        <div id="restoreInfo" class="import-info" style="white-space:pre-line;line-height:1.7;"></div>
-        <p style="color:var(--color-text-secondary);font-size:13px;line-height:1.6;" data-i18n="manager.restoreDesc">恢复会替换当前书签栏，并自动把当前状态保存为新的恢复点。</p>
-        <div class="form-actions">
-          <button class="btn btn-primary" id="confirmRestoreBtn" data-i18n="manager.restoreConfirm">恢复此备份</button>
+      <div class="modal-body restore-modal-body">
+        <div class="restore-center-layout">
+          <section class="restore-history-panel" aria-labelledby="restoreHistoryTitle">
+            <h4 class="restore-panel-title" id="restoreHistoryTitle" data-i18n="manager.restoreHistory">最近 10 个版本</h4>
+            <div class="restore-history-list" id="restoreHistoryList" role="listbox"></div>
+          </section>
+          <section class="restore-preview-panel" aria-labelledby="restorePreviewTitle">
+            <h4 class="restore-panel-title" id="restorePreviewTitle" data-i18n="manager.restorePreview">版本预览</h4>
+            <div class="restore-preview-meta" id="restorePreviewMeta"></div>
+            <div class="restore-preview" id="restorePreview"></div>
+          </section>
+        </div>
+      </div>
+      <div class="restore-modal-footer">
+        <p data-i18n="manager.restoreDesc">恢复会替换当前书签栏，并自动把当前状态保存为新的恢复点。</p>
+        <div class="restore-actions">
+          <button class="btn" id="exportRestoreBtn" data-i18n="manager.restoreExport">导出版本</button>
+          <button class="btn btn-danger" id="deleteRestoreBtn" data-i18n="manager.restoreDelete">删除版本</button>
+          <span class="restore-action-spacer"></span>
           <button class="btn" id="cancelRestoreBtn" data-i18n="btn.cancel">取消</button>
+          <button class="btn" id="restoreLocalBtn" data-i18n="manager.restoreLocal">仅恢复本地</button>
+          <button class="btn btn-primary" id="restoreSyncBtn" data-i18n="manager.restoreAndSync">恢复并同步 Gitee</button>
         </div>
       </div>
     </div>

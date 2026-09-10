@@ -6,6 +6,8 @@ const manifest = JSON.parse(await readFile(new URL('../manifest.json', import.me
 const managerSource = await readFile(new URL('../src/bookmark-manager.js', import.meta.url), 'utf8');
 const popupSource = await readFile(new URL('../src/popup.ts', import.meta.url), 'utf8');
 const cryptoSource = await readFile(new URL('../src/crypto.ts', import.meta.url), 'utf8');
+const bookmarkServiceSource = await readFile(new URL('../src/bookmark-service.ts', import.meta.url), 'utf8');
+const bookmarkDiffSource = await readFile(new URL('../src/bookmark-diff.ts', import.meta.url), 'utf8');
 const popupHtml = await readFile(new URL('../popup.html', import.meta.url), 'utf8');
 const managerHtml = await readFile(new URL('../bookmark-manager.html', import.meta.url), 'utf8');
 
@@ -27,8 +29,15 @@ assert.ok(popupHtml.includes('role="tablist"'), 'popup navigation must expose ta
 assert.ok(popupHtml.includes('id="testGiteeConnection"'), 'popup must expose repository connection testing');
 assert.ok(popupHtml.includes('id="syncConfirmModal"'), 'destructive sync operations must use the accessible confirmation dialog');
 assert.ok(popupHtml.includes('id="syncDiffPreview"'), 'sync confirmation must expose a difference preview');
+assert.ok(popupHtml.includes('id="syncDiffDetails"'), 'sync confirmation must expose item-level difference controls');
+assert.ok(bookmarkDiffSource.includes("'url-changed'"), 'sync differences must detect URL changes');
+assert.ok(bookmarkDiffSource.includes("'moved'"), 'sync differences must detect moved bookmarks');
 assert.ok(managerHtml.includes('role="tree"'), 'bookmark folder navigation must expose tree semantics');
 assert.ok(managerHtml.includes('id="restoreModal"'), 'bookmark manager must expose the restore center');
+assert.ok(managerHtml.includes('id="restoreHistoryList"'), 'restore center must expose version history');
+assert.ok(managerHtml.includes('id="restoreSyncBtn"'), 'restore center must support restore-and-sync');
+assert.ok(bookmarkServiceSource.includes('MAX_RESTORE_POINTS = 10'), 'restore history must be capped');
+assert.ok(bookmarkServiceSource.includes('hidden?: boolean'), 'restore snapshots must preserve hidden state');
 assert.ok(managerHtml.includes('id="linkCheckRetryBtn"'), 'link checker must expose retry controls');
 
 console.log('Project static checks passed.');

@@ -109,3 +109,113 @@ test('bookmark restore point can undo a successful replacement', async () => {
   await restoreBookmarkBarFromPoint();
   assert.equal(bookmarkBar.children[0].title, 'Original');
 });
+
+test('hidden bookmark state survives changed Chrome IDs and keeps hidden nodes outside the browser bar', async () => {
+  const storage = {
+    bookmarkManagerData: [{
+      id: '1',
+      title: 'Bookmarks bar',
+      children: [
+        { id: 'old-visible', title: 'Visible', url: 'https://visible.example' },
+        { id: 'old-hidden', title: 'Hidden', url: 'https://hidden.example', hidden: true },
+      ],
+    }],
+  };
+  const bookmarkBar = {
+    id: '1',
+    title: 'Bookmarks bar',
+    children: [{ id: 'new-visible', title: 'Visible', url: 'https://visible.example' }],
+  };
+  let nextId = 1;
+  globalThis.chrome = {
+    runtime: { lastError: null },
+    storage: {
+      local: {
+        set: (value, callback) => { Object.assign(storage, value); callback(); },
+        get: (keys, callback) => callback(Object.fromEntries(keys.map(key => [key, storage[key]]))),
+      },
+    },
+    bookmarks: {
+      getTree: callback => callback([{ children: [bookmarkBar] }]),
+      removeTree: (id, callback) => { bookmarkBar.children = bookmarkBar.children.filter(item => item.id !== id); callback(); },
+      create: (details, callback) => {
+        const created = { ...details, id: `created-${nextId++}` };
+        bookmarkBar.children.push(created);
+        callback(created);
+      },
+    },
+  };
+
+  const {
+    getBookmarkBarState,
+    replaceBookmarkBarSafely,
+  } = await loadTypeScriptModule('src/bookmark-service.ts');
+  const before = await getBookmarkBarState();
+  assert.equal(before.find(item => item.title === 'Hidden').hidden, true);
+
+  await replaceBookmarkBarSafely(before, 'sync');
+  assert.deepEqual(bookmarkBar.children.map(item => item.title), ['Visible']);
+  const persistedBar = storage.bookmarkManagerData.find(item => item.id === '1');
+  assert.equal(persistedBar.children.find(item => item.title === 'Hidden').hidden, true);
+  assert.match(persistedBar.children.find(item => item.title === 'Visible').id, /^created-/);
+});
+
+test('bookmark differences classify URL changes and moves and apply per-item choices', async () => {
+  const {
+    analyzeBookmarkDifferences,
+    getDefaultDifferenceSelections,
+    resolveBookmarkDifferences,
+  } = await loadTypeScriptModule('src/bookmark-diff.ts');
+  const local = [
+    { title: 'Work', children: [
+      { title: 'Docs', url: 'https://old.example' },
+      { title: 'Moved', url: 'https://move.example' },
+      { title: 'Local', url: 'https://local.example' },
+    ] },
+  ];
+  const remote = [
+    { title: 'Work', children: [
+      { title: 'Docs', url: 'https://new.example' },
+      { title: 'Remote', url: 'https://remote.example' },
+    ] },
+    { title: 'Archive', children: [{ title: 'Moved', url: 'https://move.example' }] },
+  ];
+
+  const analysis = analyzeBookmarkDifferences(local, remote);
+  assert.deepEqual(analysis.counts, { localOnly: 1, remoteOnly: 1, moved: 1, urlChanged: 1, shared: 0 });
+  const selections = getDefaultDifferenceSelections(analysis, 'remote');
+  const resolved = resolveBookmarkDifferences(analysis, selections, 'remote');
+  const serialized = JSON.stringify(resolved);
+  assert.ok(serialized.includes('https://new.example'));
+  assert.ok(serialized.includes('https://remote.example'));
+  assert.ok(serialized.includes('Archive'));
+  assert.ok(!serialized.includes('https://old.example'));
+  assert.ok(!serialized.includes('https://local.example'));
+});
+
+test('bookmark restore history keeps only the latest ten versions', async () => {
+  const storage = {};
+  const bookmarkBar = { id: '1', title: 'Bookmarks bar', children: [{ id: 'one', title: 'One', url: 'https://one.example' }] };
+  globalThis.chrome = {
+    runtime: { lastError: null },
+    storage: {
+      local: {
+        set: (value, callback) => { Object.assign(storage, value); callback(); },
+        get: (keys, callback) => callback(Object.fromEntries(keys.map(key => [key, storage[key]]))),
+      },
+    },
+    bookmarks: { getTree: callback => callback([{ children: [bookmarkBar] }]) },
+  };
+  const {
+    captureBookmarkBarRestorePoint,
+    getBookmarkRestoreHistory,
+  } = await loadTypeScriptModule('src/bookmark-service.ts');
+
+  for (let index = 0; index < 12; index += 1) {
+    await captureBookmarkBarRestorePoint(`version-${index}`);
+  }
+  const history = await getBookmarkRestoreHistory();
+  assert.equal(history.length, 10);
+  assert.equal(history[0].reason, 'version-11');
+  assert.ok(!history.some(point => point.reason === 'version-0'));
+});
