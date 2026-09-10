@@ -2607,6 +2607,7 @@
         </button>
         <button class="btn" id="configBtn" data-i18n="manager.config">⚙️ 配置</button>
         <button class="btn" id="refreshBtn" data-i18n="btn.refresh">🔄 刷新</button>
+        <button class="btn" id="restoreBtn" disabled data-i18n="manager.restore">↶ 恢复</button>
       </div>
     </div>
 
@@ -2723,6 +2724,24 @@
     </div>
   </div>
 
+  <!-- 恢复中心 -->
+  <div id="restoreModal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 data-i18n="manager.restoreCenter">恢复中心</h3>
+        <span class="close" id="closeRestoreModal">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div id="restoreInfo" class="import-info" style="white-space:pre-line;line-height:1.7;"></div>
+        <p style="color:var(--color-text-secondary);font-size:13px;line-height:1.6;" data-i18n="manager.restoreDesc">恢复会替换当前书签栏，并自动把当前状态保存为新的恢复点。</p>
+        <div class="form-actions">
+          <button class="btn btn-primary" id="confirmRestoreBtn" data-i18n="manager.restoreConfirm">恢复此备份</button>
+          <button class="btn" id="cancelRestoreBtn" data-i18n="btn.cancel">取消</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 导入书签对话框 -->
   <div id="importModal" class="modal" style="display: none;">
     <div class="modal-content">
@@ -2773,6 +2792,7 @@
             <span data-i18n="manager.duplicateStripQuery">忽略查询参数</span>
           </label>
         </div>
+        <p style="margin:8px 0;color:var(--color-text-secondary);font-size:13px;" data-i18n="manager.duplicateRecommendHint">系统会优先推荐保留 HTTPS、地址更简洁、标题更完整的书签。</p>
         <!-- 统计信息 -->
         <div class="duplicate-stats" id="duplicateStats" style="display: none;"></div>
         <!-- 全选/取消全选 -->
@@ -2802,7 +2822,10 @@
         <!-- 工具栏：开始/停止 + 并发数 + 筛选 -->
         <div class="linkcheck-toolbar">
           <button class="btn btn-primary" id="linkCheckStartBtn" data-i18n="manager.linkCheckStart">开始检测</button>
+          <button class="btn" id="linkCheckPauseBtn" style="display:none;" data-i18n="manager.linkCheckPause">暂停</button>
           <button class="btn" id="linkCheckStopBtn" style="display:none;" data-i18n="manager.linkCheckStop">停止检测</button>
+          <button class="btn" id="linkCheckRetryBtn" style="display:none;" data-i18n="manager.linkCheckRetryProblems">重试异常项</button>
+          <button class="btn" id="linkCheckExportBtn" style="display:none;" data-i18n="manager.linkCheckExport">导出结果</button>
           <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
             <span data-i18n="manager.linkCheckConcurrency">并发数</span>
             <select id="linkCheckConcurrency">
@@ -2822,7 +2845,7 @@
         <!-- 进度条 -->
         <div class="linkcheck-progress" id="linkCheckProgress" style="display:none;">
           <div class="linkcheck-progress-bar">
-            <div class="linkcheck-progress-fill" id="linkCheckProgressFill" style="width:0%;"></div>
+            <div class="linkcheck-progress-fill" id="linkCheckProgressFill" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="width:0%;"></div>
           </div>
           <div class="linkcheck-progress-text">
             <span id="linkCheckProgressText"></span>

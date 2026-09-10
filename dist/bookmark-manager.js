@@ -91,6 +91,11 @@
     "sync.confirmOverwriteDownloadDesc": "\u8FDC\u7A0B\u4E66\u7B7E\u5C06\u66FF\u6362\u672C\u5730\u4E66\u7B7E\u680F\u3002\u64CD\u4F5C\u524D\u4F1A\u81EA\u52A8\u521B\u5EFA\u6062\u590D\u70B9\u3002",
     "sync.confirmMergeDownloadTitle": "\u786E\u8BA4\u5408\u5E76\u4E0B\u8F7D\uFF1F",
     "sync.confirmMergeDownloadDesc": "\u8FDC\u7A0B\u4E66\u7B7E\u5C06\u4E0E\u672C\u5730\u4E66\u7B7E\u53BB\u91CD\u5408\u5E76\uFF0C\u518D\u66F4\u65B0\u672C\u5730\u4E66\u7B7E\u680F\u3002",
+    "sync.localOnly": "\u4EC5\u672C\u5730",
+    "sync.shared": "\u4E24\u7AEF\u76F8\u540C",
+    "sync.remoteOnly": "\u4EC5\u8FDC\u7A0B",
+    "sync.previewing": "\u8BA1\u7B97\u5DEE\u5F02\u2026",
+    "sync.previewFailed": "\u65E0\u6CD5\u8BA1\u7B97\u540C\u6B65\u5DEE\u5F02\uFF1A{0}",
     // === 快捷键设置 ===
     "shortcut.title": "\u2328\uFE0F \u5FEB\u6377\u952E\u8BBE\u7F6E",
     "shortcut.enableSearch": "\u542F\u7528\u5168\u5C40\u4E66\u7B7E\u641C\u7D22",
@@ -257,6 +262,7 @@
     "manager.editUrlPlaceholder": "\u8F93\u5165\u4E66\u7B7EURL",
     "manager.editSuccess": "\u4E66\u7B7E\u5DF2\u66F4\u65B0",
     "manager.editFailed": "\u7F16\u8F91\u4E66\u7B7E\u5931\u8D25",
+    "manager.editFailedDetail": "\u7F16\u8F91\u4E66\u7B7E\u5931\u8D25\uFF1A{0}",
     "manager.editNeedExtension": "\u7F16\u8F91\u4E66\u7B7E\u529F\u80FD\u9700\u8981\u6D4F\u89C8\u5668\u6269\u5C55\u73AF\u5883",
     "manager.moveUp": "\u4E0A\u79FB",
     "manager.moveDown": "\u4E0B\u79FB",
@@ -264,6 +270,26 @@
     "manager.moveDownSuccess": "\u4E66\u7B7E\u5DF2\u4E0B\u79FB",
     "manager.moveBoundary": "\u5DF2\u7ECF\u5230\u8FBE\u5F53\u524D\u5217\u8868\u8FB9\u754C",
     "manager.moveFailed": "\u79FB\u52A8\u4E66\u7B7E\u5931\u8D25\uFF1A{0}",
+    "manager.loadMore": "\u7EE7\u7EED\u52A0\u8F7D\uFF08\u5DF2\u663E\u793A {0} / {1}\uFF09",
+    "manager.restore": "\u21B6 \u6062\u590D",
+    "manager.restoreCenter": "\u6062\u590D\u4E2D\u5FC3",
+    "manager.restoreDesc": "\u6062\u590D\u4F1A\u66FF\u6362\u5F53\u524D\u4E66\u7B7E\u680F\uFF0C\u5E76\u81EA\u52A8\u628A\u5F53\u524D\u72B6\u6001\u4FDD\u5B58\u4E3A\u65B0\u7684\u6062\u590D\u70B9\u3002",
+    "manager.restoreConfirm": "\u6062\u590D\u6B64\u5907\u4EFD",
+    "manager.restoring": "\u6062\u590D\u4E2D\u2026",
+    "manager.restoreSuccess": "\u4E66\u7B7E\u5DF2\u6062\u590D\uFF0C\u6062\u590D\u524D\u72B6\u6001\u4E5F\u5DF2\u4FDD\u7559\u3002",
+    "manager.restoreFailed": "\u6062\u590D\u4E66\u7B7E\u5931\u8D25\uFF1A{0}",
+    "manager.restoreUnavailable": "\u6682\u65E0\u53EF\u7528\u7684\u4E66\u7B7E\u6062\u590D\u70B9",
+    "manager.restoreLoadFailed": "\u8BFB\u53D6\u6062\u590D\u70B9\u5931\u8D25\uFF1A{0}",
+    "manager.restoreSummary": "\u5907\u4EFD\u65F6\u95F4\uFF1A{0}\n\u4E66\u7B7E\u6570\u91CF\uFF1A{1}\n\u751F\u6210\u539F\u56E0\uFF1A{2}",
+    "manager.restoreReasonEdit": "\u7F16\u8F91\u4E66\u7B7E\u524D",
+    "manager.restoreReasonDelete": "\u5220\u9664\u4E66\u7B7E\u524D",
+    "manager.restoreReasonVisibility": "\u4FEE\u6539\u9690\u85CF\u72B6\u6001\u524D",
+    "manager.restoreReasonReorder": "\u8C03\u6574\u987A\u5E8F\u524D",
+    "manager.restoreReasonDuplicates": "\u5220\u9664\u91CD\u590D\u4E66\u7B7E\u524D",
+    "manager.restoreReasonBrokenLinks": "\u5220\u9664\u5931\u6548\u94FE\u63A5\u524D",
+    "manager.restoreReasonSync": "\u540C\u6B65\u6216\u5BFC\u5165\u524D",
+    "manager.restoreReasonRestore": "\u4E0A\u4E00\u6B21\u6062\u590D\u524D",
+    "manager.restoreReasonOther": "\u4E66\u7B7E\u53D8\u66F4\u524D",
     "manager.editNotFound": "\u672A\u627E\u5230\u8BE5\u4E66\u7B7E",
     "manager.editTitleRequired": "\u6807\u9898\u4E0D\u80FD\u4E3A\u7A7A",
     "manager.deleteBookmarkNeedExtension": "\u4E66\u7B7E\u5220\u9664\u529F\u80FD\u9700\u8981\u6D4F\u89C8\u5668\u6269\u5C55\u73AF\u5883",
@@ -328,13 +354,25 @@
     "manager.duplicateDeleteSuccess": "\u6210\u529F\u5220\u9664 {0} \u4E2A\u91CD\u590D\u4E66\u7B7E",
     "manager.duplicateDeleteFailed": "\u5220\u9664\u5931\u8D25",
     "manager.duplicatePath": "\u4F4D\u7F6E\uFF1A{0}",
-    "manager.duplicateKeepHint": "(\u4FDD\u7559)",
+    "manager.duplicateKeepHint": "\u63A8\u8350\u4FDD\u7559",
+    "manager.duplicateRecommendHint": "\u7CFB\u7EDF\u4F1A\u4F18\u5148\u63A8\u8350\u4FDD\u7559 HTTPS\u3001\u5730\u5740\u66F4\u7B80\u6D01\u3001\u6807\u9898\u66F4\u5B8C\u6574\u7684\u4E66\u7B7E\u3002",
     "confirm.deleteDuplicates": "\u786E\u5B9A\u8981\u5220\u9664\u9009\u4E2D\u7684 {0} \u4E2A\u91CD\u590D\u4E66\u7B7E\u5417\uFF1F",
     // === 失效链接检测 ===
     "manager.linkCheck": "\u{1F517} \u68C0\u6D4B\u5931\u6548\u94FE\u63A5",
     "manager.linkCheckTitle": "\u5931\u6548\u94FE\u63A5\u68C0\u6D4B",
     "manager.linkCheckStart": "\u5F00\u59CB\u68C0\u6D4B",
     "manager.linkCheckStop": "\u505C\u6B62\u68C0\u6D4B",
+    "manager.linkCheckPause": "\u6682\u505C",
+    "manager.linkCheckResume": "\u7EE7\u7EED",
+    "manager.linkCheckRetryProblems": "\u91CD\u8BD5\u5F02\u5E38\u9879",
+    "manager.linkCheckRetryProgress": "\u91CD\u8BD5\u8FDB\u5EA6\uFF1A{0} / {1}",
+    "manager.linkCheckRetryComplete": "\u5F02\u5E38\u94FE\u63A5\u5DF2\u91CD\u65B0\u68C0\u6D4B",
+    "manager.linkCheckStopped": "\u68C0\u6D4B\u5DF2\u505C\u6B62\uFF0C\u5F53\u524D\u7ED3\u679C\u5DF2\u4FDD\u7559",
+    "manager.linkCheckNoProblems": "\u6CA1\u6709\u9700\u8981\u91CD\u8BD5\u7684\u5F02\u5E38\u94FE\u63A5",
+    "manager.linkCheckExport": "\u5BFC\u51FA\u7ED3\u679C",
+    "manager.linkCheckExported": "\u68C0\u6D4B\u7ED3\u679C\u5DF2\u5BFC\u51FA",
+    "manager.linkCheckNoResults": "\u6682\u65E0\u53EF\u5BFC\u51FA\u7684\u68C0\u6D4B\u7ED3\u679C",
+    "manager.linkCheckCacheLoaded": "\u5DF2\u52A0\u8F7D {0} \u7684\u68C0\u6D4B\u7ED3\u679C",
     "manager.linkCheckProgress": "\u68C0\u6D4B\u8FDB\u5EA6\uFF1A{0} / {1}",
     "manager.linkCheckOk": "\u2705 \u53EF\u7528",
     "manager.linkCheckWarning": "\u26A0\uFE0F \u53EF\u80FD\u5931\u6548",
@@ -550,6 +588,11 @@
     "sync.confirmOverwriteDownloadDesc": "Remote bookmarks will replace the local bookmark bar. A restore point is created first.",
     "sync.confirmMergeDownloadTitle": "Merge and download?",
     "sync.confirmMergeDownloadDesc": "Remote bookmarks will be merged with local bookmarks before updating the bookmark bar.",
+    "sync.localOnly": "Local only",
+    "sync.shared": "On both sides",
+    "sync.remoteOnly": "Remote only",
+    "sync.previewing": "Calculating\u2026",
+    "sync.previewFailed": "Could not calculate sync differences: {0}",
     // === Shortcut Settings ===
     "shortcut.title": "\u2328\uFE0F Shortcut Settings",
     "shortcut.enableSearch": "Enable global bookmark search",
@@ -716,6 +759,7 @@
     "manager.editUrlPlaceholder": "Enter bookmark URL",
     "manager.editSuccess": "Bookmark updated",
     "manager.editFailed": "Failed to edit bookmark",
+    "manager.editFailedDetail": "Failed to edit bookmark: {0}",
     "manager.editNeedExtension": "Editing bookmarks requires the browser extension environment",
     "manager.moveUp": "Move up",
     "manager.moveDown": "Move down",
@@ -723,6 +767,26 @@
     "manager.moveDownSuccess": "Bookmark moved down",
     "manager.moveBoundary": "This item is already at the list boundary",
     "manager.moveFailed": "Failed to move bookmark: {0}",
+    "manager.loadMore": "Load more ({0} / {1} shown)",
+    "manager.restore": "\u21B6 Restore",
+    "manager.restoreCenter": "Restore Center",
+    "manager.restoreDesc": "Restoring replaces the current bookmark bar and saves the current state as a new restore point.",
+    "manager.restoreConfirm": "Restore This Backup",
+    "manager.restoring": "Restoring\u2026",
+    "manager.restoreSuccess": "Bookmarks restored. The previous state was also preserved.",
+    "manager.restoreFailed": "Failed to restore bookmarks: {0}",
+    "manager.restoreUnavailable": "No bookmark restore point is available",
+    "manager.restoreLoadFailed": "Failed to read restore point: {0}",
+    "manager.restoreSummary": "Backup time: {0}\nBookmarks: {1}\nCreated before: {2}",
+    "manager.restoreReasonEdit": "bookmark edit",
+    "manager.restoreReasonDelete": "bookmark deletion",
+    "manager.restoreReasonVisibility": "visibility change",
+    "manager.restoreReasonReorder": "reordering",
+    "manager.restoreReasonDuplicates": "duplicate deletion",
+    "manager.restoreReasonBrokenLinks": "broken-link deletion",
+    "manager.restoreReasonSync": "sync or import",
+    "manager.restoreReasonRestore": "the previous restore",
+    "manager.restoreReasonOther": "bookmark change",
     "manager.editNotFound": "Bookmark not found",
     "manager.editTitleRequired": "Title cannot be empty",
     "manager.deleteBookmarkNeedExtension": "Deleting bookmarks requires the browser extension environment",
@@ -787,13 +851,25 @@
     "manager.duplicateDeleteSuccess": "Successfully deleted {0} duplicate bookmarks",
     "manager.duplicateDeleteFailed": "Deletion failed",
     "manager.duplicatePath": "Location: {0}",
-    "manager.duplicateKeepHint": "(keep)",
+    "manager.duplicateKeepHint": "Recommended",
+    "manager.duplicateRecommendHint": "HTTPS URLs, cleaner addresses, and more complete titles are recommended for keeping.",
     "confirm.deleteDuplicates": "Are you sure you want to delete the selected {0} duplicate bookmarks?",
     // === Link Check ===
     "manager.linkCheck": "\u{1F517} Check Dead Links",
     "manager.linkCheckTitle": "Dead Link Detection",
     "manager.linkCheckStart": "Start Check",
     "manager.linkCheckStop": "Stop",
+    "manager.linkCheckPause": "Pause",
+    "manager.linkCheckResume": "Resume",
+    "manager.linkCheckRetryProblems": "Retry Problems",
+    "manager.linkCheckRetryProgress": "Retry progress: {0} / {1}",
+    "manager.linkCheckRetryComplete": "Problem links have been checked again",
+    "manager.linkCheckStopped": "Checking stopped; current results were preserved",
+    "manager.linkCheckNoProblems": "There are no problem links to retry",
+    "manager.linkCheckExport": "Export Results",
+    "manager.linkCheckExported": "Link-check results exported",
+    "manager.linkCheckNoResults": "There are no link-check results to export",
+    "manager.linkCheckCacheLoaded": "Loaded results checked at {0}",
     "manager.linkCheckProgress": "Progress: {0} / {1}",
     "manager.linkCheckOk": "\u2705 Available",
     "manager.linkCheckWarning": "\u26A0\uFE0F May be broken",
@@ -1352,30 +1428,54 @@
     const children = Array.isArray(bookmarkBar?.children) ? bookmarkBar.children : [];
     for (const child of children) await removeTree(child.id);
   }
-  function saveRestorePoint(nodes) {
+  function saveRestorePoint(nodes, reason) {
     return new Promise((resolve, reject) => {
       chrome.storage.local.set({
-        [RESTORE_POINT_KEY]: { createdAt: Date.now(), nodes }
+        [RESTORE_POINT_KEY]: { createdAt: Date.now(), reason, nodes }
       }, () => {
         if (chrome.runtime.lastError) reject(chromeError("Failed to save bookmark restore point"));
         else resolve();
       });
     });
   }
+  function getBookmarkRestorePoint() {
+    return new Promise((resolve, reject) => {
+      chrome.storage.local.get([RESTORE_POINT_KEY], (result) => {
+        if (chrome.runtime.lastError) reject(chromeError("Failed to read bookmark restore point"));
+        else resolve(result?.[RESTORE_POINT_KEY] || null);
+      });
+    });
+  }
+  async function captureBookmarkBarRestorePoint(reason = "manual-change") {
+    const tree = await getChromeBookmarksTree();
+    const bookmarkBar = findBookmarkBar(tree);
+    if (!bookmarkBar?.id) throw new Error("Bookmark bar was not found");
+    const point = { createdAt: Date.now(), reason, nodes: prepareBookmarkNodes(bookmarkBar.children || []) };
+    await saveRestorePoint(point.nodes, reason);
+    return point;
+  }
+  async function restoreBookmarkBarFromPoint() {
+    const point = await getBookmarkRestorePoint();
+    if (!point?.nodes) throw new Error("No bookmark restore point is available");
+    await replaceBookmarkBarSafely(point.nodes, "restore");
+    return point;
+  }
   function findBookmarkBar(tree) {
     const rootChildren = tree?.[0]?.children || [];
     return rootChildren.find((item) => item.id === "1") || rootChildren[0];
   }
-  async function replaceBookmarkBarSafely(nodes) {
+  async function replaceBookmarkBarSafely(nodes, reason = "replace", createRestorePoint = true) {
     const prepared = prepareBookmarkNodes(nodes);
     const tree = await getChromeBookmarksTree();
     const bookmarkBar = findBookmarkBar(tree);
     if (!bookmarkBar?.id) throw new Error("Bookmark bar was not found");
     const backup = prepareBookmarkNodes(bookmarkBar.children || []);
-    try {
-      await saveRestorePoint(backup);
-    } catch (error) {
-      console.warn("Could not persist bookmark restore point; in-memory rollback remains available.", error);
+    if (createRestorePoint) {
+      try {
+        await saveRestorePoint(backup, reason);
+      } catch (error) {
+        console.warn("Could not persist bookmark restore point; in-memory rollback remains available.", error);
+      }
     }
     try {
       await clearBookmarkBar(bookmarkBar);
@@ -1733,7 +1833,11 @@
       this.currentDuplicateGroups = [];
       this.linkCheckResults = [];
       this.linkCheckRunning = false;
+      this.linkCheckPaused = false;
       this.linkCheckCurrentFilter = "all";
+      this.renderBatchSize = 150;
+      this.renderLimit = this.renderBatchSize;
+      this.searchDebounceTimer = null;
       this.giteeConfig = {
         owner: "",
         repo: "",
@@ -1754,6 +1858,7 @@
       this.applyFilter("all");
       this.selectRootFolder();
       this.renderBookmarks();
+      await this.updateRestoreButtonState();
     }
     async loadBookmarks(options = {}) {
       const promptOnConflict = options.promptOnConflict === true;
@@ -1791,6 +1896,87 @@
       void this.saveBookmarkTreeToGitee(this.bookmarks).catch((error) => {
         showToast(t2("manager.saveToGiteeFailedDetail", getErrorMessage(error)), "error");
       });
+    }
+    countBookmarkNodes(nodes) {
+      if (!Array.isArray(nodes)) return 0;
+      return nodes.reduce((total, node) => total + (node?.url ? 1 : 0) + this.countBookmarkNodes(node?.children), 0);
+    }
+    async updateRestoreButtonState() {
+      const button = document.getElementById("restoreBtn");
+      if (!button) return;
+      try {
+        button.disabled = !await getBookmarkRestorePoint();
+      } catch {
+        button.disabled = true;
+      }
+    }
+    async captureUndoPoint(reason) {
+      if (!(typeof chrome !== "undefined" && chrome.bookmarks)) return;
+      try {
+        await captureBookmarkBarRestorePoint(reason);
+        await this.updateRestoreButtonState();
+      } catch (error) {
+        console.warn("Failed to capture bookmark restore point:", error);
+      }
+    }
+    getRestoreReasonLabel(reason) {
+      const key = {
+        edit: "manager.restoreReasonEdit",
+        delete: "manager.restoreReasonDelete",
+        visibility: "manager.restoreReasonVisibility",
+        reorder: "manager.restoreReasonReorder",
+        duplicates: "manager.restoreReasonDuplicates",
+        brokenLinks: "manager.restoreReasonBrokenLinks",
+        replace: "manager.restoreReasonSync",
+        restore: "manager.restoreReasonRestore"
+      }[reason];
+      return t2(key || "manager.restoreReasonOther");
+    }
+    async showRestoreModal() {
+      try {
+        const point = await getBookmarkRestorePoint();
+        if (!point) {
+          showToast(t2("manager.restoreUnavailable"), "info");
+          return;
+        }
+        const info = document.getElementById("restoreInfo");
+        const time = new Date(point.createdAt).toLocaleString(getLocale() === "en" ? "en-US" : "zh-CN");
+        info.textContent = t2(
+          "manager.restoreSummary",
+          time,
+          String(this.countBookmarkNodes(point.nodes)),
+          this.getRestoreReasonLabel(point.reason)
+        );
+        document.getElementById("restoreModal").style.display = "flex";
+      } catch (error) {
+        showToast(t2("manager.restoreLoadFailed", getErrorMessage(error)), "error");
+      }
+    }
+    hideRestoreModal() {
+      document.getElementById("restoreModal").style.display = "none";
+    }
+    async restoreLastBookmarkBackup() {
+      const button = document.getElementById("confirmRestoreBtn");
+      const originalText = button.textContent;
+      button.disabled = true;
+      button.textContent = t2("manager.restoring");
+      try {
+        await restoreBookmarkBarFromPoint();
+        this.bookmarks = await this.getLocalBookmarksWithHiddenState();
+        this.saveBookmarksToStorage();
+        this.renderFolderTree();
+        this.selectRootFolder();
+        this.renderBookmarks();
+        this.updateStats();
+        this.hideRestoreModal();
+        await this.updateRestoreButtonState();
+        showToast(t2("manager.restoreSuccess"));
+      } catch (error) {
+        showToast(t2("manager.restoreFailed", getErrorMessage(error)), "error");
+      } finally {
+        button.disabled = false;
+        button.textContent = button.dataset.i18n ? t2(button.dataset.i18n) : originalText;
+      }
     }
     cloneBookmarks(bookmarks) {
       return JSON.parse(JSON.stringify(Array.isArray(bookmarks) ? bookmarks : []));
@@ -1964,7 +2150,11 @@
     }
     setupEventListeners() {
       this.searchInput.addEventListener("input", (e) => {
-        this.filterBookmarks(e.target.value);
+        window.clearTimeout(this.searchDebounceTimer);
+        this.searchDebounceTimer = window.setTimeout(() => {
+          this.renderLimit = this.renderBatchSize;
+          this.filterBookmarks(e.target.value);
+        }, 180);
       });
       document.getElementById("filterSelect").addEventListener("change", (e) => {
         this.applyFilter(e.target.value);
@@ -2044,6 +2234,15 @@
       document.getElementById("linkCheckStopBtn").addEventListener("click", () => {
         this.stopLinkCheck();
       });
+      document.getElementById("linkCheckPauseBtn").addEventListener("click", () => {
+        this.toggleLinkCheckPause();
+      });
+      document.getElementById("linkCheckRetryBtn").addEventListener("click", () => {
+        void this.retryProblemLinks();
+      });
+      document.getElementById("linkCheckExportBtn").addEventListener("click", () => {
+        this.exportLinkCheckResults();
+      });
       document.getElementById("linkCheckFilter").addEventListener("change", (e) => {
         this.linkCheckCurrentFilter = e.target.value;
         this.renderLinkCheckResults();
@@ -2077,6 +2276,14 @@
       });
       document.getElementById("saveEditBtn").addEventListener("click", () => {
         this.saveEditBookmark();
+      });
+      document.getElementById("restoreBtn").addEventListener("click", () => {
+        void this.showRestoreModal();
+      });
+      document.getElementById("closeRestoreModal").addEventListener("click", () => this.hideRestoreModal());
+      document.getElementById("cancelRestoreBtn").addEventListener("click", () => this.hideRestoreModal());
+      document.getElementById("confirmRestoreBtn").addEventListener("click", () => {
+        void this.restoreLastBookmarkBackup();
       });
       document.getElementById("editBookmarkTitle").addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
@@ -2141,6 +2348,11 @@
       });
       this.bookmarkTree.addEventListener("click", (e) => {
         const target = e.target;
+        if (target.classList.contains("load-more-btn")) {
+          this.renderLimit += this.renderBatchSize;
+          this.renderBookmarks();
+          return;
+        }
         if (target.classList.contains("drag-handle")) {
           return;
         }
@@ -2302,7 +2514,7 @@
       this.bookmarkTree.addEventListener("drop", (e) => {
         e.preventDefault();
         if (this.draggedElement && this.dragOverElement) {
-          this.handleDrop(this.draggedElement, this.dragOverElement, e);
+          void this.handleDrop(this.draggedElement, this.dragOverElement, e);
         }
         this.draggedElement = null;
         this.dragOverElement = null;
@@ -2335,6 +2547,7 @@
         showToast(t2("manager.moveBoundary"), "info");
         return;
       }
+      await this.captureUndoPoint("reorder");
       const [bookmark] = bookmarks.splice(currentIndex, 1);
       bookmarks.splice(targetIndex, 0, bookmark);
       try {
@@ -2352,7 +2565,7 @@
         showToast(t2("manager.moveFailed", getErrorMessage(error)), "error");
       }
     }
-    handleDrop(draggedElement, dropTarget, event) {
+    async handleDrop(draggedElement, dropTarget, event) {
       const draggedId = draggedElement.getAttribute("data-bookmark-id");
       const dropTargetId = dropTarget.getAttribute("data-bookmark-id");
       if (draggedId === dropTargetId) return;
@@ -2362,6 +2575,7 @@
       const draggedIndex = bookmarks.findIndex((b) => b.id === draggedId);
       const dropIndex = bookmarks.findIndex((b) => b.id === dropTargetId);
       if (draggedIndex === -1 || dropIndex === -1) return;
+      await this.captureUndoPoint("reorder");
       const rect = dropTarget.getBoundingClientRect();
       const midpoint = rect.top + rect.height / 2;
       const insertIndex = event.clientY < midpoint ? dropIndex : dropIndex + 1;
@@ -2417,6 +2631,7 @@
       this.renderFolderTree();
     }
     applyFilter(filterType) {
+      this.renderLimit = this.renderBatchSize;
       this.currentFilter = filterType;
       switch (filterType) {
         case "all":
@@ -2600,6 +2815,7 @@
       }
     }
     selectFolder(folderId) {
+      if (this.currentFolder?.id !== folderId) this.renderLimit = this.renderBatchSize;
       document.querySelectorAll(".folder-item").forEach((item) => {
         item.classList.remove("active");
       });
@@ -2733,7 +2949,8 @@
       `;
         return;
       }
-      this.bookmarkTree.innerHTML = this.renderBookmarkList(filteredBookmarks);
+      const visibleBookmarks = filteredBookmarks.slice(0, this.renderLimit);
+      this.bookmarkTree.innerHTML = this.renderBookmarkList(visibleBookmarks) + this.renderLoadMore(visibleBookmarks.length, filteredBookmarks.length);
     }
     renderSearchResults(searchTerm) {
       const rootBookmarks = this.bookmarks[0]?.children || [];
@@ -2764,16 +2981,20 @@
         this.panelTitle.textContent = t2("manager.searchResults");
         return;
       }
-      this.bookmarkTree.innerHTML = this.renderSearchResultsList(searchResults, searchTerm);
-      this.panelTitle.textContent = `${t2("manager.searchResults")} (${searchResults.length} ${t2("manager.items")})`;
+      const totalResults = this.countBookmarkNodes(searchResults);
+      const renderedState = { count: 0 };
+      this.bookmarkTree.innerHTML = this.renderSearchResultsList(searchResults, searchTerm, renderedState) + this.renderLoadMore(renderedState.count, totalResults);
+      this.panelTitle.textContent = `${t2("manager.searchResults")} (${totalResults} ${t2("manager.items")})`;
       document.querySelectorAll(".folder-item").forEach((item) => {
         item.classList.remove("active");
       });
     }
-    renderSearchResultsList(bookmarks, searchTerm) {
+    renderSearchResultsList(bookmarks, searchTerm, renderedState = { count: 0 }) {
       let html = "";
       for (const bookmark of bookmarks) {
+        if (renderedState.count >= this.renderLimit) break;
         if (bookmark.url) {
+          renderedState.count += 1;
           const isHidden = bookmark.hidden || false;
           const hiddenClass = isHidden ? " hidden-bookmark" : "";
           const hiddenIcon = isHidden ? "\u{1F441}\uFE0F\u200D\u{1F5E8}\uFE0F" : "";
@@ -2806,7 +3027,7 @@
           </div>
         `;
         } else if (bookmark.children) {
-          html += this.renderSearchResultsList(bookmark.children, searchTerm);
+          html += this.renderSearchResultsList(bookmark.children, searchTerm, renderedState);
         }
       }
       return html;
@@ -2829,8 +3050,10 @@
         this.panelTitle.textContent = `${folder.title} - ${t2("manager.searchResults")} (0 ${t2("manager.items")})`;
         return;
       }
-      this.bookmarkTree.innerHTML = this.renderSearchResultsList(searchResults, searchTerm);
-      this.panelTitle.textContent = `${folder.title} - ${t2("manager.searchResults")} (${searchResults.length} ${t2("manager.items")})`;
+      const totalResults = this.countBookmarkNodes(searchResults);
+      const renderedState = { count: 0 };
+      this.bookmarkTree.innerHTML = this.renderSearchResultsList(searchResults, searchTerm, renderedState) + this.renderLoadMore(renderedState.count, totalResults);
+      this.panelTitle.textContent = `${folder.title} - ${t2("manager.searchResults")} (${totalResults} ${t2("manager.items")})`;
     }
     renderBookmarkList(bookmarks) {
       let html = "";
@@ -2893,6 +3116,14 @@
       }
       return html;
     }
+    renderLoadMore(renderedCount, totalCount) {
+      if (renderedCount >= totalCount) return "";
+      return `
+      <div style="display:flex;justify-content:center;padding:18px 0;">
+        <button class="btn load-more-btn">${this.escapeHtml(t2("manager.loadMore", String(renderedCount), String(totalCount)))}</button>
+      </div>
+    `;
+    }
     updateStats() {
       const stats = this.calculateStats(this.bookmarks);
       document.getElementById("totalBookmarks").textContent = stats.totalBookmarks;
@@ -2942,7 +3173,7 @@
     hideEditModal() {
       document.getElementById("editModal").style.display = "none";
     }
-    saveEditBookmark() {
+    async saveEditBookmark() {
       const id = document.getElementById("editBookmarkId").value;
       const newTitle = document.getElementById("editBookmarkTitle").value.trim();
       const newUrl = document.getElementById("editBookmarkUrl").value.trim().replace(/[\r\n]/g, "");
@@ -2956,6 +3187,7 @@
         return;
       }
       const isFolder = !!bookmark.children;
+      await this.captureUndoPoint("edit");
       const updateLocalData = () => {
         bookmark.title = newTitle;
         if (!isFolder && newUrl) {
@@ -2976,6 +3208,10 @@
             updateData.url = newUrl;
           }
           chrome.bookmarks.update(id, updateData, () => {
+            if (chrome.runtime.lastError) {
+              showToast(t2("manager.editFailedDetail", chrome.runtime.lastError.message), "error");
+              return;
+            }
             updateLocalData();
           });
         } else {
@@ -3002,9 +3238,10 @@
       }
       return false;
     }
-    deleteBookmark(id) {
+    async deleteBookmark(id) {
       if (confirm(t2("confirm.deleteBookmark"))) {
         try {
+          await this.captureUndoPoint("delete");
           const removed = this.removeBookmarkById(this.bookmarks, id);
           if (!removed) {
             showToast(t2("manager.editNotFound"), "warning");
@@ -3163,7 +3400,7 @@
         this.bookmarks = previousBookmarks;
         this.saveBookmarksToStorage();
         try {
-          await this.applyBookmarksToBrowser(previousBookmarks);
+          await this.applyBookmarksToBrowser(previousBookmarks, false);
         } catch (rollbackError) {
           console.error("Failed to restore bookmarks after import error:", rollbackError);
         }
@@ -3226,9 +3463,10 @@
       };
       return mergeNodes([...currentBookmarks], importedBookmarks);
     }
-    toggleBookmarkVisibility(bookmarkId) {
+    async toggleBookmarkVisibility(bookmarkId) {
       const bookmark = this.findBookmarkById(bookmarkId);
       if (bookmark) {
+        await this.captureUndoPoint("visibility");
         bookmark.hidden = !bookmark.hidden;
         if (bookmark.children && bookmark.children.length > 0) {
           this.toggleFolderVisibility(bookmark, bookmark.hidden);
@@ -3254,18 +3492,18 @@
         }
       }
     }
-    async applyBookmarksToBrowser(bookmarksTree) {
+    async applyBookmarksToBrowser(bookmarksTree, createRestorePoint = true) {
       if (!(typeof chrome !== "undefined" && chrome.bookmarks)) {
         return;
       }
       const root = Array.isArray(bookmarksTree) ? bookmarksTree.find((item) => item && (item.title === "\u4E66\u7B7E\u680F" || item.title === "Bookmarks bar")) || bookmarksTree[0] : null;
       const sourceChildren = root?.children || [];
       const visibleBookmarks = this.filterVisibleBookmarks(this.cloneBookmarks(sourceChildren));
-      await replaceBookmarkBarSafely(visibleBookmarks);
+      await replaceBookmarkBarSafely(visibleBookmarks, "replace", createRestorePoint);
     }
     updateSystemBookmarks() {
       if (typeof chrome !== "undefined" && chrome.bookmarks) {
-        void this.applyBookmarksToBrowser(this.bookmarks).catch((error) => {
+        void this.applyBookmarksToBrowser(this.bookmarks, false).catch((error) => {
           showToast(t2("manager.browserUpdateFailedDetail", getErrorMessage(error)), "error");
         });
       }
@@ -3483,7 +3721,8 @@
             title: item.title || "",
             url: item.url,
             path: parentPath || "(root)",
-            dateAdded: item.dateAdded || 0
+            dateAdded: item.dateAdded || 0,
+            dateLastUsed: item.dateLastUsed || 0
           });
         }
         if (item.children) {
@@ -3584,6 +3823,21 @@
       }
       return groups;
     }
+    duplicateKeepScore(item) {
+      let score = 0;
+      if (/^https:\/\//i.test(item.url || "")) score += 100;
+      if (item.url && !/[?#]/.test(item.url)) score += 25;
+      score += Math.min(String(item.title || "").length, 60);
+      if (item.dateLastUsed) score += Math.min(item.dateLastUsed / 1e12, 20);
+      if (item.dateAdded) score += Math.min(item.dateAdded / 1e12, 10);
+      return score;
+    }
+    recommendDuplicatesToKeep(groups) {
+      return groups.map((group) => ({
+        ...group,
+        items: [...group.items].sort((left, right) => this.duplicateKeepScore(right) - this.duplicateKeepScore(left))
+      }));
+    }
     /**
      * 打开重复检测对话框
      */
@@ -3614,6 +3868,7 @@
       } else {
         duplicateGroups = this.detectDuplicatesByTitle(flatBookmarks);
       }
+      duplicateGroups = this.recommendDuplicatesToKeep(duplicateGroups);
       this.currentDuplicateGroups = duplicateGroups;
       this.renderDuplicateResults(duplicateGroups);
     }
@@ -3724,6 +3979,7 @@
       deleteBtn.textContent = t2("manager.duplicateDeleting");
       deleteBtn.disabled = true;
       try {
+        await this.captureUndoPoint("duplicates");
         if (typeof chrome !== "undefined" && chrome.bookmarks) {
           for (const id of ids) {
             await new Promise((resolve, reject) => {
@@ -3737,7 +3993,9 @@
             });
           }
         }
-        await this.loadBookmarks();
+        this.bookmarks = await this.getLocalBookmarksWithHiddenState();
+        this.saveBookmarksToStorage();
+        this.syncBookmarksToGiteeInBackground();
         this.renderFolderTree();
         this.renderBookmarks();
         this.updateStats();
@@ -3761,6 +4019,7 @@
       document.getElementById("linkCheckModal").style.display = "flex";
       this.linkCheckResults = [];
       this.linkCheckRunning = false;
+      this.linkCheckPaused = false;
       this.linkCheckCurrentFilter = "all";
       document.getElementById("linkCheckFilter").value = "all";
       document.getElementById("linkCheckProgress").style.display = "none";
@@ -3770,7 +4029,25 @@
       document.getElementById("deleteBrokenLinksBtn").style.display = "none";
       document.getElementById("linkCheckStartBtn").style.display = "";
       document.getElementById("linkCheckStopBtn").style.display = "none";
+      document.getElementById("linkCheckPauseBtn").style.display = "none";
+      document.getElementById("linkCheckRetryBtn").style.display = "none";
+      document.getElementById("linkCheckExportBtn").style.display = "none";
       document.getElementById("linkCheckStartBtn").disabled = false;
+      if (typeof chrome !== "undefined" && chrome.storage?.local) {
+        chrome.storage.local.get(["link_check_cache"], (result) => {
+          const cache = result.link_check_cache;
+          if (!cache?.results?.length || this.linkCheckRunning) return;
+          const currentIds = new Set(this.flattenBookmarks(this.bookmarks).map((item) => item.id));
+          this.linkCheckResults = cache.results.filter((item) => currentIds.has(item.id));
+          if (this.linkCheckResults.length === 0) return;
+          this.renderLinkCheckResults();
+          document.getElementById("linkCheckExportBtn").style.display = "";
+          if (this.linkCheckResults.some((item) => item.checkStatus !== "ok")) {
+            document.getElementById("linkCheckRetryBtn").style.display = "";
+          }
+          showToast(t2("manager.linkCheckCacheLoaded", new Date(cache.checkedAt).toLocaleString()), "info");
+        });
+      }
     }
     /**
      * 关闭失效链接检测对话框
@@ -3784,9 +4061,27 @@
      */
     stopLinkCheck() {
       this.linkCheckRunning = false;
+      this.linkCheckPaused = false;
       document.getElementById("linkCheckStartBtn").style.display = "";
       document.getElementById("linkCheckStopBtn").style.display = "none";
+      document.getElementById("linkCheckPauseBtn").style.display = "none";
       document.getElementById("linkCheckStartBtn").disabled = false;
+    }
+    toggleLinkCheckPause() {
+      if (!this.linkCheckRunning) return;
+      this.linkCheckPaused = !this.linkCheckPaused;
+      document.getElementById("linkCheckPauseBtn").textContent = t2(
+        this.linkCheckPaused ? "manager.linkCheckResume" : "manager.linkCheckPause"
+      );
+    }
+    cacheLinkCheckResults() {
+      if (typeof chrome !== "undefined" && chrome.storage?.local && this.linkCheckResults.length > 0) {
+        chrome.storage.local.set({
+          link_check_cache: { checkedAt: Date.now(), results: this.linkCheckResults.slice(0, 5e3) }
+        }, () => {
+          if (chrome.runtime.lastError) console.warn("Failed to cache link-check results:", chrome.runtime.lastError.message);
+        });
+      }
     }
     /**
      * 向 background.ts 发送单个链接检测请求
@@ -3866,11 +4161,16 @@
     async startLinkCheck() {
       if (this.linkCheckRunning) return;
       this.linkCheckRunning = true;
+      this.linkCheckPaused = false;
       this.linkCheckResults = [];
       this.linkCheckCurrentFilter = "all";
       document.getElementById("linkCheckFilter").value = "all";
       document.getElementById("linkCheckStartBtn").style.display = "none";
       document.getElementById("linkCheckStopBtn").style.display = "";
+      document.getElementById("linkCheckPauseBtn").style.display = "";
+      document.getElementById("linkCheckPauseBtn").textContent = t2("manager.linkCheckPause");
+      document.getElementById("linkCheckRetryBtn").style.display = "none";
+      document.getElementById("linkCheckExportBtn").style.display = "none";
       document.getElementById("linkCheckProgress").style.display = "block";
       document.getElementById("linkCheckStats").style.display = "none";
       document.getElementById("linkCheckControls").style.display = "none";
@@ -3894,6 +4194,7 @@
       const updateProgress = () => {
         const percent = total > 0 ? Math.round(completed / total * 100) : 0;
         document.getElementById("linkCheckProgressFill").style.width = `${percent}%`;
+        document.getElementById("linkCheckProgressFill").setAttribute("aria-valuenow", String(percent));
         document.getElementById("linkCheckProgressText").textContent = t2("manager.linkCheckProgress", String(completed), String(total));
         document.getElementById("linkCheckProgressPercent").textContent = `${percent}%`;
       };
@@ -3901,6 +4202,10 @@
       let index = 0;
       const worker = async () => {
         while (index < total && this.linkCheckRunning) {
+          while (this.linkCheckPaused && this.linkCheckRunning) {
+            await new Promise((resolve) => setTimeout(resolve, 150));
+          }
+          if (!this.linkCheckRunning) break;
           const i = index++;
           const bookmark = flatBookmarks[i];
           const result = await this.checkSingleLink(bookmark.url);
@@ -3913,7 +4218,7 @@
           });
           completed++;
           updateProgress();
-          if (completed % 5 === 0 || completed === total) {
+          if (completed % 25 === 0 || completed === total) {
             this.renderLinkCheckResults();
           }
         }
@@ -3926,8 +4231,99 @@
       this.linkCheckRunning = false;
       document.getElementById("linkCheckStartBtn").style.display = "";
       document.getElementById("linkCheckStopBtn").style.display = "none";
+      document.getElementById("linkCheckPauseBtn").style.display = "none";
       document.getElementById("linkCheckStartBtn").disabled = false;
       this.renderLinkCheckResults();
+      this.cacheLinkCheckResults();
+      document.getElementById("linkCheckExportBtn").style.display = this.linkCheckResults.length ? "" : "none";
+      document.getElementById("linkCheckRetryBtn").style.display = this.linkCheckResults.some((item) => item.checkStatus !== "ok") ? "" : "none";
+    }
+    async retryProblemLinks() {
+      if (this.linkCheckRunning) return;
+      const problems = this.linkCheckResults.filter((item) => item.checkStatus !== "ok");
+      if (problems.length === 0) {
+        showToast(t2("manager.linkCheckNoProblems"), "info");
+        return;
+      }
+      this.linkCheckRunning = true;
+      this.linkCheckPaused = false;
+      document.getElementById("linkCheckStartBtn").style.display = "none";
+      document.getElementById("linkCheckStopBtn").style.display = "";
+      document.getElementById("linkCheckPauseBtn").style.display = "";
+      document.getElementById("linkCheckPauseBtn").textContent = t2("manager.linkCheckPause");
+      document.getElementById("linkCheckRetryBtn").style.display = "none";
+      document.getElementById("linkCheckProgress").style.display = "block";
+      let index = 0;
+      let completed = 0;
+      const total = problems.length;
+      const updateProgress = () => {
+        const percent = Math.round(completed / total * 100);
+        document.getElementById("linkCheckProgressFill").style.width = `${percent}%`;
+        document.getElementById("linkCheckProgressFill").setAttribute("aria-valuenow", String(percent));
+        document.getElementById("linkCheckProgressText").textContent = t2("manager.linkCheckRetryProgress", String(completed), String(total));
+        document.getElementById("linkCheckProgressPercent").textContent = `${percent}%`;
+      };
+      updateProgress();
+      const worker = async () => {
+        while (index < total && this.linkCheckRunning) {
+          while (this.linkCheckPaused && this.linkCheckRunning) await new Promise((resolve) => setTimeout(resolve, 150));
+          if (!this.linkCheckRunning) break;
+          const item = problems[index++];
+          const result = await this.checkSingleLink(item.url);
+          const originalIndex = this.linkCheckResults.findIndex((existing) => existing.id === item.id);
+          if (originalIndex >= 0) {
+            this.linkCheckResults[originalIndex] = {
+              ...item,
+              checkStatus: result.status,
+              statusCode: result.statusCode,
+              checkMessage: result.message || ""
+            };
+          }
+          completed += 1;
+          updateProgress();
+          if (completed % 3 === 0 || completed === total) this.renderLinkCheckResults();
+        }
+      };
+      const concurrency = Math.min(parseInt(document.getElementById("linkCheckConcurrency").value, 10) || 5, total);
+      await Promise.all(Array.from({ length: concurrency }, () => worker()));
+      this.linkCheckRunning = false;
+      this.linkCheckPaused = false;
+      document.getElementById("linkCheckStartBtn").style.display = "";
+      document.getElementById("linkCheckStopBtn").style.display = "none";
+      document.getElementById("linkCheckPauseBtn").style.display = "none";
+      document.getElementById("linkCheckRetryBtn").style.display = this.linkCheckResults.some((item) => item.checkStatus !== "ok") ? "" : "none";
+      document.getElementById("linkCheckExportBtn").style.display = "";
+      this.renderLinkCheckResults();
+      this.cacheLinkCheckResults();
+      showToast(t2(completed === total ? "manager.linkCheckRetryComplete" : "manager.linkCheckStopped"), completed === total ? "success" : "info");
+    }
+    exportLinkCheckResults() {
+      if (this.linkCheckResults.length === 0) {
+        showToast(t2("manager.linkCheckNoResults"), "info");
+        return;
+      }
+      const escapeCell = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+      const rows = [
+        ["Title", "URL", "Path", "Status", "HTTP", "Message"],
+        ...this.linkCheckResults.map((item) => [
+          item.title,
+          item.url,
+          item.path,
+          item.checkStatus,
+          item.statusCode || "",
+          item.checkMessage || ""
+        ])
+      ];
+      const blob = new Blob([`\uFEFF${rows.map((row) => row.map(escapeCell).join(",")).join("\n")}`], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `bookmark-link-check-${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      showToast(t2("manager.linkCheckExported"));
     }
     /**
      * 渲染链接检测结果
@@ -4044,6 +4440,7 @@
       deleteBtn.textContent = t2("manager.linkCheckDeleting");
       deleteBtn.disabled = true;
       try {
+        await this.captureUndoPoint("brokenLinks");
         if (typeof chrome !== "undefined" && chrome.bookmarks) {
           for (const id of ids) {
             await new Promise((resolve, reject) => {
@@ -4059,11 +4456,14 @@
         }
         const deletedIds = new Set(ids);
         this.linkCheckResults = this.linkCheckResults.filter((r) => !deletedIds.has(r.id));
-        await this.loadBookmarks();
+        this.bookmarks = await this.getLocalBookmarksWithHiddenState();
+        this.saveBookmarksToStorage();
+        this.syncBookmarksToGiteeInBackground();
         this.renderFolderTree();
         this.renderBookmarks();
         this.updateStats();
         this.renderLinkCheckResults();
+        this.cacheLinkCheckResults();
         showToast(t2("manager.linkCheckDeleteSuccess", String(ids.length)));
       } catch (error) {
         console.error("Delete broken links failed:", error);

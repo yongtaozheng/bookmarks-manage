@@ -1,7 +1,12 @@
 import { initLocale, t as _t, translateDOM, getLocale, setLocale } from './i18n/index';
 import { initTheme, setupThemeToggle } from './theme';
 import { getConfig, setConfig } from './config-repository';
-import { replaceBookmarkBarSafely } from './bookmark-service';
+import {
+  captureBookmarkBarRestorePoint,
+  getBookmarkRestorePoint,
+  replaceBookmarkBarSafely,
+  restoreBookmarkBarFromPoint,
+} from './bookmark-service';
 import { assertResponseOk, fetchJson, fetchWithTimeout, getErrorMessage } from './http';
 import { escapeHtml, escapeRegExp, safeExternalUrl } from './sanitize';
 import { showToast } from './toast';
@@ -29,7 +34,11 @@ class BookmarkManager {
     this.currentDuplicateGroups = []; // 当前重复检测结果
     this.linkCheckResults = []; // 失效链接检测结果
     this.linkCheckRunning = false; // 是否正在检测
+    this.linkCheckPaused = false;
     this.linkCheckCurrentFilter = 'all'; // 当前筛选状态
+    this.renderBatchSize = 150;
+    this.renderLimit = this.renderBatchSize;
+    this.searchDebounceTimer = null;
     this.giteeConfig = {
       owner: '',
       repo: '',
@@ -55,6 +64,7 @@ class BookmarkManager {
     this.selectRootFolder();
     // 重新渲染以确保隐藏书签显示
     this.renderBookmarks();
+    await this.updateRestoreButtonState();
   }
 
   async loadBookmarks(options = {}) {
@@ -106,6 +116,94 @@ class BookmarkManager {
     void this.saveBookmarkTreeToGitee(this.bookmarks).catch(error => {
       showToast(t('manager.saveToGiteeFailedDetail', getErrorMessage(error)), 'error');
     });
+  }
+
+  countBookmarkNodes(nodes) {
+    if (!Array.isArray(nodes)) return 0;
+    return nodes.reduce((total, node) => total + (node?.url ? 1 : 0) + this.countBookmarkNodes(node?.children), 0);
+  }
+
+  async updateRestoreButtonState() {
+    const button = document.getElementById('restoreBtn');
+    if (!button) return;
+    try {
+      button.disabled = !(await getBookmarkRestorePoint());
+    } catch {
+      button.disabled = true;
+    }
+  }
+
+  async captureUndoPoint(reason) {
+    if (!(typeof chrome !== 'undefined' && chrome.bookmarks)) return;
+    try {
+      await captureBookmarkBarRestorePoint(reason);
+      await this.updateRestoreButtonState();
+    } catch (error) {
+      console.warn('Failed to capture bookmark restore point:', error);
+    }
+  }
+
+  getRestoreReasonLabel(reason) {
+    const key = {
+      edit: 'manager.restoreReasonEdit',
+      delete: 'manager.restoreReasonDelete',
+      visibility: 'manager.restoreReasonVisibility',
+      reorder: 'manager.restoreReasonReorder',
+      duplicates: 'manager.restoreReasonDuplicates',
+      brokenLinks: 'manager.restoreReasonBrokenLinks',
+      replace: 'manager.restoreReasonSync',
+      restore: 'manager.restoreReasonRestore',
+    }[reason];
+    return t(key || 'manager.restoreReasonOther');
+  }
+
+  async showRestoreModal() {
+    try {
+      const point = await getBookmarkRestorePoint();
+      if (!point) {
+        showToast(t('manager.restoreUnavailable'), 'info');
+        return;
+      }
+      const info = document.getElementById('restoreInfo');
+      const time = new Date(point.createdAt).toLocaleString(getLocale() === 'en' ? 'en-US' : 'zh-CN');
+      info.textContent = t(
+        'manager.restoreSummary',
+        time,
+        String(this.countBookmarkNodes(point.nodes)),
+        this.getRestoreReasonLabel(point.reason),
+      );
+      document.getElementById('restoreModal').style.display = 'flex';
+    } catch (error) {
+      showToast(t('manager.restoreLoadFailed', getErrorMessage(error)), 'error');
+    }
+  }
+
+  hideRestoreModal() {
+    document.getElementById('restoreModal').style.display = 'none';
+  }
+
+  async restoreLastBookmarkBackup() {
+    const button = document.getElementById('confirmRestoreBtn');
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = t('manager.restoring');
+    try {
+      await restoreBookmarkBarFromPoint();
+      this.bookmarks = await this.getLocalBookmarksWithHiddenState();
+      this.saveBookmarksToStorage();
+      this.renderFolderTree();
+      this.selectRootFolder();
+      this.renderBookmarks();
+      this.updateStats();
+      this.hideRestoreModal();
+      await this.updateRestoreButtonState();
+      showToast(t('manager.restoreSuccess'));
+    } catch (error) {
+      showToast(t('manager.restoreFailed', getErrorMessage(error)), 'error');
+    } finally {
+      button.disabled = false;
+      button.textContent = button.dataset.i18n ? t(button.dataset.i18n) : originalText;
+    }
   }
 
   cloneBookmarks(bookmarks) {
@@ -319,7 +417,11 @@ class BookmarkManager {
 
   setupEventListeners() {
     this.searchInput.addEventListener('input', (e) => {
-      this.filterBookmarks(e.target.value);
+      window.clearTimeout(this.searchDebounceTimer);
+      this.searchDebounceTimer = window.setTimeout(() => {
+        this.renderLimit = this.renderBatchSize;
+        this.filterBookmarks(e.target.value);
+      }, 180);
     });
 
     // 筛选选择器事件监听
@@ -430,6 +532,15 @@ class BookmarkManager {
     document.getElementById('linkCheckStopBtn').addEventListener('click', () => {
       this.stopLinkCheck();
     });
+    document.getElementById('linkCheckPauseBtn').addEventListener('click', () => {
+      this.toggleLinkCheckPause();
+    });
+    document.getElementById('linkCheckRetryBtn').addEventListener('click', () => {
+      void this.retryProblemLinks();
+    });
+    document.getElementById('linkCheckExportBtn').addEventListener('click', () => {
+      this.exportLinkCheckResults();
+    });
 
     document.getElementById('linkCheckFilter').addEventListener('change', (e) => {
       this.linkCheckCurrentFilter = e.target.value;
@@ -476,6 +587,15 @@ class BookmarkManager {
 
     document.getElementById('saveEditBtn').addEventListener('click', () => {
       this.saveEditBookmark();
+    });
+
+    document.getElementById('restoreBtn').addEventListener('click', () => {
+      void this.showRestoreModal();
+    });
+    document.getElementById('closeRestoreModal').addEventListener('click', () => this.hideRestoreModal());
+    document.getElementById('cancelRestoreBtn').addEventListener('click', () => this.hideRestoreModal());
+    document.getElementById('confirmRestoreBtn').addEventListener('click', () => {
+      void this.restoreLastBookmarkBackup();
     });
 
     // 编辑对话框中按Enter键保存
@@ -558,6 +678,12 @@ class BookmarkManager {
     // 使用事件委托处理书签项目的事件
     this.bookmarkTree.addEventListener('click', (e) => {
       const target = e.target;
+
+      if (target.classList.contains('load-more-btn')) {
+        this.renderLimit += this.renderBatchSize;
+        this.renderBookmarks();
+        return;
+      }
 
       // 如果点击的是拖动句柄，不处理其他事件
       if (target.classList.contains('drag-handle')) {
@@ -755,7 +881,7 @@ class BookmarkManager {
       e.preventDefault();
 
       if (this.draggedElement && this.dragOverElement) {
-        this.handleDrop(this.draggedElement, this.dragOverElement, e);
+        void this.handleDrop(this.draggedElement, this.dragOverElement, e);
       }
 
       // 清理所有拖动状态
@@ -797,6 +923,7 @@ class BookmarkManager {
       return;
     }
 
+    await this.captureUndoPoint('reorder');
     const [bookmark] = bookmarks.splice(currentIndex, 1);
     bookmarks.splice(targetIndex, 0, bookmark);
     try {
@@ -815,7 +942,7 @@ class BookmarkManager {
     }
   }
 
-  handleDrop(draggedElement, dropTarget, event) {
+  async handleDrop(draggedElement, dropTarget, event) {
     const draggedId = draggedElement.getAttribute('data-bookmark-id');
     const dropTargetId = dropTarget.getAttribute('data-bookmark-id');
 
@@ -830,6 +957,8 @@ class BookmarkManager {
     const dropIndex = bookmarks.findIndex(b => b.id === dropTargetId);
 
     if (draggedIndex === -1 || dropIndex === -1) return;
+
+    await this.captureUndoPoint('reorder');
 
     // 确定插入位置
     const rect = dropTarget.getBoundingClientRect();
@@ -914,6 +1043,7 @@ class BookmarkManager {
   }
 
   applyFilter(filterType) {
+    this.renderLimit = this.renderBatchSize;
     this.currentFilter = filterType;
 
     // 根据筛选类型过滤书签
@@ -1142,6 +1272,7 @@ class BookmarkManager {
   }
 
   selectFolder(folderId) {
+    if (this.currentFolder?.id !== folderId) this.renderLimit = this.renderBatchSize;
     // 移除所有活动状态
     document.querySelectorAll('.folder-item').forEach(item => {
       item.classList.remove('active');
@@ -1311,7 +1442,8 @@ class BookmarkManager {
       return;
     }
 
-    this.bookmarkTree.innerHTML = this.renderBookmarkList(filteredBookmarks);
+    const visibleBookmarks = filteredBookmarks.slice(0, this.renderLimit);
+    this.bookmarkTree.innerHTML = this.renderBookmarkList(visibleBookmarks) + this.renderLoadMore(visibleBookmarks.length, filteredBookmarks.length);
   }
 
   renderSearchResults(searchTerm) {
@@ -1352,10 +1484,13 @@ class BookmarkManager {
     }
 
     // 显示搜索结果，包含文件夹路径信息
-    this.bookmarkTree.innerHTML = this.renderSearchResultsList(searchResults, searchTerm);
+    const totalResults = this.countBookmarkNodes(searchResults);
+    const renderedState = { count: 0 };
+    this.bookmarkTree.innerHTML = this.renderSearchResultsList(searchResults, searchTerm, renderedState) +
+      this.renderLoadMore(renderedState.count, totalResults);
 
     // 更新面板标题
-    this.panelTitle.textContent = `${t('manager.searchResults')} (${searchResults.length} ${t('manager.items')})`;
+    this.panelTitle.textContent = `${t('manager.searchResults')} (${totalResults} ${t('manager.items')})`;
 
     // 清除左侧选中状态，因为显示的是全局搜索结果
     document.querySelectorAll('.folder-item').forEach(item => {
@@ -1363,11 +1498,13 @@ class BookmarkManager {
     });
   }
 
-  renderSearchResultsList(bookmarks, searchTerm) {
+  renderSearchResultsList(bookmarks, searchTerm, renderedState = { count: 0 }) {
     let html = '';
 
     for (const bookmark of bookmarks) {
+      if (renderedState.count >= this.renderLimit) break;
       if (bookmark.url) {
+        renderedState.count += 1;
         // 书签
         const isHidden = bookmark.hidden || false;
         const hiddenClass = isHidden ? ' hidden-bookmark' : '';
@@ -1411,7 +1548,7 @@ class BookmarkManager {
         `;
       } else if (bookmark.children) {
         // 文件夹 - 递归渲染子项
-        html += this.renderSearchResultsList(bookmark.children, searchTerm);
+        html += this.renderSearchResultsList(bookmark.children, searchTerm, renderedState);
       }
     }
 
@@ -1441,8 +1578,11 @@ class BookmarkManager {
     }
 
     // 显示该目录中的搜索结果
-    this.bookmarkTree.innerHTML = this.renderSearchResultsList(searchResults, searchTerm);
-    this.panelTitle.textContent = `${folder.title} - ${t('manager.searchResults')} (${searchResults.length} ${t('manager.items')})`;
+    const totalResults = this.countBookmarkNodes(searchResults);
+    const renderedState = { count: 0 };
+    this.bookmarkTree.innerHTML = this.renderSearchResultsList(searchResults, searchTerm, renderedState) +
+      this.renderLoadMore(renderedState.count, totalResults);
+    this.panelTitle.textContent = `${folder.title} - ${t('manager.searchResults')} (${totalResults} ${t('manager.items')})`;
   }
 
   renderBookmarkList(bookmarks) {
@@ -1523,6 +1663,15 @@ class BookmarkManager {
     return html;
   }
 
+  renderLoadMore(renderedCount, totalCount) {
+    if (renderedCount >= totalCount) return '';
+    return `
+      <div style="display:flex;justify-content:center;padding:18px 0;">
+        <button class="btn load-more-btn">${this.escapeHtml(t('manager.loadMore', String(renderedCount), String(totalCount)))}</button>
+      </div>
+    `;
+  }
+
 
   updateStats() {
     const stats = this.calculateStats(this.bookmarks);
@@ -1592,7 +1741,7 @@ class BookmarkManager {
     document.getElementById('editModal').style.display = 'none';
   }
 
-  saveEditBookmark() {
+  async saveEditBookmark() {
     const id = document.getElementById('editBookmarkId').value;
     const newTitle = document.getElementById('editBookmarkTitle').value.trim();
     // 清除textarea中可能存在的换行符
@@ -1611,6 +1760,7 @@ class BookmarkManager {
     }
 
     const isFolder = !!bookmark.children;
+    await this.captureUndoPoint('edit');
 
     const updateLocalData = () => {
       // 更新本地数据
@@ -1645,6 +1795,10 @@ class BookmarkManager {
         }
 
         chrome.bookmarks.update(id, updateData, () => {
+          if (chrome.runtime.lastError) {
+            showToast(t('manager.editFailedDetail', chrome.runtime.lastError.message), 'error');
+            return;
+          }
           updateLocalData();
         });
       } else {
@@ -1678,9 +1832,10 @@ class BookmarkManager {
     return false;
   }
 
-  deleteBookmark(id) {
+  async deleteBookmark(id) {
     if (confirm(t('confirm.deleteBookmark'))) {
       try {
+        await this.captureUndoPoint('delete');
         const removed = this.removeBookmarkById(this.bookmarks, id);
         if (!removed) {
           showToast(t('manager.editNotFound'), 'warning');
@@ -1877,7 +2032,7 @@ class BookmarkManager {
       this.bookmarks = previousBookmarks;
       this.saveBookmarksToStorage();
       try {
-        await this.applyBookmarksToBrowser(previousBookmarks);
+        await this.applyBookmarksToBrowser(previousBookmarks, false);
       } catch (rollbackError) {
         console.error('Failed to restore bookmarks after import error:', rollbackError);
       }
@@ -1955,11 +2110,12 @@ class BookmarkManager {
     return mergeNodes([...currentBookmarks], importedBookmarks);
   }
 
-  toggleBookmarkVisibility(bookmarkId) {
+  async toggleBookmarkVisibility(bookmarkId) {
 
     // 查找当前书签
     const bookmark = this.findBookmarkById(bookmarkId);
     if (bookmark) {
+      await this.captureUndoPoint('visibility');
 
       // 直接修改书签的hidden属性
       bookmark.hidden = !bookmark.hidden;
@@ -2009,7 +2165,7 @@ class BookmarkManager {
     }
   }
 
-  async applyBookmarksToBrowser(bookmarksTree) {
+  async applyBookmarksToBrowser(bookmarksTree, createRestorePoint = true) {
     if (!(typeof chrome !== 'undefined' && chrome.bookmarks)) {
       return;
     }
@@ -2020,13 +2176,13 @@ class BookmarkManager {
     const sourceChildren = root?.children || [];
     const visibleBookmarks = this.filterVisibleBookmarks(this.cloneBookmarks(sourceChildren));
 
-    await replaceBookmarkBarSafely(visibleBookmarks);
+    await replaceBookmarkBarSafely(visibleBookmarks, 'replace', createRestorePoint);
   }
 
   updateSystemBookmarks() {
     // 更新系统书签，过滤掉隐藏的书签（系统书签栏不显示隐藏书签）
     if (typeof chrome !== 'undefined' && chrome.bookmarks) {
-      void this.applyBookmarksToBrowser(this.bookmarks).catch(error => {
+      void this.applyBookmarksToBrowser(this.bookmarks, false).catch(error => {
         showToast(t('manager.browserUpdateFailedDetail', getErrorMessage(error)), 'error');
       });
     }
@@ -2301,6 +2457,7 @@ class BookmarkManager {
           url: item.url,
           path: parentPath || '(root)',
           dateAdded: item.dateAdded || 0,
+          dateLastUsed: item.dateLastUsed || 0,
         });
       }
       if (item.children) {
@@ -2416,6 +2573,23 @@ class BookmarkManager {
     return groups;
   }
 
+  duplicateKeepScore(item) {
+    let score = 0;
+    if (/^https:\/\//i.test(item.url || '')) score += 100;
+    if (item.url && !/[?#]/.test(item.url)) score += 25;
+    score += Math.min(String(item.title || '').length, 60);
+    if (item.dateLastUsed) score += Math.min(item.dateLastUsed / 1e12, 20);
+    if (item.dateAdded) score += Math.min(item.dateAdded / 1e12, 10);
+    return score;
+  }
+
+  recommendDuplicatesToKeep(groups) {
+    return groups.map(group => ({
+      ...group,
+      items: [...group.items].sort((left, right) => this.duplicateKeepScore(right) - this.duplicateKeepScore(left)),
+    }));
+  }
+
   /**
    * 打开重复检测对话框
    */
@@ -2456,6 +2630,7 @@ class BookmarkManager {
       duplicateGroups = this.detectDuplicatesByTitle(flatBookmarks);
     }
 
+    duplicateGroups = this.recommendDuplicatesToKeep(duplicateGroups);
     this.currentDuplicateGroups = duplicateGroups;
     this.renderDuplicateResults(duplicateGroups);
   }
@@ -2589,6 +2764,7 @@ class BookmarkManager {
     deleteBtn.disabled = true;
 
     try {
+      await this.captureUndoPoint('duplicates');
       if (typeof chrome !== 'undefined' && chrome.bookmarks) {
         for (const id of ids) {
           await new Promise((resolve, reject) => {
@@ -2603,8 +2779,10 @@ class BookmarkManager {
         }
       }
 
-      // 刷新书签数据和 UI
-      await this.loadBookmarks();
+      // 直接以本地删除结果刷新，避免远程旧数据立即把已删除项合并回来。
+      this.bookmarks = await this.getLocalBookmarksWithHiddenState();
+      this.saveBookmarksToStorage();
+      this.syncBookmarksToGiteeInBackground();
       this.renderFolderTree();
       this.renderBookmarks();
       this.updateStats();
@@ -2634,6 +2812,7 @@ class BookmarkManager {
     // 重置状态
     this.linkCheckResults = [];
     this.linkCheckRunning = false;
+    this.linkCheckPaused = false;
     this.linkCheckCurrentFilter = 'all';
     document.getElementById('linkCheckFilter').value = 'all';
     document.getElementById('linkCheckProgress').style.display = 'none';
@@ -2643,7 +2822,25 @@ class BookmarkManager {
     document.getElementById('deleteBrokenLinksBtn').style.display = 'none';
     document.getElementById('linkCheckStartBtn').style.display = '';
     document.getElementById('linkCheckStopBtn').style.display = 'none';
+    document.getElementById('linkCheckPauseBtn').style.display = 'none';
+    document.getElementById('linkCheckRetryBtn').style.display = 'none';
+    document.getElementById('linkCheckExportBtn').style.display = 'none';
     document.getElementById('linkCheckStartBtn').disabled = false;
+    if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+      chrome.storage.local.get(['link_check_cache'], result => {
+        const cache = result.link_check_cache;
+        if (!cache?.results?.length || this.linkCheckRunning) return;
+        const currentIds = new Set(this.flattenBookmarks(this.bookmarks).map(item => item.id));
+        this.linkCheckResults = cache.results.filter(item => currentIds.has(item.id));
+        if (this.linkCheckResults.length === 0) return;
+        this.renderLinkCheckResults();
+        document.getElementById('linkCheckExportBtn').style.display = '';
+        if (this.linkCheckResults.some(item => item.checkStatus !== 'ok')) {
+          document.getElementById('linkCheckRetryBtn').style.display = '';
+        }
+        showToast(t('manager.linkCheckCacheLoaded', new Date(cache.checkedAt).toLocaleString()), 'info');
+      });
+    }
   }
 
   /**
@@ -2659,9 +2856,29 @@ class BookmarkManager {
    */
   stopLinkCheck() {
     this.linkCheckRunning = false;
+    this.linkCheckPaused = false;
     document.getElementById('linkCheckStartBtn').style.display = '';
     document.getElementById('linkCheckStopBtn').style.display = 'none';
+    document.getElementById('linkCheckPauseBtn').style.display = 'none';
     document.getElementById('linkCheckStartBtn').disabled = false;
+  }
+
+  toggleLinkCheckPause() {
+    if (!this.linkCheckRunning) return;
+    this.linkCheckPaused = !this.linkCheckPaused;
+    document.getElementById('linkCheckPauseBtn').textContent = t(
+      this.linkCheckPaused ? 'manager.linkCheckResume' : 'manager.linkCheckPause',
+    );
+  }
+
+  cacheLinkCheckResults() {
+    if (typeof chrome !== 'undefined' && chrome.storage?.local && this.linkCheckResults.length > 0) {
+      chrome.storage.local.set({
+        link_check_cache: { checkedAt: Date.now(), results: this.linkCheckResults.slice(0, 5000) },
+      }, () => {
+        if (chrome.runtime.lastError) console.warn('Failed to cache link-check results:', chrome.runtime.lastError.message);
+      });
+    }
   }
 
   /**
@@ -2753,6 +2970,7 @@ class BookmarkManager {
     if (this.linkCheckRunning) return;
 
     this.linkCheckRunning = true;
+    this.linkCheckPaused = false;
     this.linkCheckResults = [];
     this.linkCheckCurrentFilter = 'all';
     document.getElementById('linkCheckFilter').value = 'all';
@@ -2760,6 +2978,10 @@ class BookmarkManager {
     // 切换按钮状态
     document.getElementById('linkCheckStartBtn').style.display = 'none';
     document.getElementById('linkCheckStopBtn').style.display = '';
+    document.getElementById('linkCheckPauseBtn').style.display = '';
+    document.getElementById('linkCheckPauseBtn').textContent = t('manager.linkCheckPause');
+    document.getElementById('linkCheckRetryBtn').style.display = 'none';
+    document.getElementById('linkCheckExportBtn').style.display = 'none';
     document.getElementById('linkCheckProgress').style.display = 'block';
     document.getElementById('linkCheckStats').style.display = 'none';
     document.getElementById('linkCheckControls').style.display = 'none';
@@ -2789,6 +3011,7 @@ class BookmarkManager {
     const updateProgress = () => {
       const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
       document.getElementById('linkCheckProgressFill').style.width = `${percent}%`;
+      document.getElementById('linkCheckProgressFill').setAttribute('aria-valuenow', String(percent));
       document.getElementById('linkCheckProgressText').textContent =
         t('manager.linkCheckProgress', String(completed), String(total));
       document.getElementById('linkCheckProgressPercent').textContent = `${percent}%`;
@@ -2799,6 +3022,10 @@ class BookmarkManager {
     let index = 0;
     const worker = async () => {
       while (index < total && this.linkCheckRunning) {
+        while (this.linkCheckPaused && this.linkCheckRunning) {
+          await new Promise(resolve => setTimeout(resolve, 150));
+        }
+        if (!this.linkCheckRunning) break;
         const i = index++;
         const bookmark = flatBookmarks[i];
         const result = await this.checkSingleLink(bookmark.url);
@@ -2814,8 +3041,8 @@ class BookmarkManager {
         completed++;
         updateProgress();
 
-        // 每检测完一个就实时更新结果列表（节流：每 5 个或最后一个时刷新）
-        if (completed % 5 === 0 || completed === total) {
+        // 批量刷新结果，避免大量书签时反复重建完整列表。
+        if (completed % 25 === 0 || completed === total) {
           this.renderLinkCheckResults();
         }
       }
@@ -2832,10 +3059,107 @@ class BookmarkManager {
     this.linkCheckRunning = false;
     document.getElementById('linkCheckStartBtn').style.display = '';
     document.getElementById('linkCheckStopBtn').style.display = 'none';
+    document.getElementById('linkCheckPauseBtn').style.display = 'none';
     document.getElementById('linkCheckStartBtn').disabled = false;
 
     // 最终渲染
     this.renderLinkCheckResults();
+    this.cacheLinkCheckResults();
+    document.getElementById('linkCheckExportBtn').style.display = this.linkCheckResults.length ? '' : 'none';
+    document.getElementById('linkCheckRetryBtn').style.display = this.linkCheckResults.some(item => item.checkStatus !== 'ok') ? '' : 'none';
+  }
+
+  async retryProblemLinks() {
+    if (this.linkCheckRunning) return;
+    const problems = this.linkCheckResults.filter(item => item.checkStatus !== 'ok');
+    if (problems.length === 0) {
+      showToast(t('manager.linkCheckNoProblems'), 'info');
+      return;
+    }
+
+    this.linkCheckRunning = true;
+    this.linkCheckPaused = false;
+    document.getElementById('linkCheckStartBtn').style.display = 'none';
+    document.getElementById('linkCheckStopBtn').style.display = '';
+    document.getElementById('linkCheckPauseBtn').style.display = '';
+    document.getElementById('linkCheckPauseBtn').textContent = t('manager.linkCheckPause');
+    document.getElementById('linkCheckRetryBtn').style.display = 'none';
+    document.getElementById('linkCheckProgress').style.display = 'block';
+
+    let index = 0;
+    let completed = 0;
+    const total = problems.length;
+    const updateProgress = () => {
+      const percent = Math.round((completed / total) * 100);
+      document.getElementById('linkCheckProgressFill').style.width = `${percent}%`;
+      document.getElementById('linkCheckProgressFill').setAttribute('aria-valuenow', String(percent));
+      document.getElementById('linkCheckProgressText').textContent = t('manager.linkCheckRetryProgress', String(completed), String(total));
+      document.getElementById('linkCheckProgressPercent').textContent = `${percent}%`;
+    };
+    updateProgress();
+
+    const worker = async () => {
+      while (index < total && this.linkCheckRunning) {
+        while (this.linkCheckPaused && this.linkCheckRunning) await new Promise(resolve => setTimeout(resolve, 150));
+        if (!this.linkCheckRunning) break;
+        const item = problems[index++];
+        const result = await this.checkSingleLink(item.url);
+        const originalIndex = this.linkCheckResults.findIndex(existing => existing.id === item.id);
+        if (originalIndex >= 0) {
+          this.linkCheckResults[originalIndex] = {
+            ...item,
+            checkStatus: result.status,
+            statusCode: result.statusCode,
+            checkMessage: result.message || '',
+          };
+        }
+        completed += 1;
+        updateProgress();
+        if (completed % 3 === 0 || completed === total) this.renderLinkCheckResults();
+      }
+    };
+
+    const concurrency = Math.min(parseInt(document.getElementById('linkCheckConcurrency').value, 10) || 5, total);
+    await Promise.all(Array.from({ length: concurrency }, () => worker()));
+    this.linkCheckRunning = false;
+    this.linkCheckPaused = false;
+    document.getElementById('linkCheckStartBtn').style.display = '';
+    document.getElementById('linkCheckStopBtn').style.display = 'none';
+    document.getElementById('linkCheckPauseBtn').style.display = 'none';
+    document.getElementById('linkCheckRetryBtn').style.display = this.linkCheckResults.some(item => item.checkStatus !== 'ok') ? '' : 'none';
+    document.getElementById('linkCheckExportBtn').style.display = '';
+    this.renderLinkCheckResults();
+    this.cacheLinkCheckResults();
+    showToast(t(completed === total ? 'manager.linkCheckRetryComplete' : 'manager.linkCheckStopped'), completed === total ? 'success' : 'info');
+  }
+
+  exportLinkCheckResults() {
+    if (this.linkCheckResults.length === 0) {
+      showToast(t('manager.linkCheckNoResults'), 'info');
+      return;
+    }
+    const escapeCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const rows = [
+      ['Title', 'URL', 'Path', 'Status', 'HTTP', 'Message'],
+      ...this.linkCheckResults.map(item => [
+        item.title,
+        item.url,
+        item.path,
+        item.checkStatus,
+        item.statusCode || '',
+        item.checkMessage || '',
+      ]),
+    ];
+    const blob = new Blob([`\uFEFF${rows.map(row => row.map(escapeCell).join(',')).join('\n')}`], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `bookmark-link-check-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    showToast(t('manager.linkCheckExported'));
   }
 
   /**
@@ -2984,6 +3308,7 @@ class BookmarkManager {
     deleteBtn.disabled = true;
 
     try {
+      await this.captureUndoPoint('brokenLinks');
       if (typeof chrome !== 'undefined' && chrome.bookmarks) {
         for (const id of ids) {
           await new Promise((resolve, reject) => {
@@ -3002,14 +3327,17 @@ class BookmarkManager {
       const deletedIds = new Set(ids);
       this.linkCheckResults = this.linkCheckResults.filter(r => !deletedIds.has(r.id));
 
-      // 刷新书签数据和 UI
-      await this.loadBookmarks();
+      // 直接以本地删除结果刷新，避免远程旧数据立即把已删除项合并回来。
+      this.bookmarks = await this.getLocalBookmarksWithHiddenState();
+      this.saveBookmarksToStorage();
+      this.syncBookmarksToGiteeInBackground();
       this.renderFolderTree();
       this.renderBookmarks();
       this.updateStats();
 
       // 重新渲染检测结果
       this.renderLinkCheckResults();
+      this.cacheLinkCheckResults();
       showToast(t('manager.linkCheckDeleteSuccess', String(ids.length)));
     } catch (error) {
       console.error('Delete broken links failed:', error);

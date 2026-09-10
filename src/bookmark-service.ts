@@ -6,6 +6,12 @@ export interface BookmarkInput {
   children?: BookmarkInput[];
 }
 
+export interface BookmarkRestorePoint {
+  createdAt: number;
+  reason: string;
+  nodes: BookmarkInput[];
+}
+
 const RESTORE_POINT_KEY = 'bookmark_replace_restore_point';
 const MAX_BOOKMARK_NODES = 50000;
 const MAX_BOOKMARK_DEPTH = 64;
@@ -82,10 +88,10 @@ async function clearBookmarkBar(bookmarkBar: any): Promise<void> {
   for (const child of children) await removeTree(child.id);
 }
 
-function saveRestorePoint(nodes: BookmarkInput[]): Promise<void> {
+function saveRestorePoint(nodes: BookmarkInput[], reason: string): Promise<void> {
   return new Promise((resolve, reject) => {
     chrome.storage.local.set({
-      [RESTORE_POINT_KEY]: { createdAt: Date.now(), nodes },
+      [RESTORE_POINT_KEY]: { createdAt: Date.now(), reason, nodes },
     }, () => {
       if (chrome.runtime.lastError) reject(chromeError('Failed to save bookmark restore point'));
       else resolve();
@@ -93,22 +99,49 @@ function saveRestorePoint(nodes: BookmarkInput[]): Promise<void> {
   });
 }
 
+export function getBookmarkRestorePoint(): Promise<BookmarkRestorePoint | null> {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.get([RESTORE_POINT_KEY], (result: any) => {
+      if (chrome.runtime.lastError) reject(chromeError('Failed to read bookmark restore point'));
+      else resolve(result?.[RESTORE_POINT_KEY] || null);
+    });
+  });
+}
+
+export async function captureBookmarkBarRestorePoint(reason = 'manual-change'): Promise<BookmarkRestorePoint> {
+  const tree = await getChromeBookmarksTree();
+  const bookmarkBar = findBookmarkBar(tree);
+  if (!bookmarkBar?.id) throw new Error('Bookmark bar was not found');
+  const point = { createdAt: Date.now(), reason, nodes: prepareBookmarkNodes(bookmarkBar.children || []) };
+  await saveRestorePoint(point.nodes, reason);
+  return point;
+}
+
+export async function restoreBookmarkBarFromPoint(): Promise<BookmarkRestorePoint> {
+  const point = await getBookmarkRestorePoint();
+  if (!point?.nodes) throw new Error('No bookmark restore point is available');
+  await replaceBookmarkBarSafely(point.nodes, 'restore');
+  return point;
+}
+
 function findBookmarkBar(tree: any[]): any {
   const rootChildren = tree?.[0]?.children || [];
   return rootChildren.find((item: any) => item.id === '1') || rootChildren[0];
 }
 
-export async function replaceBookmarkBarSafely(nodes: unknown): Promise<void> {
+export async function replaceBookmarkBarSafely(nodes: unknown, reason = 'replace', createRestorePoint = true): Promise<void> {
   const prepared = prepareBookmarkNodes(nodes);
   const tree = await getChromeBookmarksTree();
   const bookmarkBar = findBookmarkBar(tree);
   if (!bookmarkBar?.id) throw new Error('Bookmark bar was not found');
 
   const backup = prepareBookmarkNodes(bookmarkBar.children || []);
-  try {
-    await saveRestorePoint(backup);
-  } catch (error) {
-    console.warn('Could not persist bookmark restore point; in-memory rollback remains available.', error);
+  if (createRestorePoint) {
+    try {
+      await saveRestorePoint(backup, reason);
+    } catch (error) {
+      console.warn('Could not persist bookmark restore point; in-memory rollback remains available.', error);
+    }
   }
 
   try {

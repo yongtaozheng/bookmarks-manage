@@ -681,6 +681,42 @@ document.addEventListener('DOMContentLoaded', async () => {
       return Array.isArray(data?.children) ? data.children : [];
     }
 
+    function collectBookmarkKeys(items: any[], parentPath = '', result = new Set<string>()): Set<string> {
+      if (!Array.isArray(items)) return result;
+      items.forEach(item => {
+        const title = String(item?.title || '');
+        const path = parentPath ? `${parentPath}/${title}` : title;
+        if (item?.url) result.add(`${path}|${item.url}`);
+        if (item?.children) collectBookmarkKeys(item.children, path, result);
+      });
+      return result;
+    }
+
+    async function loadSyncDifference() {
+      const tree = await getLocalBookmarks();
+      const bookmarkBar = tree?.[0]?.children?.find((item: any) => item.id === '1') || tree?.[0]?.children?.[0];
+      const localBookmarks = bookmarkBar?.children || [];
+      const config = {
+        giteeToken: tokenEl.value.trim(),
+        giteeOwner: ownerEl.value.trim(),
+        giteeRepo: repoEl.value.trim(),
+        giteeBranch: branchSel.value,
+        giteeFilePath: filePathSelect.value,
+      };
+      if (Object.values(config).some(value => !value)) throw new Error(t('msg.fillConfigFirst'));
+      const remoteBookmarks = getRemoteBookmarkChildren(await getFile(config));
+      const localKeys = collectBookmarkKeys(localBookmarks);
+      const remoteKeys = collectBookmarkKeys(remoteBookmarks);
+      const shared = [...localKeys].filter(key => remoteKeys.has(key)).length;
+      syncLocalCountEl.textContent = String(countBookmarkItems(localBookmarks));
+      syncRemoteCountEl.textContent = String(countBookmarkItems(remoteBookmarks));
+      return {
+        localOnly: localKeys.size - shared,
+        remoteOnly: remoteKeys.size - shared,
+        shared,
+      };
+    }
+
     async function updateLocalBookmarkCount() {
       try {
         const tree = await getLocalBookmarks();
@@ -728,6 +764,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       const keepHiddenInput = document.getElementById('syncKeepHidden') as HTMLInputElement;
       const cancelButton = document.getElementById('syncConfirmCancel') as HTMLButtonElement;
       const submitButton = document.getElementById('syncConfirmSubmit') as HTMLButtonElement;
+      const diffPreview = document.getElementById('syncDiffPreview') as HTMLElement;
+      const localOnly = document.getElementById('syncDiffLocalOnly') as HTMLElement;
+      const shared = document.getElementById('syncDiffShared') as HTMLElement;
+      const remoteOnly = document.getElementById('syncDiffRemoteOnly') as HTMLElement;
       const returnFocus = document.activeElement as HTMLElement | null;
 
       title.textContent = options.title;
@@ -738,8 +778,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       keepHiddenInput.checked = true;
       submitButton.classList.toggle('ui-button--danger', Boolean(options.destructive));
       submitButton.classList.toggle('ui-button--primary', !options.destructive);
+      submitButton.disabled = true;
+      submitButton.textContent = t('sync.previewing');
+      diffPreview.dataset.state = 'loading';
+      localOnly.textContent = shared.textContent = remoteOnly.textContent = '—';
       modal.style.display = 'flex';
-      submitButton.focus();
+      cancelButton.focus();
 
       return new Promise(resolve => {
         const finish = (confirmed: boolean) => {
@@ -748,6 +792,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           modal.onkeydown = null;
           cancelButton.onclick = null;
           submitButton.onclick = null;
+          submitButton.disabled = false;
+          submitButton.textContent = t('sync.confirmAction');
           returnFocus?.focus();
           resolve({ confirmed, keepHidden: keepHiddenInput.checked });
         };
@@ -776,6 +822,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
           }
         };
+
+        void loadSyncDifference()
+          .then(diff => {
+            localCount.textContent = syncLocalCountEl.textContent || '—';
+            remoteCount.textContent = syncRemoteCountEl.textContent || '—';
+            localOnly.textContent = String(diff.localOnly);
+            shared.textContent = String(diff.shared);
+            remoteOnly.textContent = String(diff.remoteOnly);
+            diffPreview.dataset.state = 'ready';
+            submitButton.disabled = false;
+            submitButton.textContent = t('sync.confirmAction');
+          })
+          .catch(error => {
+            diffPreview.dataset.state = 'error';
+            localOnly.textContent = shared.textContent = remoteOnly.textContent = '!';
+            submitButton.disabled = false;
+            submitButton.textContent = t('sync.confirmAction');
+            showToast(t('sync.previewFailed', getErrorMessage(error)), 'warning');
+          });
       });
     }
 

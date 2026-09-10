@@ -770,6 +770,16 @@
       }
       .sync-confirm-summary span { display: block; color: var(--color-text-muted); font-size: var(--font-size-xs); }
       .sync-confirm-summary strong { display: block; margin-top: 0.15em; font-size: var(--font-size-lg); }
+      .sync-diff-preview {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.4em;
+        margin: 0.65em 0;
+      }
+      .sync-diff-item { padding: 0.5em; border-radius: 6px; background: var(--color-bg-hover); text-align: center; }
+      .sync-diff-item strong { display: block; color: var(--color-text-primary); }
+      .sync-diff-item span { color: var(--color-text-muted); font-size: var(--font-size-xs); }
+      .sync-diff-preview[data-state="loading"] { opacity: 0.55; }
       .sync-confirm-option {
         display: flex;
         align-items: flex-start;
@@ -1130,6 +1140,11 @@
         <div class="sync-confirm-summary">
           <div><span data-i18n="sync.localCount">本地书签</span><strong id="syncConfirmLocalCount">—</strong></div>
           <div><span data-i18n="sync.remoteCount">远程书签</span><strong id="syncConfirmRemoteCount">—</strong></div>
+        </div>
+        <div class="sync-diff-preview" id="syncDiffPreview" data-state="loading" aria-live="polite">
+          <div class="sync-diff-item"><strong id="syncDiffLocalOnly">—</strong><span data-i18n="sync.localOnly">仅本地</span></div>
+          <div class="sync-diff-item"><strong id="syncDiffShared">—</strong><span data-i18n="sync.shared">两端相同</span></div>
+          <div class="sync-diff-item"><strong id="syncDiffRemoteOnly">—</strong><span data-i18n="sync.remoteOnly">仅远程</span></div>
         </div>
         <label class="sync-confirm-option" id="syncKeepHiddenOption"><input type="checkbox" id="syncKeepHidden" checked><span data-i18n="sync.keepHidden">保留远程隐藏书签</span></label>
         <div class="sync-confirm-actions">

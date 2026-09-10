@@ -79,3 +79,33 @@ test('bookmark replacement restores the original bookmark bar after a creation f
     [{ title: 'Original', url: 'https://original.example' }],
   );
 });
+
+test('bookmark restore point can undo a successful replacement', async () => {
+  const storage = {};
+  const bookmarkBar = { id: '1', title: 'Bookmarks bar', children: [{ id: 'old', title: 'Original', url: 'https://original.example' }] };
+  let nextId = 1;
+  globalThis.chrome = {
+    runtime: { lastError: null },
+    storage: {
+      local: {
+        set: (value, callback) => { Object.assign(storage, value); callback(); },
+        get: (keys, callback) => callback(Object.fromEntries(keys.map(key => [key, storage[key]]))),
+      },
+    },
+    bookmarks: {
+      getTree: callback => callback([{ children: [bookmarkBar] }]),
+      removeTree: (id, callback) => { bookmarkBar.children = bookmarkBar.children.filter(item => item.id !== id); callback(); },
+      create: (details, callback) => {
+        const created = { ...details, id: `restored-${nextId++}` };
+        bookmarkBar.children.push(created);
+        callback(created);
+      },
+    },
+  };
+
+  const { replaceBookmarkBarSafely, restoreBookmarkBarFromPoint } = await loadTypeScriptModule('src/bookmark-service.ts');
+  await replaceBookmarkBarSafely([{ title: 'Replacement', url: 'https://replacement.example' }], 'sync');
+  assert.equal(bookmarkBar.children[0].title, 'Replacement');
+  await restoreBookmarkBarFromPoint();
+  assert.equal(bookmarkBar.children[0].title, 'Original');
+});

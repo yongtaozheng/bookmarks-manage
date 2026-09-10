@@ -26,6 +26,9 @@ assert.ok(
 assert.ok(popupHtml.includes('role="tablist"'), 'popup navigation must expose tab semantics');
 assert.ok(popupHtml.includes('id="testGiteeConnection"'), 'popup must expose repository connection testing');
 assert.ok(popupHtml.includes('id="syncConfirmModal"'), 'destructive sync operations must use the accessible confirmation dialog');
+assert.ok(popupHtml.includes('id="syncDiffPreview"'), 'sync confirmation must expose a difference preview');
 assert.ok(managerHtml.includes('role="tree"'), 'bookmark folder navigation must expose tree semantics');
+assert.ok(managerHtml.includes('id="restoreModal"'), 'bookmark manager must expose the restore center');
+assert.ok(managerHtml.includes('id="linkCheckRetryBtn"'), 'link checker must expose retry controls');
 
 console.log('Project static checks passed.');
