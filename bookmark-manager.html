@@ -1916,7 +1916,8 @@
       justify-content: flex-end;
     }
 
-    .bookmark-item:hover .bookmark-actions {
+    .bookmark-item:hover .bookmark-actions,
+    .bookmark-item:focus-within .bookmark-actions {
       opacity: 1;
       pointer-events: auto;
     }
@@ -2587,12 +2588,12 @@
 </head>
 <body>
   <!-- 密码锁定遮罩 -->
-  <div id="passwordLockOverlay" style="display:none;position:fixed;z-index:10000;left:0;top:0;width:100%;height:100%;background:var(--color-bg-secondary);justify-content:center;align-items:center;flex-direction:column;">
+  <div id="passwordLockOverlay" role="dialog" aria-modal="true" aria-labelledby="managerLockTitle" style="display:none;position:fixed;z-index:10000;left:0;top:0;width:100%;height:100%;background:var(--color-bg-secondary);justify-content:center;align-items:center;flex-direction:column;">
     <div style="text-align:center;padding:2em;">
-      <h2 style="color:var(--color-accent-blue);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;margin-bottom:0.3em;" data-i18n="password.lock.title">🔒 密码保护</h2>
+      <h2 id="managerLockTitle" style="color:var(--color-accent-blue);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;margin-bottom:0.3em;" data-i18n="password.lock.title">🔒 密码保护</h2>
       <p style="color:var(--color-text-secondary);font-size:14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;margin-bottom:1.2em;" data-i18n="password.lock.desc">书签管理器已启用密码保护，请输入密码以继续访问。</p>
       <input type="password" id="lockPasswordInput" maxlength="1024" placeholder="请输入密码" data-i18n-placeholder="password.lock.placeholder" style="width:260px;padding:0.5em 0.8em;border:1px solid var(--color-border-secondary);border-radius:6px;font-size:14px;text-align:center;margin-bottom:0.5em;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background:var(--color-input-bg);color:var(--color-text-primary);" />
-      <div id="lockPasswordError" style="color:var(--color-accent-red);font-size:13px;min-height:1.5em;margin-bottom:0.5em;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;"></div>
+      <div id="lockPasswordError" role="alert" aria-live="polite" style="color:var(--color-accent-red);font-size:13px;min-height:1.5em;margin-bottom:0.5em;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;"></div>
       <button type="button" id="lockPasswordSubmit" style="width:260px;padding:0.5em 0;background:var(--color-accent-blue);color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;transition:background 0.2s;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;" data-i18n="password.lock.submit">解锁</button>
     </div>
   </div>
@@ -2610,8 +2611,8 @@
     </div>
 
     <div class="toolbar">
-      <input type="text" class="search-box" id="searchInput" placeholder="搜索书签..." data-i18n-placeholder="manager.searchPlaceholder">
-      <select class="filter-select" id="filterSelect">
+      <input type="text" class="search-box" id="searchInput" aria-label="搜索书签" data-i18n-aria-label="manager.searchLabel" placeholder="搜索书签..." data-i18n-placeholder="manager.searchPlaceholder">
+      <select class="filter-select" id="filterSelect" aria-label="筛选书签" data-i18n-aria-label="manager.filterLabel">
         <option value="all" data-i18n="manager.filterAll">显示所有</option>
         <option value="visible" data-i18n="manager.filterVisible">只显示可见</option>
         <option value="hidden" data-i18n="manager.filterHidden">只显示隐藏</option>
@@ -2641,7 +2642,7 @@
 
       <div class="main-content">
         <div class="sidebar">
-          <div class="folder-tree" id="folderTree">
+          <div class="folder-tree" id="folderTree" role="tree" aria-label="书签文件夹" data-i18n-aria-label="manager.folderTreeLabel">
             <div class="loading" data-i18n="manager.loading">加载中...</div>
           </div>
         </div>

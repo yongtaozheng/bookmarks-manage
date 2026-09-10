@@ -79,6 +79,7 @@ export async function setLocale(locale: Locale): Promise<void> {
  * - data-i18n="key"              → textContent
  * - data-i18n-placeholder="key"  → placeholder
  * - data-i18n-title="key"        → title 属性
+ * - data-i18n-aria-label="key"   → aria-label 属性
  */
 export function translateDOM(root: Element | Document = document): void {
   // textContent
@@ -95,6 +96,11 @@ export function translateDOM(root: Element | Document = document): void {
   root.querySelectorAll('[data-i18n-title]').forEach(el => {
     const key = el.getAttribute('data-i18n-title')!;
     (el as HTMLElement).title = t(key);
+  });
+  // aria-label 属性
+  root.querySelectorAll('[data-i18n-aria-label]').forEach(el => {
+    const key = el.getAttribute('data-i18n-aria-label')!;
+    el.setAttribute('aria-label', t(key));
   });
 }
 

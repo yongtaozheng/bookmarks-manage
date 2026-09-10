@@ -91,33 +91,6 @@
 
       html, body { width: 600px !important; min-width: 600px !important; max-width: 600px !important; height: 600px !important; max-height: 600px !important; }
       body { margin: 0; padding: 0; font-family: var(--font-family-primary); background: var(--color-bg-secondary); color: var(--color-text-primary); overflow: hidden; }
-      .open-tab-btn {
-        display: block;
-        width: 580px;
-        min-width: 580px;
-        max-width: 580px;
-        margin: 1em auto 0.5em auto;
-        padding: 0.5em 0;
-        background: var(--color-accent-green);
-        color: #fff;
-        border: none;
-        border-radius: 6px;
-        font-size: var(--font-size-lg);
-        font-family: var(--font-family-primary);
-        cursor: pointer;
-        transition: background 0.2s;
-      }
-      .open-tab-btn:hover { background: var(--color-accent-green-hover); }
-
-      /* 书签管理器按钮容器 */
-      .bookmark-manager-buttons {
-        display: flex;
-        gap: 0.5em;
-        margin: 1em auto 0.5em auto;
-        width: 580px;
-        justify-content: space-between;
-      }
-
       /* 系统书签管理器按钮 */
       .system-bookmark-btn {
         flex: 1;
@@ -263,37 +236,6 @@
         pointer-events: auto;
         transform: translate(-50%, 0) scale(1);
       }
-      .sync-btns {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.7em;
-        margin: 1.2em auto 0.5em auto;
-        width: 580px;
-        justify-content: space-between;
-      }
-      .sync-btns button {
-        flex: 1 1 45%;
-        min-width: 120px;
-        max-width: 260px;
-        padding: 0.5em 0;
-        background: var(--color-accent-blue);
-        color: #fff;
-        border: none;
-        border-radius: 6px;
-        font-size: var(--font-size-md);
-        font-family: var(--font-family-primary);
-        cursor: pointer;
-        transition: background 0.2s;
-      }
-      .sync-btns button:hover { background: var(--color-accent-blue-dark); }
-      .sync-btns button:disabled {
-        cursor: not-allowed;
-        opacity: 0.58;
-      }
-      .sync-btns button.is-loading {
-        cursor: wait;
-        opacity: 0.72;
-      }
       /* 快捷键设置 */
       .shortcut-form {
         width: 580px;
@@ -418,6 +360,13 @@
         font-size: 22px;
         color: var(--color-text-muted);
         cursor: pointer;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        line-height: 1;
       }
       .help-close:hover {
         color: var(--color-accent-red);
@@ -575,17 +524,282 @@
       .popup-tab-panel.active {
         display: block;
       }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .config-dashboard {
+        width: 580px;
+        margin: 0.75em auto 1.2em;
+        display: grid;
+        gap: 0.75em;
+      }
+      .quick-launch {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.55em;
+      }
+      .quick-launch button {
+        min-height: 42px;
+        margin: 0;
+      }
+      .settings-card {
+        background: var(--color-bg-primary);
+        border: 1px solid var(--color-border-light);
+        border-radius: 10px;
+        padding: 0.9em;
+        box-shadow: 0 3px 12px var(--color-shadow);
+      }
+      .section-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1em;
+        margin-bottom: 0.8em;
+      }
+      .section-eyebrow {
+        margin: 0 0 0.15em;
+        color: var(--color-text-muted);
+        font-size: var(--font-size-xs);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .section-title {
+        margin: 0;
+        color: var(--color-text-primary);
+        font-size: var(--font-size-lg);
+        line-height: 1.35;
+      }
+      .section-description {
+        margin: 0.25em 0 0;
+        color: var(--color-text-muted);
+        font-size: var(--font-size-sm);
+        line-height: 1.45;
+      }
+      .status-pill {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35em;
+        padding: 0.28em 0.65em;
+        border-radius: 999px;
+        background: var(--color-bg-hover);
+        color: var(--color-text-secondary);
+        font-size: var(--font-size-xs);
+        font-weight: 600;
+      }
+      .status-pill::before {
+        width: 0.55em;
+        height: 0.55em;
+        border-radius: 50%;
+        background: var(--color-text-muted);
+        content: '';
+      }
+      .status-pill[data-state="testing"]::before { background: #f0a020; }
+      .status-pill[data-state="success"] { color: var(--color-accent-green-hover); }
+      .status-pill[data-state="success"]::before { background: var(--color-accent-green); }
+      .status-pill[data-state="error"] { color: var(--color-accent-red); }
+      .status-pill[data-state="error"]::before { background: var(--color-accent-red); }
+      .settings-card .gitee-form {
+        width: auto;
+        min-width: 0;
+        max-width: none;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+      }
+      .settings-card .gitee-form select {
+        width: 100%;
+        margin-bottom: 0.7em;
+        padding: 0.3em 0.6em;
+        border: 1px solid var(--color-border);
+        border-radius: 4px;
+        background: var(--color-input-bg);
+        color: var(--color-text-primary);
+        font: inherit;
+        font-size: var(--font-size-md);
+      }
+      .settings-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.2em 0.7em;
+      }
+      .settings-field--full { grid-column: 1 / -1; }
+      .input-with-action {
+        display: flex;
+        align-items: stretch;
+        gap: 0.4em;
+      }
+      .input-with-action input { flex: 1; min-width: 0; }
+      .field-action {
+        align-self: flex-start;
+        min-width: 36px;
+        height: 34px;
+        padding: 0 0.65em;
+        border: 1px solid var(--color-border);
+        border-radius: 5px;
+        background: var(--color-input-bg);
+        color: var(--color-text-secondary);
+        cursor: pointer;
+      }
+      .field-action:hover { color: var(--color-accent-blue); border-color: var(--color-accent-blue); }
+      .file-actions,
+      .connection-actions,
+      .backup-actions,
+      .security-actions {
+        display: flex;
+        gap: 0.5em;
+      }
+      .ui-button {
+        min-height: 36px;
+        padding: 0.45em 0.8em;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        font: inherit;
+        font-size: var(--font-size-sm);
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+      }
+      .ui-button:hover:not(:disabled) { transform: translateY(-1px); }
+      .ui-button:disabled { cursor: wait; opacity: 0.62; }
+      .ui-button--primary { background: var(--color-accent-blue); color: #fff; }
+      .ui-button--safe { background: var(--color-accent-green); color: #fff; }
+      .ui-button--secondary { background: var(--color-input-bg); border-color: var(--color-border); color: var(--color-text-primary); }
+      .ui-button--danger { background: transparent; border-color: var(--color-accent-red); color: var(--color-accent-red); }
+      .file-actions { margin-bottom: 0.65em; }
+      .file-actions .ui-button,
+      .connection-actions .ui-button,
+      .backup-actions .ui-button,
+      .security-actions .ui-button { flex: 1; }
+      .connection-actions { margin-top: 0.15em; }
+      .sync-overview {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.45em;
+        margin: 0 0 0.75em;
+      }
+      .sync-metric {
+        padding: 0.55em 0.65em;
+        border-radius: 7px;
+        background: var(--color-bg-secondary);
+        border: 1px solid var(--color-border-light);
+      }
+      .sync-metric dt { color: var(--color-text-muted); font-size: var(--font-size-xs); }
+      .sync-metric dd { margin: 0.12em 0 0; color: var(--color-text-primary); font-weight: 700; }
+      .sync-routes {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.6em;
+      }
+      .sync-route {
+        padding: 0.72em;
+        border: 1px solid var(--color-border-light);
+        border-radius: 8px;
+        background: var(--color-bg-secondary);
+      }
+      .sync-route-heading { display: flex; align-items: center; gap: 0.55em; margin-bottom: 0.55em; }
+      .sync-route-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2em;
+        height: 2em;
+        border-radius: 7px;
+        background: var(--color-bg-hover);
+        color: var(--color-accent-blue);
+        font-weight: 700;
+      }
+      .sync-route-title { margin: 0; font-size: var(--font-size-base); }
+      .sync-route-description { margin: 0.1em 0 0; color: var(--color-text-muted); font-size: var(--font-size-xs); }
+      .sync-route-actions { display: grid; gap: 0.4em; }
+      .sync-route-actions .ui-button { width: 100%; }
+      .sync-hint {
+        margin: 0.65em 0 0;
+        color: var(--color-text-muted);
+        font-size: var(--font-size-xs);
+        text-align: center;
+      }
+      .advanced-card { padding: 0; overflow: hidden; }
+      .advanced-card summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1em;
+        padding: 0.85em 0.9em;
+        cursor: pointer;
+        list-style: none;
+      }
+      .advanced-card summary::-webkit-details-marker { display: none; }
+      .advanced-card summary::after { color: var(--color-text-muted); content: '⌄'; transition: transform 0.18s ease; }
+      .advanced-card[open] summary::after { transform: rotate(180deg); }
+      .advanced-content { padding: 0 0.9em 0.9em; border-top: 1px solid var(--color-border-light); }
+      .security-purpose {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75em;
+        margin-bottom: 0.9em;
+        padding: 0.75em;
+        border-radius: 8px;
+        background: var(--color-bg-hover);
+      }
+      .security-purpose-icon { font-size: 1.45em; line-height: 1; }
+      .security-purpose strong { display: block; margin-bottom: 0.18em; }
+      .security-purpose p { margin: 0; color: var(--color-text-muted); font-size: var(--font-size-sm); line-height: 1.45; }
+      .sync-confirm-content { width: 360px; max-width: calc(100vw - 48px); }
+      .sync-confirm-summary {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5em;
+        margin: 0.8em 0;
+      }
+      .sync-confirm-summary div {
+        padding: 0.65em;
+        border: 1px solid var(--color-border-light);
+        border-radius: 7px;
+        background: var(--color-bg-secondary);
+      }
+      .sync-confirm-summary span { display: block; color: var(--color-text-muted); font-size: var(--font-size-xs); }
+      .sync-confirm-summary strong { display: block; margin-top: 0.15em; font-size: var(--font-size-lg); }
+      .sync-confirm-option {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5em;
+        margin: 0.75em 0;
+        color: var(--color-text-secondary);
+        font-size: var(--font-size-sm);
+      }
+      .sync-confirm-actions { display: flex; justify-content: flex-end; gap: 0.5em; margin-top: 1em; }
+      .popup-tab-btn:focus-visible,
+      .ui-button:focus-visible,
+      .field-action:focus-visible,
+      .help-close:focus-visible {
+        outline: 2px solid var(--color-accent-blue);
+        outline-offset: 2px;
+      }
+      @media (max-width: 620px) {
+        .config-dashboard { width: calc(100% - 20px); }
+      }
     </style>
     <script type="module" crossorigin src="/popup.js"></script>
   </head>
   <body>
     <!-- 密码锁定遮罩 -->
-    <div id="passwordLockOverlay" style="display:none;position:fixed;z-index:10000;left:0;top:0;width:100%;height:100%;background:var(--color-bg-secondary);justify-content:center;align-items:center;flex-direction:column;">
+    <div id="passwordLockOverlay" role="dialog" aria-modal="true" aria-labelledby="popupLockTitle" style="display:none;position:fixed;z-index:10000;left:0;top:0;width:100%;height:100%;background:var(--color-bg-secondary);justify-content:center;align-items:center;flex-direction:column;">
       <div style="text-align:center;padding:2em;">
-        <h2 style="color:var(--color-accent-blue);font-family:var(--font-family-primary);margin-bottom:0.3em;" data-i18n="password.lock.title">🔒 密码保护</h2>
+        <h2 id="popupLockTitle" style="color:var(--color-accent-blue);font-family:var(--font-family-primary);margin-bottom:0.3em;" data-i18n="password.lock.title">🔒 密码保护</h2>
         <p style="color:var(--color-text-secondary);font-size:var(--font-size-base);font-family:var(--font-family-primary);margin-bottom:1.2em;" data-i18n="password.lock.desc">书签管理器已启用密码保护，请输入密码以继续访问。</p>
         <input type="password" id="lockPasswordInput" maxlength="1024" placeholder="请输入密码" data-i18n-placeholder="password.lock.placeholder" style="width:260px;padding:0.5em 0.8em;border:1px solid var(--color-border);border-radius:6px;font-size:var(--font-size-md);font-family:var(--font-family-primary);text-align:center;margin-bottom:0.5em;background:var(--color-input-bg);color:var(--color-text-primary);" />
-        <div id="lockPasswordError" style="color:var(--color-accent-red);font-size:var(--font-size-sm);font-family:var(--font-family-primary);min-height:1.5em;margin-bottom:0.5em;"></div>
+        <div id="lockPasswordError" role="alert" aria-live="polite" style="color:var(--color-accent-red);font-size:var(--font-size-sm);font-family:var(--font-family-primary);min-height:1.5em;margin-bottom:0.5em;"></div>
         <button type="button" id="lockPasswordSubmit" style="width:260px;padding:0.5em 0;background:var(--color-accent-blue);color:#fff;border:none;border-radius:6px;font-size:var(--font-size-md);font-family:var(--font-family-primary);cursor:pointer;transition:background 0.2s;" data-i18n="password.lock.submit">解锁</button>
       </div>
     </div>
@@ -597,7 +811,7 @@
       <button id="themeToggle" style="background:var(--color-accent-blue);color:#fff;border:none;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;box-shadow:0 1px 4px var(--color-shadow);transition:background 0.2s;display:flex;align-items:center;justify-content:center;" title="切换主题" data-i18n-title="theme.toggle">
         <span id="themeIcon">🖥️</span>
       </button>
-      <select id="langSelect" style="padding:2px 6px;border:1px solid var(--color-border);border-radius:4px;font-size:var(--font-size-base);background:var(--color-input-bg);color:var(--color-text-primary);cursor:pointer;height:28px;">
+      <select id="langSelect" aria-label="选择语言" data-i18n-aria-label="lang.select" style="padding:2px 6px;border:1px solid var(--color-border);border-radius:4px;font-size:var(--font-size-base);background:var(--color-input-bg);color:var(--color-text-primary);cursor:pointer;height:28px;">
         <option value="zh-CN" data-i18n="lang.zh">中文</option>
         <option value="en" data-i18n="lang.en">English</option>
       </select>
@@ -607,7 +821,7 @@
     <!-- 版本信息 -->
     <div class="version-bar" id="versionBar"></div>
     <!-- 更新通知横幅 -->
-    <div class="update-banner" id="updateBanner">
+    <div class="update-banner" id="updateBanner" role="status" aria-live="polite">
       <span class="update-banner-text" id="updateBannerText"></span>
       <button class="update-banner-download" id="updateBannerDownload" data-i18n="version.download">立即下载</button>
       <button class="update-banner-download update-banner-detail" id="updateBannerDetail" data-i18n="version.viewChanges">查看更新</button>
@@ -616,11 +830,11 @@
     <div class="popup-header">
     </div>
     <!-- Tab 导航栏 -->
-    <div class="popup-tabs" id="popupTabs">
-      <button class="popup-tab-btn active" data-tab="config" data-i18n="tab.config">⚙️ 配置</button>
-      <button class="popup-tab-btn" data-tab="shortcut" data-i18n="tab.shortcut">⌨️ 快捷键</button>
-      <button class="popup-tab-btn" data-tab="password" data-i18n="tab.password">🔒 密码</button>
-      <button class="popup-tab-btn" data-tab="feedback" data-i18n="tab.feedback">💬 反馈</button>
+    <div class="popup-tabs" id="popupTabs" role="tablist" aria-label="设置分类" data-i18n-aria-label="tab.label">
+      <button class="popup-tab-btn active" id="tabConfigButton" role="tab" aria-selected="true" aria-controls="tabConfig" tabindex="0" data-tab="config" data-i18n="tab.config">⚙️ 配置</button>
+      <button class="popup-tab-btn" id="tabShortcutButton" role="tab" aria-selected="false" aria-controls="tabShortcut" tabindex="-1" data-tab="shortcut" data-i18n="tab.shortcut">⌨️ 快捷键</button>
+      <button class="popup-tab-btn" id="tabPasswordButton" role="tab" aria-selected="false" aria-controls="tabPassword" tabindex="-1" data-tab="password" data-i18n="tab.password">🔒 密码</button>
+      <button class="popup-tab-btn" id="tabFeedbackButton" role="tab" aria-selected="false" aria-controls="tabFeedback" tabindex="-1" data-tab="feedback" data-i18n="tab.feedback">💬 反馈</button>
     </div>
     <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true">
       <span id="toastIcon" class="toast-icon" aria-hidden="true"></span>
@@ -632,73 +846,128 @@
     <!-- 可滚动的 Tab 内容区域 -->
     <div class="popup-tab-content">
     <!-- Tab 1: 配置 -->
-    <div class="popup-tab-panel active" id="tabConfig" data-tab-panel="config">
-    <div class="bookmark-manager-buttons">
-      <button class="system-bookmark-btn" id="openSystemBookmarksBtn" data-i18n="popup.systemBookmarks">系统书签管理器</button>
-      <button class="my-bookmark-btn" id="openMyBookmarksBtn" data-i18n="popup.myBookmarks">我的书签管理器</button>
-    </div>
-    <form class="gitee-form" id="giteeForm" autocomplete="off">
-      <label><span data-i18n="gitee.token">Gitee Token</span>
-        <div style="display:flex;align-items:center;gap:0.5em;">
-          <input type="password" id="giteeToken" required placeholder="个人访问Token" data-i18n-placeholder="gitee.tokenPlaceholder" style="flex:1;" />
-          <a href="https://gitee.com/oauth/authorize?client_id=8ac7a94ff19ddb4b9d267d525c048e2845f589cf3b1e8d09ef2568ca63f74603&redirect_uri=https%3A%2F%2Fgitee.com%2Fapi%2Fv5%2Fswagger&response_type=code" target="_blank" rel="noopener noreferrer" style="color:var(--color-accent-blue);font-size:0.9em;text-decoration:none;white-space:nowrap;" data-i18n="gitee.getToken">获取Token →</a>
+    <div class="popup-tab-panel active" id="tabConfig" data-tab-panel="config" role="tabpanel" aria-labelledby="tabConfigButton" tabindex="0">
+      <div class="config-dashboard">
+        <div class="quick-launch" aria-label="书签管理器入口" data-i18n-aria-label="popup.managerEntrances">
+          <button class="system-bookmark-btn" id="openSystemBookmarksBtn" data-i18n="popup.systemBookmarks">系统书签管理器</button>
+          <button class="my-bookmark-btn" id="openMyBookmarksBtn" data-i18n="popup.myBookmarks">我的书签管理器</button>
         </div>
-      </label>
-      <label><span data-i18n="gitee.owner">仓库所有者（owner）</span>
-        <input type="text" id="giteeOwner" required placeholder="如: zheng_yongtao" data-i18n-placeholder="gitee.ownerPlaceholder" />
-      </label>
-      <label><span data-i18n="gitee.repo">仓库名（repo）</span>
-        <input type="text" id="giteeRepo" required placeholder="如: chrome-bookmarks-manage" data-i18n-placeholder="gitee.repoPlaceholder" />
-      </label>
-      <label><span data-i18n="gitee.branch">分支（branch）</span>
-        <input type="text" id="giteeBranch" value="master" required placeholder="如: master" data-i18n-placeholder="gitee.branchPlaceholder" />
-      </label>
-      <label><span data-i18n="gitee.bookmarkDir">书签目录（bookmarkDir）</span>
-        <input type="text" id="bookmarkDir" required placeholder="如: bookmarks" data-i18n-placeholder="gitee.bookmarkDirPlaceholder" value="bookmarks" style="width:98%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid var(--color-border);border-radius:4px;font-size:1em;" />
-      </label>
-      <label><span data-i18n="gitee.bookmarkFile">书签文件</span>
-        <select id="giteeFilePath" required style="width:100%;margin-bottom:0.7em;padding:0.3em 0.6em;border:1px solid var(--color-border);border-radius:4px;font-size:var(--font-size-md);font-family:var(--font-family-primary);background:var(--color-input-bg);color:var(--color-text-primary);"></select>
-      </label>
-              <div style="display:flex;gap:0.5em;margin-bottom:0.7em;">
-          <button type="button" id="addBookmarkFile" style="flex:1;padding:0.3em 0.6em;background:var(--color-accent-green);color:#fff;border:none;border-radius:4px;font-size:var(--font-size-base);font-family:var(--font-family-primary);cursor:pointer;" data-i18n="gitee.addFile">新增书签文件</button>
-          <button type="button" id="deleteBookmarkFile" style="flex:1;padding:0.3em 0.6em;background:var(--color-accent-red);color:#fff;border:none;border-radius:4px;font-size:var(--font-size-base);font-family:var(--font-family-primary);cursor:pointer;" data-i18n="gitee.deleteFile">删除书签文件</button>
-        </div>
-              <button type="button" id="openGiteeRepo" style="width:100%;padding:0.3em 0.6em;background:var(--color-accent-blue);color:#fff;border:none;border-radius:4px;font-size:var(--font-size-base);font-family:var(--font-family-primary);cursor:pointer;margin-bottom:0.7em;" data-i18n="gitee.openRepo">打开Gitee仓库</button>
-    </form>
-    <div class="sync-btns">
-      <button id="btnSaveOverwrite" type="button" data-i18n="sync.overwriteSave">覆盖保存</button>
-      <button id="btnSaveMerge" type="button" data-i18n="sync.mergeSave">合并保存</button>
-      <button id="btnGetOverwrite" type="button" data-i18n="sync.overwriteGet">覆盖获取</button>
-      <button id="btnGetMerge" type="button" data-i18n="sync.mergeGet">合并获取</button>
-    </div>
-    <div class="sync-btns" style="margin-top:0.3em;">
-      <button id="btnExportConfig" type="button" data-i18n="config.export">📤 导出配置</button>
-      <button id="btnImportConfig" type="button" data-i18n="config.import">📥 导入配置</button>
-    </div>
-    <form class="gitee-form" id="cryptoMasterForm" autocomplete="off" style="margin-top:0.3em;">
-      <label><span data-i18n="crypto.masterPassword">跨设备加密主密码</span>
-        <input type="password" id="cryptoMasterPassword" maxlength="1024" data-i18n-placeholder="crypto.masterPasswordPlaceholder" placeholder="请输入主密码（用于跨设备解密）" />
-      </label>
-      <label><span data-i18n="crypto.masterPasswordConfirm">确认主密码</span>
-        <input type="password" id="cryptoMasterPasswordConfirm" maxlength="1024" data-i18n-placeholder="crypto.masterPasswordConfirmPlaceholder" placeholder="请再次输入主密码" />
-      </label>
-      <div style="display:flex;gap:0.5em;margin-bottom:0.6em;">
-        <button type="button" id="btnSaveCryptoMaster" style="flex:1;padding:0.3em 0.6em;background:var(--color-accent-green);color:#fff;border:none;border-radius:4px;font-size:var(--font-size-base);font-family:var(--font-family-primary);cursor:pointer;" data-i18n="crypto.masterSave">保存主密码</button>
-        <button type="button" id="btnClearCryptoMaster" style="flex:1;padding:0.3em 0.6em;background:var(--color-accent-red);color:#fff;border:none;border-radius:4px;font-size:var(--font-size-base);font-family:var(--font-family-primary);cursor:pointer;" data-i18n="crypto.masterClear">清除主密码</button>
+
+        <section class="settings-card" aria-labelledby="repositoryConnectionTitle">
+          <header class="section-header">
+            <div>
+              <p class="section-eyebrow" data-i18n="section.connectionEyebrow">Repository</p>
+              <h2 class="section-title" id="repositoryConnectionTitle" data-i18n="section.connectionTitle">仓库连接</h2>
+              <p class="section-description" data-i18n="section.connectionDesc">配置用于同步书签的 Gitee 仓库与文件。</p>
+            </div>
+            <span class="status-pill" id="connectionStatus" data-state="idle" role="status" aria-live="polite" data-i18n="connection.untested">未测试</span>
+          </header>
+          <form class="gitee-form" id="giteeForm" autocomplete="off">
+            <div class="settings-grid">
+              <label class="settings-field settings-field--full"><span data-i18n="gitee.token">Gitee Token</span>
+                <div class="input-with-action">
+                  <input type="password" id="giteeToken" required placeholder="个人访问Token" data-i18n-placeholder="gitee.tokenPlaceholder" />
+                  <button type="button" class="field-action" id="toggleTokenVisibility" aria-pressed="false" title="显示 Token" data-i18n-title="connection.showToken">◉</button>
+                  <a href="https://gitee.com/oauth/authorize?client_id=8ac7a94ff19ddb4b9d267d525c048e2845f589cf3b1e8d09ef2568ca63f74603&redirect_uri=https%3A%2F%2Fgitee.com%2Fapi%2Fv5%2Fswagger&response_type=code" target="_blank" rel="noopener noreferrer" class="field-action" style="display:inline-flex;align-items:center;text-decoration:none;white-space:nowrap;" data-i18n="gitee.getToken">获取 Token</a>
+                </div>
+              </label>
+              <label class="settings-field"><span data-i18n="gitee.owner">仓库所有者（owner）</span>
+                <input type="text" id="giteeOwner" required placeholder="如: zheng_yongtao" data-i18n-placeholder="gitee.ownerPlaceholder" />
+              </label>
+              <label class="settings-field"><span data-i18n="gitee.repo">仓库名（repo）</span>
+                <input type="text" id="giteeRepo" required placeholder="如: chrome-bookmarks-manage" data-i18n-placeholder="gitee.repoPlaceholder" />
+              </label>
+              <label class="settings-field"><span data-i18n="gitee.branch">分支（branch）</span>
+                <select id="giteeBranch" required><option value="master">master</option></select>
+              </label>
+              <label class="settings-field"><span data-i18n="gitee.bookmarkDir">书签目录（bookmarkDir）</span>
+                <input type="text" id="bookmarkDir" required placeholder="如: bookmarks" data-i18n-placeholder="gitee.bookmarkDirPlaceholder" value="bookmarks" />
+              </label>
+              <label class="settings-field settings-field--full"><span data-i18n="gitee.bookmarkFile">书签文件</span>
+                <select id="giteeFilePath" required></select>
+              </label>
+            </div>
+            <div class="file-actions">
+              <button type="button" class="ui-button ui-button--secondary" id="addBookmarkFile" data-i18n="gitee.addFile">新增书签文件</button>
+              <button type="button" class="ui-button ui-button--danger" id="deleteBookmarkFile" data-i18n="gitee.deleteFile">删除书签文件</button>
+            </div>
+            <div class="connection-actions">
+              <button type="button" class="ui-button ui-button--primary" id="testGiteeConnection" data-i18n="connection.test">测试连接</button>
+              <button type="button" class="ui-button ui-button--secondary" id="openGiteeRepo" data-i18n="gitee.openRepo">打开 Gitee 仓库</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="settings-card" aria-labelledby="syncCenterTitle">
+          <header class="section-header">
+            <div>
+              <p class="section-eyebrow" data-i18n="section.syncEyebrow">Sync</p>
+              <h2 class="section-title" id="syncCenterTitle" data-i18n="section.syncTitle">书签同步</h2>
+              <p class="section-description" data-i18n="section.syncDesc">先选择同步方向，再选择更安全的合并或完全覆盖。</p>
+            </div>
+          </header>
+          <dl class="sync-overview" aria-label="同步摘要" data-i18n-aria-label="sync.summary">
+            <div class="sync-metric"><dt data-i18n="sync.localCount">本地书签</dt><dd id="syncLocalCount">—</dd></div>
+            <div class="sync-metric"><dt data-i18n="sync.remoteCount">远程书签</dt><dd id="syncRemoteCount">—</dd></div>
+            <div class="sync-metric"><dt data-i18n="sync.lastTime">上次同步</dt><dd id="syncLastTime" data-i18n="sync.never">从未</dd></div>
+          </dl>
+          <div class="sync-routes">
+            <article class="sync-route">
+              <div class="sync-route-heading">
+                <span class="sync-route-icon" aria-hidden="true">↑</span>
+                <div><h3 class="sync-route-title" data-i18n="sync.uploadTitle">上传到 Gitee</h3><p class="sync-route-description" data-i18n="sync.uploadDesc">本地 → 云端仓库</p></div>
+              </div>
+              <div class="sync-route-actions">
+                <button id="btnSaveMerge" class="ui-button ui-button--safe" type="button" data-i18n="sync.mergeUpload">合并上传（推荐）</button>
+                <button id="btnSaveOverwrite" class="ui-button ui-button--secondary" type="button" data-i18n="sync.overwriteUpload">覆盖远程</button>
+              </div>
+            </article>
+            <article class="sync-route">
+              <div class="sync-route-heading">
+                <span class="sync-route-icon" aria-hidden="true">↓</span>
+                <div><h3 class="sync-route-title" data-i18n="sync.downloadTitle">下载到本地</h3><p class="sync-route-description" data-i18n="sync.downloadDesc">云端仓库 → 本地</p></div>
+              </div>
+              <div class="sync-route-actions">
+                <button id="btnGetMerge" class="ui-button ui-button--primary" type="button" data-i18n="sync.mergeDownload">合并下载（推荐）</button>
+                <button id="btnGetOverwrite" class="ui-button ui-button--danger" type="button" data-i18n="sync.overwriteDownload">覆盖本地</button>
+              </div>
+            </article>
+          </div>
+          <p class="sync-hint" data-i18n="sync.safeHint">合并会保留两端书签；覆盖操作执行前仍会要求确认。</p>
+        </section>
+
+        <section class="settings-card" aria-labelledby="configBackupTitle">
+          <header class="section-header">
+            <div><p class="section-eyebrow" data-i18n="section.backupEyebrow">Backup</p><h2 class="section-title" id="configBackupTitle" data-i18n="section.backupTitle">配置备份</h2><p class="section-description" data-i18n="section.backupDesc">导出或恢复仓库、快捷键、主题和语言设置。</p></div>
+          </header>
+          <div class="backup-actions">
+            <button id="btnExportConfig" class="ui-button ui-button--secondary" type="button" data-i18n="config.export">📤 导出配置</button>
+            <button id="btnImportConfig" class="ui-button ui-button--secondary" type="button" data-i18n="config.import">📥 导入配置</button>
+          </div>
+        </section>
+
+        <details class="settings-card advanced-card" id="advancedSecurityDetails">
+          <summary><div><p class="section-eyebrow" data-i18n="section.advancedEyebrow">Advanced</p><h2 class="section-title" data-i18n="section.encryptionTitle">配置文件加密密码</h2><p class="section-description" data-i18n="section.encryptionDesc">仅用于加密配置导出文件，不控制页面访问。</p></div></summary>
+          <div class="advanced-content">
+            <div class="security-purpose"><span class="security-purpose-icon" aria-hidden="true">🔐</span><div><strong data-i18n="crypto.purposeTitle">保护配置文件</strong><p data-i18n="crypto.purposeDesc">在不同设备使用相同密码，可解密包含 Token 的配置备份。</p></div></div>
+            <form class="gitee-form" id="cryptoMasterForm" autocomplete="off">
+              <label><span data-i18n="crypto.masterPassword">配置文件加密密码</span><input type="password" id="cryptoMasterPassword" maxlength="1024" data-i18n-placeholder="crypto.masterPasswordPlaceholder" placeholder="请输入配置文件加密密码" /></label>
+              <label><span data-i18n="crypto.masterPasswordConfirm">确认加密密码</span><input type="password" id="cryptoMasterPasswordConfirm" maxlength="1024" data-i18n-placeholder="crypto.masterPasswordConfirmPlaceholder" placeholder="请再次输入配置文件加密密码" /></label>
+              <div class="security-actions">
+                <button type="button" class="ui-button ui-button--safe" id="btnSaveCryptoMaster" data-i18n="crypto.masterSave">保存加密密码</button>
+                <button type="button" class="ui-button ui-button--danger" id="btnClearCryptoMaster" data-i18n="crypto.masterClear">清除加密密码</button>
+              </div>
+            </form>
+          </div>
+        </details>
+        <input type="file" id="importConfigFile" accept=".json" style="display:none;" />
       </div>
-      <div style="font-size:var(--font-size-sm);color:var(--color-text-muted);" data-i18n="crypto.masterHint">设置后可在不同设备使用同一主密码解密配置导出文件。</div>
-    </form>
-    <input type="file" id="importConfigFile" accept=".json" style="display:none;" />
     </div>
 
     <!-- Tab 2: 快捷键 -->
-    <div class="popup-tab-panel" id="tabShortcut" data-tab-panel="shortcut">
+    <div class="popup-tab-panel" id="tabShortcut" data-tab-panel="shortcut" role="tabpanel" aria-labelledby="tabShortcutButton" tabindex="0">
     <div class="shortcut-form" id="shortcutForm">
       <h3 data-i18n="shortcut.title">⌨️ 快捷键设置</h3>
-      <div id="siteAccessPanel" style="display:none;margin-bottom:0.8em;padding:0.7em;border:1px solid var(--color-border-light);border-radius:6px;background:var(--color-bg-hover);">
-        <div style="font-size:var(--font-size-sm);color:var(--color-text-secondary);margin-bottom:0.55em;" data-i18n="shortcut.siteAccessHint">全局搜索和关闭标签页快捷键需要网页访问权限，可随时在浏览器扩展设置中撤销。</div>
-        <button id="requestSiteAccessBtn" type="button" style="width:100%;padding:0.45em 0.7em;border:0;border-radius:5px;background:var(--color-accent-blue);color:#fff;font:inherit;cursor:pointer;" data-i18n="shortcut.grantSiteAccess">授予网页快捷键权限</button>
-      </div>
       <!-- 全局搜索 -->
       <div style="border-bottom: 1px solid var(--color-border-light); padding-bottom: 0.7em; margin-bottom: 0.7em;">
         <div class="shortcut-toggle">
@@ -754,9 +1023,10 @@
     </div>
 
     <!-- Tab 3: 密码 -->
-    <div class="popup-tab-panel" id="tabPassword" data-tab-panel="password">
+    <div class="popup-tab-panel" id="tabPassword" data-tab-panel="password" role="tabpanel" aria-labelledby="tabPasswordButton" tabindex="0">
     <div class="shortcut-form" id="passwordForm">
-      <h3 data-i18n="password.title">🔒 密码设置</h3>
+      <h3 data-i18n="password.title">🔒 页面访问密码</h3>
+      <div class="security-purpose"><span class="security-purpose-icon" aria-hidden="true">🛡️</span><div><strong data-i18n="password.purposeTitle">保护书签管理页面</strong><p data-i18n="password.purposeDesc">打开 Popup 或书签管理器时需要验证，与配置文件加密密码互不影响。</p></div></div>
       <div class="shortcut-toggle">
         <input type="checkbox" id="passwordEnabled" />
         <label for="passwordEnabled" data-i18n="password.enable">启用密码保护</label>
@@ -774,7 +1044,7 @@
     </div>
 
     <!-- Tab 4: 反馈 -->
-    <div class="popup-tab-panel" id="tabFeedback" data-tab-panel="feedback">
+    <div class="popup-tab-panel" id="tabFeedback" data-tab-panel="feedback" role="tabpanel" aria-labelledby="tabFeedbackButton" tabindex="0">
     <div class="shortcut-form" id="feedbackPanel">
       <h3 data-i18n="feedback.title">💬 反馈与交流</h3>
       <div style="margin-bottom:1em;">
@@ -812,10 +1082,10 @@
     </div>
     </div><!-- /popup-tab-content -->
     <div id="app"></div>
-    <div id="helpModal" class="help-modal" style="display:none;">
-      <div class="help-modal-content">
-        <span class="help-close" id="helpClose">&times;</span>
-        <h3 data-i18n="help.title">功能说明</h3>
+    <div id="helpModal" class="help-modal" role="dialog" aria-modal="true" aria-labelledby="helpTitle" style="display:none;">
+      <div class="help-modal-content" tabindex="-1">
+        <button class="help-close" id="helpClose" type="button" aria-label="关闭帮助" data-i18n-aria-label="btn.close">&times;</button>
+        <h3 id="helpTitle" data-i18n="help.title">功能说明</h3>
         <ul>
           <li><b data-i18n="help.overwriteSave">覆盖保存：</b><span data-i18n="help.overwriteSaveDesc">将本地书签覆盖保存到Gitee</span></li>
           <li><b data-i18n="help.mergeSave">合并保存：</b><span data-i18n="help.mergeSaveDesc">将本地书签与Gitee上的书签数据合并后保存到Gitee</span></li>
@@ -851,6 +1121,21 @@
           <li><b data-i18n="help.github">GitHub：</b><a href="https://github.com/yongtaozheng/bookmarks-manage" target="_blank" rel="noopener noreferrer" style="color:var(--color-accent-blue);" data-i18n="help.projectLink">项目地址</a></li>
           <li><b data-i18n="help.gitee">Gitee：</b><a href="https://gitee.com/zheng_yongtao/bookmarks-manage" target="_blank" rel="noopener noreferrer" style="color:var(--color-accent-blue);" data-i18n="help.projectLink">项目地址</a></li>
         </ul>
+      </div>
+    </div>
+    <div id="syncConfirmModal" class="help-modal" role="dialog" aria-modal="true" aria-labelledby="syncConfirmTitle" style="display:none;">
+      <div class="help-modal-content sync-confirm-content" tabindex="-1">
+        <h3 id="syncConfirmTitle"></h3>
+        <p id="syncConfirmMessage" class="section-description"></p>
+        <div class="sync-confirm-summary">
+          <div><span data-i18n="sync.localCount">本地书签</span><strong id="syncConfirmLocalCount">—</strong></div>
+          <div><span data-i18n="sync.remoteCount">远程书签</span><strong id="syncConfirmRemoteCount">—</strong></div>
+        </div>
+        <label class="sync-confirm-option" id="syncKeepHiddenOption"><input type="checkbox" id="syncKeepHidden" checked><span data-i18n="sync.keepHidden">保留远程隐藏书签</span></label>
+        <div class="sync-confirm-actions">
+          <button type="button" class="ui-button ui-button--secondary" id="syncConfirmCancel" data-i18n="btn.cancel">取消</button>
+          <button type="button" class="ui-button ui-button--primary" id="syncConfirmSubmit" data-i18n="sync.confirmAction">确认同步</button>
+        </div>
       </div>
     </div>
     </div><!-- /popupContent -->

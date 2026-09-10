@@ -22,10 +22,6 @@
     "contextMenus"
   ],
   "host_permissions": [
-    "https://gitee.com/*",
-    "https://api.github.com/*"
-  ],
-  "optional_host_permissions": [
     "http://*/*",
     "https://*/*"
   ],

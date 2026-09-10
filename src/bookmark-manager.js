@@ -101,6 +101,13 @@ class BookmarkManager {
     );
   }
 
+  syncBookmarksToGiteeInBackground() {
+    if (!this.isGiteeConfigured()) return;
+    void this.saveBookmarkTreeToGitee(this.bookmarks).catch(error => {
+      showToast(t('manager.saveToGiteeFailedDetail', getErrorMessage(error)), 'error');
+    });
+  }
+
   cloneBookmarks(bookmarks) {
     return JSON.parse(JSON.stringify(Array.isArray(bookmarks) ? bookmarks : []));
   }
@@ -508,6 +515,7 @@ class BookmarkManager {
         if (children) {
           children.style.display = children.style.display === 'none' ? 'block' : 'none';
           target.textContent = target.textContent === '▼' ? '▶' : '▼';
+          target.parentElement.setAttribute('aria-expanded', String(children.style.display !== 'none'));
         }
       }
 
@@ -520,6 +528,32 @@ class BookmarkManager {
         }
       }
     });
+    this.folderTree.addEventListener('keydown', event => {
+      const folderItem = event.target.closest('.folder-item');
+      if (!folderItem) return;
+      const folderItems = Array.from(this.folderTree.querySelectorAll('.folder-item'))
+        .filter(item => item.offsetParent !== null);
+      const currentIndex = folderItems.indexOf(folderItem);
+
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        const folderId = folderItem.getAttribute('data-folder-id');
+        if (folderId) this.selectFolder(folderId);
+      } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        const offset = event.key === 'ArrowDown' ? 1 : -1;
+        folderItems[(currentIndex + offset + folderItems.length) % folderItems.length]?.focus();
+      } else if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+        const children = folderItem.nextElementSibling;
+        const toggle = folderItem.querySelector('.folder-toggle');
+        if (!children?.classList.contains('folder-children') || !toggle) return;
+        event.preventDefault();
+        const shouldExpand = event.key === 'ArrowRight';
+        children.style.display = shouldExpand ? 'block' : 'none';
+        toggle.textContent = shouldExpand ? '▼' : '▶';
+        folderItem.setAttribute('aria-expanded', String(shouldExpand));
+      }
+    });
 
     // 使用事件委托处理书签项目的事件
     this.bookmarkTree.addEventListener('click', (e) => {
@@ -527,6 +561,15 @@ class BookmarkManager {
 
       // 如果点击的是拖动句柄，不处理其他事件
       if (target.classList.contains('drag-handle')) {
+        return;
+      }
+
+      if (target.classList.contains('action-btn-move-up') || target.classList.contains('action-btn-move-down')) {
+        e.stopPropagation();
+        const bookmarkId = target.getAttribute('data-bookmark-id');
+        if (bookmarkId) {
+          void this.moveBookmarkByOffset(bookmarkId, target.classList.contains('action-btn-move-up') ? -1 : 1);
+        }
         return;
       }
 
@@ -580,6 +623,78 @@ class BookmarkManager {
           // 同步左侧选中状态
           this.syncLeftSidebarSelection(folderId);
         }
+      }
+    });
+
+    this.setupAccessibleModals();
+  }
+
+  setupAccessibleModals() {
+    const modals = Array.from(document.querySelectorAll('.modal'));
+    const returnFocus = new WeakMap();
+    const focusableSelector = 'button:not([disabled]), a[href], input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+    modals.forEach((modal, index) => {
+      modal.setAttribute('role', 'dialog');
+      modal.setAttribute('aria-modal', 'true');
+      const title = modal.querySelector('.modal-header h3');
+      if (title) {
+        if (!title.id) title.id = `${modal.id || `managerModal${index}`}Title`;
+        modal.setAttribute('aria-labelledby', title.id);
+      }
+      const content = modal.querySelector('.modal-content');
+      if (content && !content.hasAttribute('tabindex')) content.setAttribute('tabindex', '-1');
+
+      modal.querySelectorAll('.close').forEach(closeButton => {
+        closeButton.setAttribute('role', 'button');
+        closeButton.setAttribute('tabindex', '0');
+        closeButton.setAttribute('aria-label', t('btn.close'));
+        closeButton.addEventListener('keydown', event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            closeButton.click();
+          }
+        });
+      });
+
+      const observer = new MutationObserver(() => {
+        const isOpen = getComputedStyle(modal).display !== 'none';
+        if (isOpen) {
+          if (!returnFocus.has(modal)) returnFocus.set(modal, document.activeElement);
+          requestAnimationFrame(() => {
+            const preferred = modal.querySelector('[autofocus], input:not([type="hidden"]), button:not(.close), .close, [tabindex="-1"]');
+            preferred?.focus();
+          });
+        } else {
+          const previous = returnFocus.get(modal);
+          if (previous instanceof HTMLElement) previous.focus();
+          returnFocus.delete(modal);
+        }
+      });
+      observer.observe(modal, { attributes: true, attributeFilter: ['style', 'class'] });
+    });
+
+    document.addEventListener('keydown', event => {
+      const openModal = [...modals].reverse().find(modal => getComputedStyle(modal).display !== 'none');
+      if (!openModal) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        const closeControl = openModal.querySelector('.close, [id^="cancel"]');
+        closeControl?.click();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = Array.from(openModal.querySelectorAll(focusableSelector))
+        .filter(element => element instanceof HTMLElement && element.offsetParent !== null);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     });
   }
@@ -669,6 +784,35 @@ class BookmarkManager {
       el.classList.remove('drag-over', 'drag-over-bottom');
     });
     this.dragOverElement = null;
+  }
+
+  async moveBookmarkByOffset(bookmarkId, offset) {
+    const currentFolder = this.findFolderById(this.bookmarks, this.currentFolder?.id);
+    const bookmarks = currentFolder?.children;
+    if (!Array.isArray(bookmarks)) return;
+    const currentIndex = bookmarks.findIndex(bookmark => bookmark.id === bookmarkId);
+    const targetIndex = currentIndex + offset;
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= bookmarks.length) {
+      showToast(t('manager.moveBoundary'), 'info');
+      return;
+    }
+
+    const [bookmark] = bookmarks.splice(currentIndex, 1);
+    bookmarks.splice(targetIndex, 0, bookmark);
+    try {
+      if (typeof chrome !== 'undefined' && chrome.bookmarks?.move) {
+        await chrome.bookmarks.move(bookmarkId, { parentId: currentFolder.id, index: targetIndex });
+      }
+      this.saveBookmarksToStorage();
+      this.renderBookmarks();
+      this.syncBookmarksToGiteeInBackground();
+      showToast(t(offset < 0 ? 'manager.moveUpSuccess' : 'manager.moveDownSuccess'));
+    } catch (error) {
+      bookmarks.splice(targetIndex, 1);
+      bookmarks.splice(currentIndex, 0, bookmark);
+      this.renderBookmarks();
+      showToast(t('manager.moveFailed', getErrorMessage(error)), 'error');
+    }
   }
 
   handleDrop(draggedElement, dropTarget, event) {
@@ -968,13 +1112,13 @@ class BookmarkManager {
       const hasChildren = folder.children && folder.children.length > 0;
 
       html += `
-        <div class="folder-item${hiddenClass}" data-folder-id="${this.escapeHtml(folder.id)}" style="padding-left: ${16 + level * 16}px;">
+        <div class="folder-item${hiddenClass}" data-folder-id="${this.escapeHtml(folder.id)}" role="treeitem" tabindex="0" aria-expanded="${hasChildren ? 'true' : 'false'}" style="padding-left: ${16 + level * 16}px;">
           ${hasChildren ? '<div class="folder-toggle">▼</div>' : '<div class="folder-toggle" style="visibility: hidden;">▼</div>'}
           <div class="folder-icon">📁</div>
           <div class="folder-name">${this.escapeHtml(folder.title)} ${hiddenIcon}</div>
         </div>
         ${hasChildren ? `
-          <div class="folder-children" style="display: block;">
+          <div class="folder-children" role="group" style="display: block;">
             ${this.renderFolderList(folder.children, level + 1)}
           </div>
         ` : ''}
@@ -1343,6 +1487,8 @@ class BookmarkManager {
               <a ${clickHandler} class="bookmark-title">${this.escapeHtml(bookmark.title)} ${hiddenIcon}</a>
               <div class="bookmark-url">${this.escapeHtml(displayUrl)}</div>
               <div class="bookmark-actions">
+                <button class="action-btn action-btn-move-up" data-bookmark-id="${this.escapeHtml(bookmark.id)}" title="${this.escapeHtml(t('manager.moveUp'))}" aria-label="${this.escapeHtml(t('manager.moveUp'))}">↑</button>
+                <button class="action-btn action-btn-move-down" data-bookmark-id="${this.escapeHtml(bookmark.id)}" title="${this.escapeHtml(t('manager.moveDown'))}" aria-label="${this.escapeHtml(t('manager.moveDown'))}">↓</button>
                 <button class="action-btn action-btn-edit" data-bookmark-id="${this.escapeHtml(bookmark.id)}">${t('btn.edit')}</button>
                 <button class="action-btn action-btn-hide" data-bookmark-id="${this.escapeHtml(bookmark.id)}">${isHidden ? t('btn.show') : t('btn.hide')}</button>
                 <button class="action-btn action-btn-delete" data-bookmark-id="${this.escapeHtml(bookmark.id)}">${t('btn.delete')}</button>
@@ -1362,6 +1508,8 @@ class BookmarkManager {
               <div class="bookmark-title">${this.escapeHtml(bookmark.title)} ${hiddenIcon}</div>
               <div class="bookmark-url">${t('manager.folderItems', String(bookmark.children.length))}</div>
               <div class="bookmark-actions">
+                <button class="action-btn action-btn-move-up" data-bookmark-id="${this.escapeHtml(bookmark.id)}" title="${this.escapeHtml(t('manager.moveUp'))}" aria-label="${this.escapeHtml(t('manager.moveUp'))}">↑</button>
+                <button class="action-btn action-btn-move-down" data-bookmark-id="${this.escapeHtml(bookmark.id)}" title="${this.escapeHtml(t('manager.moveDown'))}" aria-label="${this.escapeHtml(t('manager.moveDown'))}">↓</button>
                 <button class="action-btn action-btn-edit" data-bookmark-id="${this.escapeHtml(bookmark.id)}">${t('btn.edit')}</button>
                 <button class="action-btn action-btn-hide" data-bookmark-id="${this.escapeHtml(bookmark.id)}">${isHidden ? t('btn.show') : t('btn.hide')}</button>
                 <button class="action-btn action-btn-delete" data-bookmark-id="${this.escapeHtml(bookmark.id)}">${t('btn.delete')}</button>
@@ -1475,9 +1623,7 @@ class BookmarkManager {
       this.saveBookmarksToStorage();
 
       // 同步到Gitee
-      void this.saveBookmarkTreeToGitee(this.bookmarks).catch(error => {
-        showToast(t('manager.saveToGiteeFailedDetail', getErrorMessage(error)), 'error');
-      });
+      this.syncBookmarksToGiteeInBackground();
 
       // 更新系统书签栏
       this.updateSystemBookmarks();
@@ -1543,9 +1689,7 @@ class BookmarkManager {
 
         // 本地数据为准，避免使用已失效的 chrome bookmark id 导致报错
         this.saveBookmarksToStorage();
-        void this.saveBookmarkTreeToGitee(this.bookmarks).catch(error => {
-          showToast(t('manager.saveToGiteeFailedDetail', getErrorMessage(error)), 'error');
-        });
+        this.syncBookmarksToGiteeInBackground();
         this.updateSystemBookmarks();
 
         this.renderFolderTree();
@@ -1826,9 +1970,7 @@ class BookmarkManager {
       }
 
       // 保存到Gitee仓库
-      void this.saveBookmarkTreeToGitee(this.bookmarks).catch(error => {
-        showToast(t('manager.saveToGiteeFailedDetail', getErrorMessage(error)), 'error');
-      });
+      this.syncBookmarksToGiteeInBackground();
 
       // 保存到storage供popup使用
       this.saveBookmarksToStorage();
@@ -2609,19 +2751,6 @@ class BookmarkManager {
    */
   async startLinkCheck() {
     if (this.linkCheckRunning) return;
-
-    if (typeof chrome !== 'undefined' && chrome.permissions?.request) {
-      try {
-        const granted = await chrome.permissions.request({ origins: ['http://*/*', 'https://*/*'] });
-        if (!granted) {
-          showToast(t('manager.linkCheckPermissionDenied'), 'warning');
-          return;
-        }
-      } catch (error) {
-        showToast(t('manager.linkCheckPermissionFailed', getErrorMessage(error)), 'error');
-        return;
-      }
-    }
 
     this.linkCheckRunning = true;
     this.linkCheckResults = [];

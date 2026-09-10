@@ -6,6 +6,8 @@ const manifest = JSON.parse(await readFile(new URL('../manifest.json', import.me
 const managerSource = await readFile(new URL('../src/bookmark-manager.js', import.meta.url), 'utf8');
 const popupSource = await readFile(new URL('../src/popup.ts', import.meta.url), 'utf8');
 const cryptoSource = await readFile(new URL('../src/crypto.ts', import.meta.url), 'utf8');
+const popupHtml = await readFile(new URL('../popup.html', import.meta.url), 'utf8');
+const managerHtml = await readFile(new URL('../bookmark-manager.html', import.meta.url), 'utf8');
 
 assert.equal(packageJson.version, manifest.version, 'package.json and manifest.json versions must match');
 assert.ok(!managerSource.includes('alert('), 'bookmark manager must use the shared Toast instead of alert()');
@@ -21,5 +23,9 @@ assert.ok(
   !manifest.content_scripts?.some(entry => entry.matches?.includes('<all_urls>')),
   'manifest content scripts must not be statically injected into every site',
 );
+assert.ok(popupHtml.includes('role="tablist"'), 'popup navigation must expose tab semantics');
+assert.ok(popupHtml.includes('id="testGiteeConnection"'), 'popup must expose repository connection testing');
+assert.ok(popupHtml.includes('id="syncConfirmModal"'), 'destructive sync operations must use the accessible confirmation dialog');
+assert.ok(managerHtml.includes('role="tree"'), 'bookmark folder navigation must expose tree semantics');
 
 console.log('Project static checks passed.');

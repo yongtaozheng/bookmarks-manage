@@ -119,7 +119,7 @@ function saveShortcutConfig(config: any): Promise<void> {
 
 // == Gitee 配置获取 ==
 function getGiteeConfig(): Promise<any> {
-  const fields = ['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath'];
+  const fields = ['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath', 'bookmarkDir'];
   return getConfigFromDB(fields);
 }
 
@@ -396,6 +396,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       langSelect.addEventListener('change', async () => {
         await setLocale(langSelect.value as Locale);
         translateDOM();
+        loadLastSyncTime();
+        toggleTokenButton.title = t(tokenEl.type === 'password' ? 'connection.showToken' : 'connection.hideToken');
       });
     }
 
@@ -405,9 +407,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 从 storage 恢复上次的 tab
     const savedTab = localStorage.getItem('popup_active_tab') || 'config';
-    function switchTab(tabName: string) {
+    function switchTab(tabName: string, focusTab = false) {
       tabBtns.forEach(btn => {
-        btn.classList.toggle('active', btn.getAttribute('data-tab') === tabName);
+        const isActive = btn.getAttribute('data-tab') === tabName;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-selected', String(isActive));
+        btn.tabIndex = isActive ? 0 : -1;
+        if (isActive && focusTab) btn.focus();
       });
       tabPanels.forEach(panel => {
         panel.classList.toggle('active', panel.getAttribute('data-tab-panel') === tabName);
@@ -425,6 +431,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (tabName) switchTab(tabName);
       });
     });
+    document.getElementById('popupTabs')?.addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const currentIndex = Array.from(tabBtns).findIndex(btn => btn.getAttribute('aria-selected') === 'true');
+      const targetIndex = event.key === 'Home'
+        ? 0
+        : event.key === 'End'
+          ? tabBtns.length - 1
+          : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + tabBtns.length) % tabBtns.length;
+      const tabName = tabBtns[targetIndex]?.getAttribute('data-tab');
+      if (tabName) switchTab(tabName, true);
+    });
 
     // Gitee 配置表单逻辑
     const tokenEl = document.getElementById('giteeToken') as HTMLInputElement;
@@ -433,7 +451,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const branchSel = document.getElementById('giteeBranch') as HTMLSelectElement;
     const filePathSelect = document.getElementById('giteeFilePath') as HTMLSelectElement;
     const bookmarkDirInput = document.getElementById('bookmarkDir') as HTMLInputElement;
-    const fields = ['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath'];
+    const connectionStatusEl = document.getElementById('connectionStatus') as HTMLSpanElement;
+    const testConnectionButton = document.getElementById('testGiteeConnection') as HTMLButtonElement;
+    const toggleTokenButton = document.getElementById('toggleTokenVisibility') as HTMLButtonElement;
+    const syncLocalCountEl = document.getElementById('syncLocalCount') as HTMLElement;
+    const syncRemoteCountEl = document.getElementById('syncRemoteCount') as HTMLElement;
+    const syncLastTimeEl = document.getElementById('syncLastTime') as HTMLElement;
+    const fields = ['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath', 'bookmarkDir'];
     const CONFIG_SAVE_DEBOUNCE_MS = 400;
     let configSaveTimer: number | undefined;
     let configSaveQueue: Promise<void> = Promise.resolve();
@@ -448,7 +472,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function collectConfig(): Record<string, string> {
       const config: Record<string, string> = {};
       fields.forEach(field => {
-        const value = (document.getElementById(field) as HTMLInputElement).value;
+        const value = (document.getElementById(field) as HTMLInputElement | HTMLSelectElement).value;
         config[field] = field === 'giteeFilePath' && !value && pendingSavedFile ? pendingSavedFile : value;
       });
       return config;
@@ -496,7 +520,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 自动填充，并记录已保存快照，避免初始化或未修改失焦时误报“保存成功”。
     getConfigFromDB(fields).then((data) => {
       fields.forEach(f => {
-        const el = document.getElementById(f) as HTMLInputElement;
+        const el = document.getElementById(f) as HTMLInputElement | HTMLSelectElement;
         if (el && data[f]) el.value = data[f];
       });
       const normalizedConfig = Object.fromEntries(fields.map(field => [field, data[field] || '']));
@@ -525,7 +549,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     fields.forEach(f => {
       const el = document.getElementById(f) as HTMLInputElement;
       el.addEventListener('blur', () => { void saveConfigNow(true); });
-      el.addEventListener('input', scheduleConfigSave);
+      el.addEventListener('input', () => {
+        scheduleConfigSave();
+        connectionStatusEl.dataset.state = 'idle';
+        connectionStatusEl.textContent = t('connection.untested');
+      });
+    });
+
+    toggleTokenButton.addEventListener('click', () => {
+      const willShow = tokenEl.type === 'password';
+      tokenEl.type = willShow ? 'text' : 'password';
+      toggleTokenButton.setAttribute('aria-pressed', String(willShow));
+      toggleTokenButton.title = t(willShow ? 'connection.hideToken' : 'connection.showToken');
     });
 
     // 监听来自content script的消息（在DOM加载完成后设置）
@@ -629,13 +664,182 @@ document.addEventListener('DOMContentLoaded', async () => {
           branchSel.value = branches[0];
         }
         // 触发文件列表刷新
-        updateFilePathOptions();
+        await updateFilePathOptions();
       } catch (e) {
         fillSelectOptions(branchSel, [], t('select.getBranchFailed'));
         fillSelectOptions(filePathSelect, [], t('select.selectBranch'));
       }
-      fillSelectOptions(filePathSelect, [], t('select.selectBranch'));
     }
+
+    function countBookmarkItems(items: any[]): number {
+      if (!Array.isArray(items)) return 0;
+      return items.reduce((total, item) => total + (item?.url ? 1 : 0) + countBookmarkItems(item?.children || []), 0);
+    }
+
+    function getRemoteBookmarkChildren(data: any): any[] {
+      if (Array.isArray(data)) return data[0]?.children || data;
+      return Array.isArray(data?.children) ? data.children : [];
+    }
+
+    async function updateLocalBookmarkCount() {
+      try {
+        const tree = await getLocalBookmarks();
+        const bookmarkBar = tree?.[0]?.children?.find((item: any) => item.id === '1') || tree?.[0]?.children?.[0];
+        syncLocalCountEl.textContent = String(countBookmarkItems(bookmarkBar?.children || []));
+      } catch {
+        syncLocalCountEl.textContent = '—';
+      }
+    }
+
+    function formatSyncTime(timestamp: number): string {
+      return new Date(timestamp).toLocaleString(getLocale() === 'en' ? 'en-US' : 'zh-CN', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    }
+
+    function loadLastSyncTime() {
+      chrome.storage.local.get(['last_sync_at'], (result: any) => {
+        syncLastTimeEl.textContent = result.last_sync_at ? formatSyncTime(result.last_sync_at) : t('sync.never');
+      });
+    }
+
+    function recordSuccessfulSync() {
+      const timestamp = Date.now();
+      syncLastTimeEl.textContent = formatSyncTime(timestamp);
+      chrome.storage.local.set({ last_sync_at: timestamp });
+      void updateLocalBookmarkCount();
+    }
+
+    function showSyncConfirmation(options: {
+      title: string;
+      message: string;
+      showKeepHidden?: boolean;
+      destructive?: boolean;
+    }): Promise<{ confirmed: boolean; keepHidden: boolean }> {
+      const modal = document.getElementById('syncConfirmModal') as HTMLDivElement;
+      const title = document.getElementById('syncConfirmTitle') as HTMLElement;
+      const message = document.getElementById('syncConfirmMessage') as HTMLElement;
+      const localCount = document.getElementById('syncConfirmLocalCount') as HTMLElement;
+      const remoteCount = document.getElementById('syncConfirmRemoteCount') as HTMLElement;
+      const keepHiddenOption = document.getElementById('syncKeepHiddenOption') as HTMLElement;
+      const keepHiddenInput = document.getElementById('syncKeepHidden') as HTMLInputElement;
+      const cancelButton = document.getElementById('syncConfirmCancel') as HTMLButtonElement;
+      const submitButton = document.getElementById('syncConfirmSubmit') as HTMLButtonElement;
+      const returnFocus = document.activeElement as HTMLElement | null;
+
+      title.textContent = options.title;
+      message.textContent = options.message;
+      localCount.textContent = syncLocalCountEl.textContent || '—';
+      remoteCount.textContent = syncRemoteCountEl.textContent || '—';
+      keepHiddenOption.style.display = options.showKeepHidden ? 'flex' : 'none';
+      keepHiddenInput.checked = true;
+      submitButton.classList.toggle('ui-button--danger', Boolean(options.destructive));
+      submitButton.classList.toggle('ui-button--primary', !options.destructive);
+      modal.style.display = 'flex';
+      submitButton.focus();
+
+      return new Promise(resolve => {
+        const finish = (confirmed: boolean) => {
+          modal.style.display = 'none';
+          modal.onclick = null;
+          modal.onkeydown = null;
+          cancelButton.onclick = null;
+          submitButton.onclick = null;
+          returnFocus?.focus();
+          resolve({ confirmed, keepHidden: keepHiddenInput.checked });
+        };
+        cancelButton.onclick = () => finish(false);
+        submitButton.onclick = () => finish(true);
+        modal.onclick = event => {
+          if (event.target === modal) finish(false);
+        };
+        modal.onkeydown = event => {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            finish(false);
+            return;
+          }
+          if (event.key === 'Tab') {
+            const focusable = [keepHiddenInput, cancelButton, submitButton]
+              .filter(element => element.offsetParent !== null && !element.disabled);
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+              event.preventDefault();
+              last?.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+              event.preventDefault();
+              first?.focus();
+            }
+          }
+        };
+      });
+    }
+
+    function setConnectionStatus(state: 'idle' | 'testing' | 'success' | 'error', text: string) {
+      connectionStatusEl.dataset.state = state;
+      connectionStatusEl.textContent = text;
+    }
+
+    testConnectionButton.addEventListener('click', async () => {
+      const token = tokenEl.value.trim();
+      const owner = ownerEl.value.trim();
+      const repo = repoEl.value.trim();
+      const dir = bookmarkDirInput.value.trim();
+      if (!token || !owner || !repo || !dir) {
+        setConnectionStatus('error', t('connection.incomplete'));
+        showToast(t('msg.fillConfigFirst'), 'warning');
+        return;
+      }
+
+      const originalText = testConnectionButton.textContent || '';
+      testConnectionButton.disabled = true;
+      testConnectionButton.textContent = t('connection.testing');
+      setConnectionStatus('testing', t('connection.testing'));
+      try {
+        const selectedBranch = branchSel.value || 'master';
+        const selectedFile = filePathSelect.value;
+        const branches = await fetchGiteeBranches(token, owner, repo);
+        fillSelectOptions(branchSel, branches, t('select.selectBranch'));
+        branchSel.value = branches.includes(selectedBranch) ? selectedBranch : branches.includes('master') ? 'master' : branches[0] || '';
+
+        const files = (await fetchGiteeFiles(token, owner, repo, branchSel.value, dir))
+          .filter(file => !file.endsWith('.keep') && !file.endsWith(PASSWORD_FILE_NAME));
+        fillSelectOptions(filePathSelect, files, t('select.selectFile'));
+        filePathSelect.value = files.includes(selectedFile) ? selectedFile : files[0] || '';
+
+        if (filePathSelect.value) {
+          const remoteData = await getFile({
+            giteeToken: token,
+            giteeOwner: owner,
+            giteeRepo: repo,
+            giteeBranch: branchSel.value,
+            giteeFilePath: filePathSelect.value,
+          });
+          syncRemoteCountEl.textContent = String(countBookmarkItems(getRemoteBookmarkChildren(remoteData)));
+        } else {
+          syncRemoteCountEl.textContent = '0';
+        }
+
+        await saveConfigNow(false);
+        setConnectionStatus('success', t('connection.success'));
+        showToast(t('connection.successDetail', String(branches.length), String(files.length)));
+      } catch (error) {
+        setConnectionStatus('error', t('connection.failed'));
+        syncRemoteCountEl.textContent = '—';
+        showToast(t('connection.failedDetail', getErrorMessage(error)), 'error');
+      } finally {
+        testConnectionButton.disabled = false;
+        testConnectionButton.textContent = testConnectionButton.dataset.i18n ? t(testConnectionButton.dataset.i18n) : originalText;
+      }
+    });
+
+    void updateLocalBookmarkCount();
+    loadLastSyncTime();
+
     // 记录上次的值
     let lastToken = '', lastOwner = '', lastRepo = '', lastBookmarkDir = '';
     function hasConfigChanged() {
@@ -669,6 +873,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateLastConfig();
       }
     });
+    branchSel.addEventListener('change', () => { void updateFilePathOptions(); });
     bookmarkDirInput.addEventListener('blur', () => {
       if (hasConfigChanged()) {
         updateFilePathOptions();
@@ -705,12 +910,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     btnSaveOverwrite.onclick = async function() {
-      if (!confirm(t('confirm.overwriteSave'))) {
-        return;
-      }
-
-      // 询问是否保留隐藏书签
-      const keepHidden = confirm(t('confirm.keepHidden'));
+      const confirmation = await showSyncConfirmation({
+        title: t('sync.confirmOverwriteUploadTitle'),
+        message: t('sync.confirmOverwriteUploadDesc'),
+        showKeepHidden: true,
+        destructive: true,
+      });
+      if (!confirmation.confirmed) return;
+      const keepHidden = confirmation.keepHidden;
 
       await runSyncAction(btnSaveOverwrite, t('sync.saving'), async () => {
         try {
@@ -738,6 +945,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
 
           await modifyFile(config, content, true);
+          recordSuccessfulSync();
           if (hiddenBookmarksWarning) {
             showToast(t('msg.overwriteSaveCompletedWithWarning'), 'warning');
           } else if (hiddenBookmarksKept) {
@@ -752,15 +960,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     btnSaveMerge.onclick = async function() {
-      if (!confirm(t('confirm.mergeSave'))) {
-        return;
-      }
+      const confirmation = await showSyncConfirmation({
+        title: t('sync.confirmMergeUploadTitle'),
+        message: t('sync.confirmMergeUploadDesc'),
+      });
+      if (!confirmation.confirmed) return;
       await runSyncAction(btnSaveMerge, t('sync.saving'), async () => {
         try {
           const config = await getGiteeConfig();
           const tree = await getLocalBookmarks();
           const content = tree[0]?.children || [];
           await modifyFile(config, content, false);
+          recordSuccessfulSync();
           showToast(t('msg.mergeSaveSuccess'));
         } catch (error) {
           showToast(t('msg.mergeSaveFailed', getErrorMessage(error)), 'error');
@@ -769,9 +980,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     btnGetOverwrite.onclick = async function() {
-      if (!confirm(t('confirm.overwriteGet'))) {
-        return;
-      }
+      const confirmation = await showSyncConfirmation({
+        title: t('sync.confirmOverwriteDownloadTitle'),
+        message: t('sync.confirmOverwriteDownloadDesc'),
+        destructive: true,
+      });
+      if (!confirmation.confirmed) return;
       await runSyncAction(btnGetOverwrite, t('sync.getting'), async () => {
         try {
           const config = await getGiteeConfig();
@@ -793,6 +1007,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           const visibleBookmarks = filterVisibleBookmarks(bookmarksToCreate);
 
           await replaceBookmarkBarSafely(visibleBookmarks);
+          recordSuccessfulSync();
           showToast(t('msg.overwriteGetSuccess'));
         } catch (error) {
           showToast(t('msg.overwriteGetFailed', getErrorMessage(error)), 'error');
@@ -801,9 +1016,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     btnGetMerge.onclick = async function() {
-      if (!confirm(t('confirm.mergeGet'))) {
-        return;
-      }
+      const confirmation = await showSyncConfirmation({
+        title: t('sync.confirmMergeDownloadTitle'),
+        message: t('sync.confirmMergeDownloadDesc'),
+      });
+      if (!confirmation.confirmed) return;
       await runSyncAction(btnGetMerge, t('sync.getting'), async () => {
         try {
           const config = await getGiteeConfig();
@@ -831,6 +1048,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           const visibleMerged = filterVisibleBookmarks(merged);
 
           await replaceBookmarkBarSafely(visibleMerged);
+          recordSuccessfulSync();
           showToast(t('msg.mergeGetSuccess'));
         } catch (error) {
           showToast(t('msg.mergeGetFailed', getErrorMessage(error)), 'error');
@@ -1005,11 +1223,41 @@ document.addEventListener('DOMContentLoaded', async () => {
     const helpModal = document.getElementById('helpModal');
     const helpClose = document.getElementById('helpClose');
     if (helpBtn && helpModal && helpClose) {
-      helpBtn.onclick = () => { helpModal.style.display = 'flex'; };
-      helpClose.onclick = () => { helpModal.style.display = 'none'; };
-      helpModal.onclick = (e) => {
-        if (e.target === helpModal) helpModal.style.display = 'none';
+      let helpReturnFocus: HTMLElement | null = null;
+      const getHelpFocusable = () => Array.from(helpModal.querySelectorAll<HTMLElement>('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
+        .filter(element => !element.hasAttribute('disabled'));
+      const closeHelp = () => {
+        (helpModal as HTMLElement).style.display = 'none';
+        helpReturnFocus?.focus();
       };
+      helpBtn.onclick = () => {
+        helpReturnFocus = document.activeElement as HTMLElement | null;
+        (helpModal as HTMLElement).style.display = 'flex';
+        (helpModal.querySelector('.help-modal-content') as HTMLElement | null)?.focus();
+      };
+      helpClose.onclick = closeHelp;
+      helpModal.onclick = (e) => {
+        if (e.target === helpModal) closeHelp();
+      };
+      helpModal.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          closeHelp();
+          return;
+        }
+        if (event.key !== 'Tab') return;
+        const focusable = getHelpFocusable();
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      });
     }
 
     // == 快捷键设置逻辑 ==
@@ -1020,31 +1268,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const closeTabEnabledEl = document.getElementById('closeTabEnabled') as HTMLInputElement;
     const closeTabModifierEl = document.getElementById('closeTabModifier') as HTMLSelectElement;
     const closeTabKeyEl = document.getElementById('closeTabKey') as HTMLInputElement;
-    const siteAccessPanelEl = document.getElementById('siteAccessPanel') as HTMLDivElement;
-    const requestSiteAccessBtnEl = document.getElementById('requestSiteAccessBtn') as HTMLButtonElement;
-    const globalSiteOrigins = ['http://*/*', 'https://*/*'];
-
-    async function hasGlobalSiteAccess(): Promise<boolean> {
-      if (!chrome.permissions?.contains) return true;
-      return chrome.permissions.contains({ origins: globalSiteOrigins });
-    }
-
-    async function updateSiteAccessPanel() {
-      siteAccessPanelEl.style.display = await hasGlobalSiteAccess() ? 'none' : 'block';
-    }
-
-    requestSiteAccessBtnEl.addEventListener('click', async () => {
-      if (!chrome.permissions?.request) return;
-      try {
-        const granted = await chrome.permissions.request({ origins: globalSiteOrigins });
-        await updateSiteAccessPanel();
-        showToast(t(granted ? 'shortcut.siteAccessGranted' : 'shortcut.siteAccessDenied'), granted ? 'success' : 'warning');
-      } catch (error) {
-        showToast(t('shortcut.siteAccessFailed', getErrorMessage(error)), 'error');
-      }
-    });
-    void updateSiteAccessPanel();
-
     if (searchEnabledEl && searchTriggerKeyEl && searchPressCountEl && searchTimeWindowEl &&
         closeTabEnabledEl && closeTabModifierEl && closeTabKeyEl) {
 
@@ -1092,7 +1315,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
           await saveShortcutConfig(config);
           showToast(t('msg.shortcutSaved'));
-          await updateSiteAccessPanel();
         } catch (error) {
           showToast(t('msg.shortcutSaveFailed', getErrorMessage(error)), 'error');
         }
@@ -1131,7 +1353,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const cryptoMasterPasswordConfirmEl = document.getElementById('cryptoMasterPasswordConfirm') as HTMLInputElement;
     const btnSaveCryptoMasterEl = document.getElementById('btnSaveCryptoMaster') as HTMLButtonElement;
     const btnClearCryptoMasterEl = document.getElementById('btnClearCryptoMaster') as HTMLButtonElement;
-    const giteeFieldNames = ['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath'];
+    const giteeFieldNames = ['giteeToken', 'giteeOwner', 'giteeRepo', 'giteeBranch', 'giteeFilePath', 'bookmarkDir'];
 
     if (btnSaveCryptoMasterEl && btnClearCryptoMasterEl && cryptoMasterPasswordEl && cryptoMasterPasswordConfirmEl) {
       btnSaveCryptoMasterEl.onclick = async function() {
